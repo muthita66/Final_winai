@@ -1,0 +1,44 @@
+{
+  "student": {
+    "class_level": "ม.1",
+    "classroom": "5",
+    "room": "5"
+  },
+  "sections": [
+    {
+      "year": 2568,
+      "semester": 1,
+      "class_level": "ม.1",
+      "classroom": "1",
+      "room": "SC1-101"
+    },
+    {
+      "year": 2568,
+      "semester": 1,
+      "class_level": "ม.1",
+      "classroom": "1",
+      "room": "SC1-101"
+    },
+    {
+      "year": 2568,
+      "semester": 1,
+      "class_level": "ม.1",
+      "classroom": "1",
+      "room": "SC1-101"
+    },
+    {
+      "year": 2568,
+      "semester": 1,
+      "class_level": "ม.1",
+      "classroom": "1",
+      "room": "SC1-101"
+    },
+    {
+      "year": 2568,
+      "semester": 1,
+      "class_level": "ม.1",
+      "classroom": "1",
+      "room": "SC1-101"
+    }
+  ]
+}
