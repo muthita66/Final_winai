@@ -1,18 +1,21 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { DirectorApiService } from "@/services/director-api.service";
+import { ActivitiesCalendar } from "./ActivitiesCalendar";
+import { List as ListIcon, Calendar as CalendarIcon } from "lucide-react";
 
-type CrudColumn = {
+export type CrudColumn = {
     key: string;
     label: string;
-    render?: (v: any, row: any) => any;
+    render?: (v: any, row: any, extra: { toggleExpand: () => void; isExpanded: boolean }) => any;
 };
 
-type EditField = {
+export type EditField = {
     key: string;
     label: string;
     type?: "text" | "number" | "date" | "select" | "password" | "time";
-    options?: string[];
+    options?: string[] | ((values: Record<string, string>) => string[]);
+    labels?: string[] | ((values: Record<string, string>) => string[]);
     parseAs?: "text" | "number" | "date";
     multiline?: boolean;
     placeholder?: string;
@@ -43,7 +46,7 @@ function parseFieldValue(raw: string, type?: EditField["type"], parseAs?: EditFi
     return raw;
 }
 
-function buildInitialValues(fields: EditField[], source?: any) {
+export function buildInitialValues(fields: EditField[], source?: any) {
     const nextValues: Record<string, string> = {};
 
     for (const field of fields) {
@@ -58,7 +61,8 @@ function buildInitialValues(fields: EditField[], source?: any) {
             }
 
         } else if (field.type === "select") {
-            nextValues[field.key] = field.options?.[0] ?? "";
+            const opts = typeof field.options === "function" ? field.options({}) : (field.options || []);
+            nextValues[field.key] = opts[0] ?? "";
         } else {
             nextValues[field.key] = "";
         }
@@ -67,7 +71,7 @@ function buildInitialValues(fields: EditField[], source?: any) {
     return nextValues;
 }
 
-function buildPayloadFromValues(fields: EditField[], values: Record<string, string>) {
+export function buildPayloadFromValues(fields: EditField[], values: Record<string, string>) {
     const payload: any = {};
     for (const field of fields) {
         const raw = values[field.key] ?? "";
@@ -88,7 +92,7 @@ function buildPayloadFromValues(fields: EditField[], values: Record<string, stri
     return payload;
 }
 
-function EditModal({
+export function EditModal({
     open,
     title,
     fields,
@@ -127,43 +131,49 @@ function EditModal({
                 </div>
                 <div className="p-5 overflow-y-auto max-h-[calc(90vh-140px)]">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {fields.map((field) => (
-                            <label key={field.key} className={`block ${field.multiline ? "md:col-span-2" : ""}`}>
-                                <span className="text-sm font-medium text-slate-700">{field.label}</span>
-                                {field.multiline ? (
-                                    <textarea
-                                        value={values[field.key] ?? ""}
-                                        onChange={(e) => onChange(field.key, e.target.value)}
-                                        placeholder={field.placeholder}
-                                        required={field.required}
-                                        rows={4}
-                                        className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
-                                    />
-                                ) : field.type === "select" ? (
-                                    <select
-                                        value={values[field.key] ?? ""}
-                                        onChange={(e) => onChange(field.key, e.target.value)}
-                                        required={field.required}
-                                        className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                                    >
-                                        {(field.options || []).map((opt) => (
-                                            <option key={`${field.key}-${opt || "empty"}`} value={opt}>
-                                                {opt === "" ? "ทั้งหมด" : opt}
-                                            </option>
-                                        ))}
-                                    </select>
-                                ) : (
-                                    <input
-                                        type={field.type === "number" ? "number" : field.type === "date" ? "date" : field.type === "time" ? "time" : field.type === "password" ? "password" : "text"}
-                                        value={values[field.key] ?? ""}
-                                        onChange={(e) => onChange(field.key, e.target.value)}
-                                        placeholder={field.placeholder}
-                                        required={field.required}
-                                        className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
-                                    />
-                                )}
-                            </label>
-                        ))}
+                        {fields.map((field) => {
+                            const resolvedOptions = typeof field.options === "function" ? field.options(values) : (field.options || []);
+                            return (
+                                <label key={field.key} className={`block ${field.multiline ? "md:col-span-2" : ""}`}>
+                                    <span className="text-sm font-medium text-slate-700">{field.label}</span>
+                                    {field.multiline ? (
+                                        <textarea
+                                            value={values[field.key] ?? ""}
+                                            onChange={(e) => onChange(field.key, e.target.value)}
+                                            placeholder={field.placeholder}
+                                            required={field.required}
+                                            rows={4}
+                                            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                                        />
+                                    ) : field.type === "select" ? (
+                                        <select
+                                            value={values[field.key] ?? ""}
+                                            onChange={(e) => onChange(field.key, e.target.value)}
+                                            required={field.required}
+                                            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                                        >
+                                            {resolvedOptions.map((opt, idx) => {
+                                                const resolvedLabels = typeof field.labels === "function" ? field.labels(values) : field.labels;
+                                                return (
+                                                    <option key={`${field.key}-${opt || "empty"}`} value={opt}>
+                                                        {resolvedLabels && resolvedLabels[idx] !== undefined ? resolvedLabels[idx] : (opt === "" ? "ทั้งหมด" : opt)}
+                                                    </option>
+                                                );
+                                            })}
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type={field.type === "number" ? "number" : field.type === "date" ? "date" : field.type === "time" ? "time" : field.type === "password" ? "password" : "text"}
+                                            value={values[field.key] ?? ""}
+                                            onChange={(e) => onChange(field.key, e.target.value)}
+                                            placeholder={field.placeholder}
+                                            required={field.required}
+                                            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                                        />
+                                    )}
+                                </label>
+                            );
+                        })}
                     </div>
                 </div>
                 <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-200 bg-slate-50">
@@ -205,6 +215,10 @@ function CrudFeature({
     badgeText,
     topContent,
     customSort,
+    renderDetail,
+    searchRightContent,
+    initialEditItem,
+    onCloseModal,
 }: {
     title: string;
     subtitle: string;
@@ -221,6 +235,10 @@ function CrudFeature({
     badgeText?: string;
     topContent?: React.ReactNode;
     customSort?: (a: any, b: any) => number;
+    renderDetail?: (item: any) => React.ReactNode;
+    searchRightContent?: React.ReactNode;
+    initialEditItem?: any;
+    onCloseModal?: () => void;
 }) {
     const [items, setItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -232,6 +250,17 @@ function CrudFeature({
     const [editingItem, setEditingItem] = useState<any | null>(null);
     const [editValues, setEditValues] = useState<Record<string, string>>({});
     const [savingEdit, setSavingEdit] = useState(false);
+    const [expandedId, setExpandedId] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (initialEditItem) {
+            openEditModal(initialEditItem);
+        }
+    }, [initialEditItem]);
+
+    const toggleExpand = (id: number) => {
+        setExpandedId(expandedId === id ? null : id);
+    };
 
     const resolvedCreateFields = typeof createFields === "function" ? createFields(items) : (createFields || []);
     const resolvedEditFields = typeof editFields === "function" ? editFields(items) : (editFields || []);
@@ -286,6 +315,7 @@ function CrudFeature({
         if (savingCreate) return;
         setCreatingItem(false);
         setCreateValues({});
+        onCloseModal?.();
     };
 
     const submitCreate = async () => {
@@ -305,6 +335,7 @@ function CrudFeature({
             setCreatingItem(false);
             setCreateValues({});
             load();
+            onCloseModal?.();
         } catch (e: any) {
             alert(e?.message || "เพิ่มข้อมูลไม่สำเร็จ");
         } finally {
@@ -337,6 +368,7 @@ function CrudFeature({
         if (savingEdit) return;
         setEditingItem(null);
         setEditValues({});
+        onCloseModal?.();
     };
 
     const submitEdit = async () => {
@@ -359,6 +391,7 @@ function CrudFeature({
             setEditingItem(null);
             setEditValues({});
             load();
+            onCloseModal?.();
         } catch (e: any) {
             console.error(e);
             alert(e?.message || "บันทึกข้อมูลไม่สำเร็จ");
@@ -384,21 +417,28 @@ function CrudFeature({
             {topContent}
 
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row gap-3">
-                    <input
-                        className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
-                        placeholder={searchLabel || "ค้นหา..."}
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && load()}
-                    />
-                    <button onClick={load} className="px-5 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors">
-                        ค้นหา
-                    </button>
-                    {hasCreate && (
-                        <button onClick={openCreateModal} className="px-5 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors whitespace-nowrap">
-                            เพิ่ม
+                <div className="flex flex-col lg:flex-row items-center gap-4">
+                    <div className="flex flex-1 w-full gap-3">
+                        <input
+                            className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                            placeholder={searchLabel || "ค้นหา..."}
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && load()}
+                        />
+                        <button onClick={load} className="px-5 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors">
+                            ค้นหา
                         </button>
+                        {hasCreate && (
+                            <button onClick={openCreateModal} className="px-5 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors whitespace-nowrap">
+                                เพิ่ม
+                            </button>
+                        )}
+                    </div>
+                    {searchRightContent && (
+                        <div className="shrink-0">
+                            {searchRightContent}
+                        </div>
                     )}
                 </div>
                 {customFilters && customFilters.length > 0 && (
@@ -441,34 +481,54 @@ function CrudFeature({
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredItems.map((item, i) => (
-                                <tr key={item.id || i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                                    <td className="px-4 py-3 text-sm text-slate-500">{i + 1}</td>
-                                    {columns.map((c, j) => (
-                                        <td key={j} className="px-4 py-3 text-sm text-slate-700">
-                                            {c.render ? c.render(item[c.key], item) : (item[c.key] ?? "-")}
-                                        </td>
-                                    ))}
-                                    <td className="px-4 py-3 text-center">
-                                        <div className="flex items-center justify-center gap-2">
-                                            {hasEdit && (
-                                                <button
-                                                    onClick={() => openEditModal(item)}
-                                                    className="text-xs text-amber-700 hover:text-amber-800 bg-amber-50 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors font-medium"
-                                                >
-                                                    แก้ไข
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={() => handleDelete(item.id)}
-                                                className="text-xs text-red-500 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors font-medium"
-                                            >
-                                                ลบ
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                            {filteredItems.map((item, i) => {
+                                const isExpanded = expandedId === item.id;
+                                return (
+                                    <React.Fragment key={item.id || i}>
+                                        <tr className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${isExpanded ? "bg-slate-50" : ""}`}>
+                                            <td className="px-4 py-3 text-sm text-slate-500">{i + 1}</td>
+                                            {columns.map((c, j) => (
+                                                <td key={j} className="px-4 py-3 text-sm text-slate-700">
+                                                    {c.render ? c.render(item[c.key], item, { toggleExpand: () => toggleExpand(item.id), isExpanded }) : (item[c.key] ?? "-")}
+                                                </td>
+                                            ))}
+                                            <td className="px-4 py-3 text-center">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    {hasEdit && (
+                                                        <button
+                                                            onClick={() => openEditModal(item)}
+                                                            className="text-xs text-amber-700 hover:text-amber-800 bg-amber-50 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors font-medium"
+                                                        >
+                                                            แก้ไข
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleDelete(item.id)}
+                                                        className="text-xs text-red-500 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors font-medium"
+                                                    >
+                                                        ลบ
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {isExpanded && (
+                                            <tr className="bg-slate-50/70">
+                                                <td colSpan={columns.length + 2} className="p-0 border-b border-slate-200">
+                                                    <div className="px-8 py-6 animate-in slide-in-from-top-2 duration-300">
+                                                        {renderDetail ? renderDetail(item) : (
+                                                            <div className="text-xs text-slate-500 bg-white p-4 rounded-xl border border-slate-100">
+                                                                <pre className="overflow-auto max-w-full">
+                                                                    {JSON.stringify(item, null, 2)}
+                                                                </pre>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
+                                );
+                            })}
                         </tbody>
                     </table>
                 )}
@@ -595,7 +655,7 @@ export function TeachersFeature() {
                 { key: "first_name", label: "ชื่อ", render: (_, r) => `${r.prefix || ""}${r.first_name || ""} ${r.last_name || ""}` },
                 { key: "department", label: "กลุ่มสาระการเรียนรู้" },
                 { key: "position", label: "ตำแหน่ง" },
-                { key: "advisor_class", label: "ระดับชั้น/ห้อง" },
+                { key: "advisor_class", label: "ครูที่ปรึกษา" },
                 { key: "phone", label: "เบอร์โทรศัพท์" },
                 { key: "status", label: "สถานะ" },
             ]}
@@ -785,20 +845,20 @@ export function SubjectsFeature() {
             fetchFn={(s, f) => DirectorApiService.getSubjects({
                 search: s,
                 level: f?.level,
-                group: f?.group,
-                category: f?.category
+                group: f?.subject_group,
+                category: f?.subject_type
             })}
             createFn={(data) => DirectorApiService.createSubject(data)}
             editFn={(id, data) => DirectorApiService.updateSubject(id, data)}
             deleteFn={(id) => DirectorApiService.deleteSubject(id)}
             customFilters={[
                 {
-                    key: "group",
+                    key: "subject_group",
                     label: "กลุ่มสาระ",
                     options: () => groupOptions.sort((a, b) => a.localeCompare(b, "th")),
                 },
                 {
-                    key: "category",
+                    key: "subject_type",
                     label: "ประเภท",
                     options: () => categoryOptions.sort((a, b) => a.localeCompare(b, "th")),
                 },
@@ -883,11 +943,15 @@ export function ProjectsFeature() {
     const [teachers, setTeachers] = useState<any[]>([]);
     const [projectTypes, setProjectTypes] = useState<any[]>([]);
     const [budgetTypes, setBudgetTypes] = useState<any[]>([]);
+    const [academicYears, setAcademicYears] = useState<{ id: number; year_name: string }[]>([]);
+    const [departments, setDepartments] = useState<any[]>([]);
 
     useEffect(() => {
         DirectorApiService.getTeachers().then(setTeachers).catch(() => { });
         DirectorApiService.getProjectTypes().then(setProjectTypes).catch(() => { });
         DirectorApiService.getBudgetTypes().then(setBudgetTypes).catch(() => { });
+        DirectorApiService.getAcademicYears().then(setAcademicYears).catch(() => { });
+        DirectorApiService.getDepartments().then(setDepartments).catch(() => { });
     }, []);
 
     const teacherOptions = [
@@ -909,23 +973,23 @@ export function ProjectsFeature() {
             color="from-emerald-700 to-teal-800"
             fetchFn={() => DirectorApiService.getProjects()}
             createFn={(data) => {
-                const teacher = teacherOptions.find(o => o.label === data.teacher_id);
                 const pType = ptOptions.find(o => o.label === data.project_type);
                 const bType = btOptions.find(o => o.label === data.budget_type);
                 return DirectorApiService.createProject({
                     ...data,
-                    teacher_id: teacher?.id,
+                    teacher_id: data.teacher_id ? Number(data.teacher_id) : null,
+                    department_id: data.department_id ? Number(data.department_id) : null,
                     project_type_id: pType?.id,
                     budget_type_id: bType?.id
                 });
             }}
             editFn={(id, data) => {
-                const teacher = teacherOptions.find(o => o.label === data.teacher_id);
                 const pType = ptOptions.find(o => o.label === data.project_type);
                 const bType = btOptions.find(o => o.label === data.budget_type);
                 return DirectorApiService.updateProject(id, {
                     ...data,
-                    teacher_id: teacher?.id,
+                    teacher_id: data.teacher_id ? Number(data.teacher_id) : null,
+                    department_id: data.department_id ? Number(data.department_id) : null,
                     project_type_id: pType?.id,
                     budget_type_id: bType?.id
                 });
@@ -934,19 +998,73 @@ export function ProjectsFeature() {
             createFields={() => [
                 { key: "name", label: "ชื่อโครงการ", required: true },
                 { key: "project_type", label: "ประเภท", type: "select", options: ["", ...ptOptions.map(o => o.label)] },
-                { key: "teacher_id", label: "ครูผู้รับผิดชอบ", type: "select", options: teacherOptions.map(o => o.label) },
-                { key: "year", label: "ปี", type: "number" },
+                {
+                    key: "department_id",
+                    label: "ฝ่ายที่รับผิดชอบ",
+                    type: "select",
+                    options: ["", ...departments.map(d => d.id.toString())],
+                    labels: ["ทั้งหมด", ...departments.map(d => d.department_name)]
+                },
+                {
+                    key: "teacher_id",
+                    label: "ครูผู้รับผิดชอบ",
+                    type: "select",
+                    options: (values: Record<string, string>) => {
+                        const deptId = values.department_id;
+                        const filtered = deptId
+                            ? teachers.filter(t => String(t.department_id) === String(deptId))
+                            : teachers;
+                        return ["", ...filtered.map(t => t.id.toString())];
+                    },
+                    labels: (values: Record<string, string>) => {
+                        const deptId = values.department_id;
+                        const filtered = deptId
+                            ? teachers.filter(t => String(t.department_id) === String(deptId))
+                            : teachers;
+                        return ["ทั้งหมด", ...filtered.map(t => `${t.prefix_id ? (t.name_prefixes?.prefix_name || '') : ''}${t.first_name} ${t.last_name}`)];
+                    }
+                },
+                { key: "year", label: "ปีการศึกษา", type: "select", options: ["", ...academicYears.map(ay => ay.id.toString())], labels: ["ทั้งหมด", ...academicYears.map(ay => ay.year_name)] },
+                { key: "start_date", label: "วันที่เริ่ม", type: "date" },
+                { key: "end_date", label: "วันที่สิ้นสุด", type: "date" },
                 { key: "description", label: "วัตถุประสงค์", multiline: true },
                 { key: "budget_type", label: "ประเภทงบ", type: "select", options: ["", ...btOptions.map(o => o.label)] },
-                { key: "budget_total", label: "งบประมาณรวม", type: "number" },
-                { key: "budget_used_sem1", label: "ใช้ไป เทอม 1", type: "number" },
-                { key: "budget_used_sem2", label: "ใช้ไป เทอม 2", type: "number" },
+                { key: "budget_total", label: "งบประมาณรวมทั้งหมด", type: "number" },
+                { key: "budget_used_sem1", label: "งบประมาณภาคเรียนที่ 1", type: "number" },
+                { key: "budget_used_sem2", label: "งบประมาณภาคเรียนที่ 2", type: "number" },
             ]}
             editFields={() => [
                 { key: "name", label: "ชื่อโครงการ", required: true },
                 { key: "project_type", label: "ประเภท", type: "select", options: ["", ...ptOptions.map(o => o.label)] },
-                { key: "teacher_id", label: "ครูผู้รับผิดชอบ", type: "select", options: teacherOptions.map(o => o.label) },
-                { key: "year", label: "ปี", type: "number" },
+                {
+                    key: "department_id",
+                    label: "ฝ่ายที่รับผิดชอบ",
+                    type: "select",
+                    options: ["", ...departments.map(d => d.id.toString())],
+                    labels: ["ทั้งหมด", ...departments.map(d => d.department_name)]
+                },
+                {
+                    key: "teacher_id",
+                    label: "ครูผู้รับผิดชอบ",
+                    type: "select",
+                    options: (values: Record<string, string>) => {
+                        const deptId = values.department_id;
+                        const filtered = deptId
+                            ? teachers.filter(t => String(t.department_id) === String(deptId))
+                            : teachers;
+                        return ["", ...filtered.map(t => t.id.toString())];
+                    },
+                    labels: (values: Record<string, string>) => {
+                        const deptId = values.department_id;
+                        const filtered = deptId
+                            ? teachers.filter(t => String(t.department_id) === String(deptId))
+                            : teachers;
+                        return ["ทั้งหมด", ...filtered.map(t => `${t.prefix_id ? (t.name_prefixes?.prefix_name || '') : ''}${t.first_name} ${t.last_name}`)];
+                    }
+                },
+                { key: "year", label: "ปีการศึกษา", type: "select", options: ["", ...academicYears.map(ay => ay.id.toString())], labels: ["ทั้งหมด", ...academicYears.map(ay => ay.year_name)] },
+                { key: "start_date", label: "วันที่เริ่ม", type: "date" },
+                { key: "end_date", label: "วันที่สิ้นสุด", type: "date" },
                 { key: "description", label: "วัตถุประสงค์", multiline: true },
                 { key: "budget_type", label: "ประเภทงบ", type: "select", options: ["", ...btOptions.map(o => o.label)] },
                 { key: "budget_total", label: "งบประมาณรวม", type: "number" },
@@ -954,29 +1072,78 @@ export function ProjectsFeature() {
                 { key: "budget_used_sem2", label: "ใช้ไป เทอม 2", type: "number" },
             ]}
             columns={[
-                { key: "name", label: "ชื่อโครงการ" },
+                {
+                    key: "name",
+                    label: "ชื่อโครงการ",
+                    render: (v, _, { toggleExpand, isExpanded }) => (
+                        <button
+                            onClick={toggleExpand}
+                            className="text-left font-semibold text-slate-800 hover:text-emerald-700 flex items-center gap-2 group transition-colors"
+                        >
+                            <span className={`w-5 h-5 flex items-center justify-center rounded-full bg-emerald-50 text-emerald-600 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>
+                                ▾
+                            </span>
+                            <span className="group-hover:underline">{v}</span>
+                        </button>
+                    )
+                },
                 { key: "project_type", label: "ประเภท" },
                 { key: "teacher_name", label: "ผู้รับผิดชอบ" },
                 {
                     key: "budget_total",
-                    label: "งบ",
+                    label: "งบทั้งหมด",
                     render: (v) => v ? Number(v).toLocaleString("th-TH") : "0"
                 },
                 {
-                    key: "budget_used_sem1",
-                    label: "ใช้ เทอม 1",
-                    render: (v) => v ? Number(v).toLocaleString("th-TH") : "0"
-                },
-                {
-                    key: "budget_used_sem2",
-                    label: "ใช้ เทอม 2",
-                    render: (v) => v ? Number(v).toLocaleString("th-TH") : "0"
-                },
-                {
-                    key: "year",
-                    label: "ปี",
+                    key: "year_label",
+                    label: "ปีการศึกษา",
                 },
             ]}
+            renderDetail={(item) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-white p-7 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 opacity-20 -mr-10 -mt-10 rounded-full"></div>
+
+                    <div className="space-y-1.5">
+                        <p className="text-xs font-semibold text-slate-500">ฝ่ายที่รับผิดชอบ</p>
+                        <p className="text-base font-bold text-slate-800">{item.department || "-"}</p>
+                    </div>
+                    <div className="space-y-1.5">
+                        <p className="text-xs font-semibold text-slate-500">ประเภทงบประมาณ</p>
+                        <p className="text-base font-bold text-slate-800">{item.budget_type || "-"}</p>
+                    </div>
+                    <div className="space-y-1.5">
+                        <p className="text-xs font-semibold text-slate-500">ระยะเวลาดำเนินงาน</p>
+                        <p className="text-base font-bold text-slate-800">
+                            {item.start_date ? new Date(item.start_date).toLocaleDateString("th-TH") : "-"}
+                            <span className="mx-2 text-slate-300">-</span>
+                            {item.end_date ? new Date(item.end_date).toLocaleDateString("th-TH") : "-"}
+                        </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex flex-col gap-1.5">
+                        <p className="text-xs font-semibold text-slate-500">งบประมาณภาคเรียนที่ 1</p>
+                        <p className="text-lg font-bold text-emerald-600">{(item.budget_used_sem1 || 0).toLocaleString("th-TH")} <span className="text-sm font-normal text-slate-500">บาท</span></p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex flex-col gap-1.5">
+                        <p className="text-xs font-semibold text-slate-500">งบประมาณภาคเรียนที่ 2</p>
+                        <p className="text-lg font-bold text-emerald-600">{(item.budget_used_sem2 || 0).toLocaleString("th-TH")} <span className="text-sm font-normal text-slate-500">บาท</span></p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-emerald-600 text-white flex flex-col gap-1.5 shadow-md shadow-emerald-200">
+                        <p className="text-xs font-semibold text-emerald-100">งบประมาณใช้ไปรวมทั้งสิ้น</p>
+                        <p className="text-xl font-bold">{((Number(item.budget_used_sem1) || 0) + (Number(item.budget_used_sem2) || 0)).toLocaleString("th-TH")} <span className="text-sm font-normal text-emerald-100">บาท</span></p>
+                    </div>
+
+                    <div className="md:col-span-2 lg:col-span-3 space-y-3 pt-5 border-t border-slate-100 mt-2">
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <p className="text-xs font-semibold text-slate-500">วัตถุประสงค์และรายละเอียดโครงการ</p>
+                        </div>
+                        <p className="text-[15px] text-slate-700 leading-relaxed whitespace-pre-wrap pl-4 border-l-2 border-emerald-100 font-medium">
+                            {item.description || "— ไม่ระบุวัตถุประสงค์โครงการ —"}
+                        </p>
+                    </div>
+                </div>
+            )}
         />
     );
 }
@@ -1047,15 +1214,70 @@ export function FinanceFeature() {
 }
 
 export function ActivitiesFeature() {
+    const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
     const [teacherOptions, setTeacherOptions] = useState<{ id: number; label: string }[]>([]);
     const [departmentOptions, setDepartmentOptions] = useState<{ id: number; label: string }[]>([]);
     const [eventTypeOptions, setEventTypeOptions] = useState<{ id: number; label: string }[]>([]);
+    const [pendingEditItem, setPendingEditItem] = useState<any | null>(null);
+    const [calendarEditItem, setCalendarEditItem] = useState<any | null>(null);
+    const [calendarEditValues, setCalendarEditValues] = useState<Record<string, string>>({});
+    const [savingCalendarEdit, setSavingCalendarEdit] = useState(false);
+    const [calendarKey, setCalendarKey] = useState(0); // For forcing refresh
+
+    const activityFields: EditField[] = [
+        { key: "name", label: "ชื่อกิจกรรม", required: true },
+        { key: "event_type_name", label: "ประเภทกิจกรรม", type: "select", options: ["", ...eventTypeOptions.map(o => o.label)] },
+        { key: "department_name", label: "ฝ่ายที่รับผิดชอบ", type: "select", options: ["", ...departmentOptions.map(o => o.label)] },
+        { key: "teacher_name", label: "ครูที่รับผิดชอบ", type: "select", options: ["", ...teacherOptions.map(o => o.label)] },
+        { key: "start_date", label: "วันที่เริ่ม", type: "date", required: true },
+        { key: "end_date", label: "วันที่สิ้นสุด", type: "date" },
+        { key: "start_time", label: "เวลาเริ่ม", type: "time" },
+        { key: "end_time", label: "เวลาสิ้นสุด", type: "time" },
+        { key: "location", label: "สถานที่" },
+        { key: "visibility", label: "การเข้าร่วม", type: "select", options: ["public", "internal", "private"] },
+        { key: "note", label: "รายละเอียด", multiline: true },
+    ];
+
+    const openCalendarEdit = (item: any) => {
+        const mappedItem: any = { ...item };
+        activityFields.forEach(field => {
+            if (field.type === "select") {
+                mappedItem[field.key] = item[field.key] == null ? "" : String(item[field.key]);
+            }
+        });
+        setCalendarEditItem(item);
+        setCalendarEditValues(buildInitialValues(activityFields, mappedItem));
+    };
+
+    const saveCalendarEdit = async () => {
+        if (!calendarEditItem) return;
+        try {
+            const payload = buildPayloadFromValues(activityFields, calendarEditValues);
+            const teacherObj = teacherOptions.find(o => o.label === calendarEditValues.teacher_name);
+            const deptObj = departmentOptions.find(o => o.label === calendarEditValues.department_name);
+            const typeObj = eventTypeOptions.find(o => o.label === calendarEditValues.event_type_name);
+            
+            setSavingCalendarEdit(true);
+            await DirectorApiService.updateActivity(calendarEditItem.id, {
+                ...payload,
+                teacher_id: teacherObj?.id,
+                department_id: deptObj?.id,
+                event_type_id: typeObj?.id
+            });
+            setCalendarEditItem(null);
+            setCalendarKey(prev => prev + 1); // Refresh calendar
+        } catch (e: any) {
+            alert(e?.message || "บันทึกไม่สำเร็จ");
+        } finally {
+            setSavingCalendarEdit(false);
+        }
+    };
 
     useEffect(() => {
         DirectorApiService.getTeachers().then(rows => {
-            setTeacherOptions(rows.map(r => ({ 
-                id: r.id, 
-                label: `${r.prefix || ''}${r.first_name} ${r.last_name}` 
+            setTeacherOptions(rows.map(r => ({
+                id: r.id,
+                label: `${r.prefix || ''}${r.first_name} ${r.last_name}`
             })));
         });
         DirectorApiService.getDepartmentsLookup().then(rows => {
@@ -1066,82 +1288,158 @@ export function ActivitiesFeature() {
         });
     }, []);
 
+    const switcher = (
+        <div className="flex justify-end p-1">
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
+                <button
+                    onClick={() => setViewMode('list')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                        viewMode === 'list' 
+                        ? 'bg-white text-indigo-600 shadow-sm' 
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <ListIcon size={16} />
+                    รายการ
+                </button>
+                <button
+                    onClick={() => setViewMode('calendar')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                        viewMode === 'calendar' 
+                        ? 'bg-white text-indigo-600 shadow-sm' 
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <CalendarIcon size={16} />
+                    ปฏิทิน
+                </button>
+            </div>
+        </div>
+    );
+
     return (
-        <CrudFeature
-            title="กิจกรรม"
-            badgeText="Activities"
-            subtitle="จัดการปฏิทินกิจกรรมโรงเรียน"
-            color="from-purple-600 to-indigo-700"
-            fetchFn={() => DirectorApiService.getActivities()}
-            createFn={(data) => {
-                const teacherObj = teacherOptions.find(o => o.label === data.teacher_name);
-                const deptObj = departmentOptions.find(o => o.label === data.department_name);
-                const typeObj = eventTypeOptions.find(o => o.label === data.event_type_name);
-                return DirectorApiService.createActivity({
-                    ...data,
-                    teacher_id: teacherObj?.id,
-                    department_id: deptObj?.id,
-                    event_type_id: typeObj?.id
-                });
-            }}
-            editFn={(id, data) => {
-                const teacherObj = teacherOptions.find(o => o.label === data.teacher_name);
-                const deptObj = departmentOptions.find(o => o.label === data.department_name);
-                const typeObj = eventTypeOptions.find(o => o.label === data.event_type_name);
-                return DirectorApiService.updateActivity(id, {
-                    ...data,
-                    teacher_id: teacherObj?.id,
-                    department_id: deptObj?.id,
-                    event_type_id: typeObj?.id
-                });
-            }}
-            deleteFn={(id) => DirectorApiService.deleteActivity(id)}
-            createFields={() => [
-                { key: "name", label: "ชื่อกิจกรรม", required: true },
-                { key: "event_type_name", label: "ประเภทกิจกรรม", type: "select", options: ["", ...eventTypeOptions.map(o => o.label)] },
-                { key: "teacher_name", label: "ครูที่รับผิดชอบ", type: "select", options: ["", ...teacherOptions.map(o => o.label)] },
-                { key: "department_name", label: "ฝ่ายที่รับผิดชอบ", type: "select", options: ["", ...departmentOptions.map(o => o.label)] },
-                { key: "note", label: "รายละเอียด", multiline: true },
-                { key: "start_date", label: "วันที่เริ่ม", type: "date", required: true },
-                { key: "start_time", label: "เวลาเริ่ม", type: "time" },
-                { key: "end_date", label: "วันที่สิ้นสุด", type: "date" },
-                { key: "end_time", label: "เวลาสิ้นสุด", type: "time" },
-                { key: "location", label: "สถานที่" },
-                { key: "visibility", label: "การมองเห็น", type: "select", options: ["public", "internal", "private"] },
-            ]}
-            editFields={() => [
-                { key: "name", label: "ชื่อกิจกรรม", required: true },
-                { key: "event_type_name", label: "ประเภทกิจกรรม", type: "select", options: ["", ...eventTypeOptions.map(o => o.label)] },
-                { key: "teacher_name", label: "ครูที่รับผิดชอบ", type: "select", options: ["", ...teacherOptions.map(o => o.label)] },
-                { key: "department_name", label: "ฝ่ายที่รับผิดชอบ", type: "select", options: ["", ...departmentOptions.map(o => o.label)] },
-                { key: "note", label: "รายละเอียด", multiline: true },
-                { key: "start_date", label: "วันที่เริ่ม", type: "date", required: true },
-                { key: "start_time", label: "เวลาเริ่ม", type: "time" },
-                { key: "end_date", label: "วันที่สิ้นสุด", type: "date" },
-                { key: "end_time", label: "เวลาสิ้นสุด", type: "time" },
-                { key: "location", label: "สถานที่" },
-                { key: "visibility", label: "การมองเห็น", type: "select", options: ["public", "internal", "private"] },
-            ]}
-            columns={[
-                { 
-                    key: "date", 
-                    label: "วันที่", 
-                    render: (v) => v ? new Date(v).toLocaleString('th-TH', { 
-                        year: 'numeric', 
-                        month: '2-digit', 
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    }) : '-' 
-                },
-                { key: "name", label: "ชื่อกิจกรรม" },
-                { key: "event_type_name", label: "ประเภท" },
-                { key: "teacher_name", label: "ผู้รับผิดชอบ" },
-                { key: "department_name", label: "ฝ่าย" },
-                { key: "location", label: "สถานที่" },
-                { key: "visibility", label: "การมองเห็น" },
-            ]}
-        />
+        <div className="space-y-4">
+            {viewMode === 'list' ? (
+                <CrudFeature
+                    title="กิจกรรม"
+                    badgeText="Activities"
+                    subtitle="จัดการปฏิทินกิจกรรมโรงเรียน"
+                    color="from-purple-600 to-indigo-700"
+                    searchRightContent={switcher}
+                    initialEditItem={pendingEditItem}
+                    onCloseModal={() => setPendingEditItem(null)}
+                    fetchFn={() => DirectorApiService.getActivities()}
+                    createFn={(data) => {
+                        const teacherObj = teacherOptions.find(o => o.label === data.teacher_name);
+                        const deptObj = departmentOptions.find(o => o.label === data.department_name);
+                        const typeObj = eventTypeOptions.find(o => o.label === data.event_type_name);
+                        return DirectorApiService.createActivity({
+                            ...data,
+                            teacher_id: teacherObj?.id,
+                            department_id: deptObj?.id,
+                            event_type_id: typeObj?.id
+                        });
+                    }}
+                    editFn={(id, data) => {
+                        const teacherObj = teacherOptions.find(o => o.label === data.teacher_name);
+                        const deptObj = departmentOptions.find(o => o.label === data.department_name);
+                        const typeObj = eventTypeOptions.find(o => o.label === data.event_type_name);
+                        return DirectorApiService.updateActivity(id, {
+                            ...data,
+                            teacher_id: teacherObj?.id,
+                            department_id: deptObj?.id,
+                            event_type_id: typeObj?.id
+                        });
+                    }}
+                    deleteFn={(id) => DirectorApiService.deleteActivity(id)}
+                    createFields={() => activityFields}
+                    editFields={() => activityFields}
+                    renderDetail={(item) => (
+                        <div className="p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            <div className="space-y-2">
+                                <p className="text-xs font-semibold text-slate-500">วันที่เริ่มกิจกรรม</p>
+                                <p className="text-base font-bold text-slate-800">
+                                    {item.date ? new Date(item.date).toLocaleDateString("th-TH") : "-"}
+                                    {item.start_time && <span className="ml-2 text-indigo-600">({item.start_time})</span>}
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-xs font-semibold text-slate-500">วันที่สิ้นสุดกิจกรรม</p>
+                                <p className="text-base font-bold text-slate-800">
+                                    {item.end_date ? new Date(item.end_date).toLocaleDateString("th-TH") : "-"}
+                                    {item.end_time && <span className="ml-2 text-indigo-600">({item.end_time})</span>}
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-xs font-semibold text-slate-500">ฝ่ายที่รับผิดชอบ</p>
+                                <p className="text-base font-bold text-slate-800">{item.department_name || "-"}</p>
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-xs font-semibold text-slate-500">สถานที่</p>
+                                <p className="text-base font-bold text-slate-800">{item.location || "-"}</p>
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-xs font-semibold text-slate-500">การเข้าร่วม</p>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                                    item.visibility === 'public' ? 'bg-emerald-100 text-emerald-700' : 
+                                    item.visibility === 'internal' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                                }`}>
+                                    {item.visibility || "public"}
+                                </span>
+                            </div>
+
+                            <div className="md:col-span-2 lg:col-span-3 space-y-3 pt-5 border-t border-slate-100 mt-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                                    <p className="text-xs font-semibold text-slate-500">รายละเอียดกิจกรรม</p>
+                                </div>
+                                <p className="text-[15px] text-slate-700 leading-relaxed whitespace-pre-wrap pl-4 border-l-2 border-indigo-100 font-medium">
+                                    {item.note || "— ไม่ระบุรายละเอียดเพิ่มเติม —"}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    columns={[
+                        { 
+                            key: "name", 
+                            label: "ชื่อกิจกรรม", 
+                            render: (v, _, { toggleExpand, isExpanded }) => (
+                                <button
+                                    onClick={toggleExpand}
+                                    className="text-left font-semibold text-slate-800 hover:text-indigo-700 flex items-center gap-2 group transition-colors"
+                                >
+                                    <span className={`w-5 h-5 flex items-center justify-center rounded-full bg-indigo-50 text-indigo-600 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>
+                                        ▾
+                                    </span>
+                                    <span className="group-hover:underline">{v}</span>
+                                </button>
+                            )
+                        },
+                        { key: "event_type_name", label: "ประเภท" },
+                        { key: "teacher_name", label: "ผู้รับผิดชอบ" },
+                        { key: "location", label: "สถานที่" },
+                    ]}
+                />
+            ) : (
+                <ActivitiesCalendar 
+                    key={calendarKey}
+                    onAddClick={() => setViewMode('list')} 
+                    onBack={() => setViewMode('list')} 
+                    onEditClick={openCalendarEdit}
+                />
+            )}
+
+            <EditModal
+                open={!!calendarEditItem}
+                title="แก้ไขกิจกรรม"
+                fields={activityFields}
+                values={calendarEditValues}
+                saving={savingCalendarEdit}
+                onClose={() => setCalendarEditItem(null)}
+                onChange={(k, v) => setCalendarEditValues(prev => ({ ...prev, [k]: v }))}
+                onSubmit={saveCalendarEdit}
+            />
+        </div>
     );
 }
 

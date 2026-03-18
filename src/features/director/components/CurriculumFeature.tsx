@@ -78,8 +78,9 @@ export function CurriculumFeature() {
     const [teachers, setTeachers] = useState<any[]>([]);
     const [studentCounts, setStudentCounts] = useState<any[]>([]);
     const [learningSubjectGroups, setLearningSubjectGroups] = useState<any[]>([]);
+    const [academicYears, setAcademicYears] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [year, setYear] = useState(new Date().getFullYear() + 543);
+    const [year, setYear] = useState(2568);
     const [semester, setSemester] = useState(1);
 
     const [filterClassLevel, setFilterClassLevel] = useState("");
@@ -99,38 +100,7 @@ export function CurriculumFeature() {
         setLoading(true);
         DirectorApiService.getSections(year, semester)
             .then(async (d) => {
-                const rows = d || [];
-
-                if (rows.length === 0 && year < 2400) {
-                    const beYear = year + 543;
-                    const beRows = (await DirectorApiService.getSections(beYear, semester).catch(() => [])) || [];
-                    if (beRows.length > 0) {
-                        setYear(beYear);
-                        setSections(beRows);
-                        setLoading(false);
-                        return;
-                    }
-                }
-
-                if (rows.length === 0) {
-                    const allRows = (await DirectorApiService.getSections().catch(() => [])) || [];
-                    if (allRows.length > 0) {
-                        setAllSections(allRows);
-                        const latest = allRows.find((s: any) => s?.year != null && s?.semester != null) || allRows[0];
-                        const latestYear = Number(latest.year) || year;
-                        const latestSemester = Number(latest.semester) || semester;
-                        const latestRows = allRows.filter((s: any) => Number(s.year) === latestYear && Number(s.semester) === latestSemester);
-                        if (latestRows.length > 0) {
-                            setYear(latestYear);
-                            setSemester(latestSemester);
-                            setSections(latestRows);
-                            setLoading(false);
-                            return;
-                        }
-                    }
-                }
-
-                setSections(rows);
+                setSections(d || []);
                 setLoading(false);
             })
             .catch(() => setLoading(false));
@@ -147,12 +117,14 @@ export function CurriculumFeature() {
             DirectorApiService.getSections().catch(() => []),
             DirectorApiService.getStudentCount().catch(() => []),
             DirectorApiService.getLearningSubjectGroups().catch(() => []),
-        ]).then(([subjectRows, teacherRows, sectionRows, studentCountRows, groupRows]) => {
+            DirectorApiService.getAcademicYears().catch(() => []),
+        ]).then(([subjectRows, teacherRows, sectionRows, studentCountRows, groupRows, yearRows]) => {
             setSubjects(subjectRows || []);
             setTeachers(teacherRows || []);
             setAllSections(sectionRows || []);
             setStudentCounts(studentCountRows || []);
             setLearningSubjectGroups(groupRows || []);
+            setAcademicYears(yearRows || []);
         });
     }, []);
 
@@ -315,9 +287,12 @@ export function CurriculumFeature() {
     );
     const filterSubjectGroupOptions = learningSubjectGroups.map((g: any) => String(g.group_name || ""));
 
-    const yearOptions = Array.from(new Set([...(optionSource || []).map((s: any) => String(s.year ?? "")).filter(Boolean), form.year || "", String(year)]))
-        .filter(Boolean)
-        .sort((a, b) => Number(a) - Number(b));
+    const yearOptions = academicYears.length > 0
+        ? academicYears.map(y => String(y.year_name))
+        : Array.from(new Set([...(optionSource || []).map((s: any) => String(s.year ?? "")).filter(Boolean), form.year || "", String(year)]))
+            .filter(Boolean)
+            .sort((a, b) => Number(b) - Number(a));
+
     const semesterOptions = Array.from(new Set([...(optionSource || []).map((s: any) => String(s.semester ?? "")).filter(Boolean), form.semester || "", String(semester), "1", "2"]))
         .filter(Boolean)
         .sort((a, b) => Number(a) - Number(b));
@@ -362,7 +337,10 @@ export function CurriculumFeature() {
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-3 sm:items-end">
                 <div>
                     <label className="text-xs text-slate-500 block mb-1">ปีการศึกษา</label>
-                    <input type="number" className="px-3 py-2 border border-slate-200 rounded-xl w-28" value={year} onChange={(e) => setYear(Number(e.target.value))} />
+                    <select className="px-3 py-2 border border-slate-200 rounded-xl bg-white" value={year} onChange={(e) => setYear(Number(e.target.value))}>
+                        {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                        {!yearOptions.includes(String(year)) && <option value={year}>{year}</option>}
+                    </select>
                 </div>
                 <div>
                     <label className="text-xs text-slate-500 block mb-1">ภาคเรียน</label>

@@ -793,10 +793,15 @@ export const DirectorService = {
         if (filters?.class_level || filters?.room) {
             where.classrooms = {};
             if (filters.class_level) {
-                where.classrooms.levels = { name: filters.class_level };
+                where.classrooms.levels = { name: { contains: filters.class_level.trim(), mode: 'insensitive' } };
             }
             if (filters.room) {
-                where.classrooms.room_name = filters.room;
+                const r = filters.room.trim();
+                // Ensure room '1' doesn't match 'ม.1/2' by checking for slash or exact match
+                where.classrooms.OR = [
+                    { room_name: { endsWith: `/${r}` } },
+                    { room_name: r }
+                ];
             }
         }
 
@@ -873,9 +878,8 @@ export const DirectorService = {
     },
 
     async updateAdvisor(id: number, data: any) {
-        if (!id || Number.isNaN(Number(id))) throw new Error('id is required');
-
-        const teacher_id = Number(data?.teacher_id);
+        const nid = Number(id);
+        const teacher_id = data?.teacher_id != null ? Number(data.teacher_id) : 0;
         const class_level = String(data?.class_level || '').trim();
         const room = String(data?.room || '').trim();
         const term = await resolveAdvisorTerm(
@@ -888,7 +892,7 @@ export const DirectorService = {
         if (!room) throw new Error('room is required');
 
         const existing = await prisma.classroom_advisors.findUnique({
-            where: { id },
+            where: { id: nid },
             select: { id: true },
         });
         if (!existing) throw new Error('Advisor record not found');
@@ -901,7 +905,7 @@ export const DirectorService = {
 
         const duplicate = await prisma.classroom_advisors.findFirst({
             where: {
-                id: { not: id },
+                id: { not: nid },
                 teacher_id,
                 classroom_id,
             },
@@ -910,7 +914,7 @@ export const DirectorService = {
         if (duplicate) throw new Error('Advisor assignment already exists');
 
         const updated = await prisma.classroom_advisors.update({
-            where: { id },
+            where: { id: nid },
             data: {
                 teacher_id,
                 classroom_id,
@@ -926,7 +930,6 @@ export const DirectorService = {
 
     async deleteAdvisor(id: number) {
         if (!id || Number.isNaN(Number(id))) throw new Error('id is required');
-
         const existing = await prisma.classroom_advisors.findUnique({
             where: { id },
             select: { id: true },
@@ -939,132 +942,143 @@ export const DirectorService = {
     // --- Activities (Events) ---
     async getActivities() {
         try {
-            const rows = await (prisma.events as any).findMany({
-                include: { 
-                    users: { select: { username: true, first_name: true, last_name: true } },
-                    teachers: { include: { name_prefixes: true } },
-                    departments: true,
-                    event_types: true
-                },
-                orderBy: { start_datetime: 'desc' }
-            });
+            // Using TO_CHAR in SQL to get absolute strings from DB, bypassing JS timezone shifts
+            const rows = await prisma.$queryRawUnsafe(`
+                SELECT *,
+                    TO_CHAR(start_datetime, 'YYYY-MM-DD') as start_date_str,
+                    TO_CHAR(start_datetime, 'HH24:MI') as start_time_str,
+                    TO_CHAR(end_datetime, 'YYYY-MM-DD') as end_date_str,
+                    TO_CHAR(end_datetime, 'HH24:MI') as end_time_str
+                FROM events 
+                ORDER BY start_datetime DESC
+            `);
 
-            return rows.map((r: any) => {
-                const teacher = r.teachers;
-                const dept = r.departments;
-                const type = r.event_types;
+            if (!rows || (rows as any).length === 0) return [];
+
+            const [teachers, depts, types] = await Promise.all([
+                this.getTeachers(),
+                this.getDepartments(),
+                this.getEventTypes()
+            ]);
+
+            const tMap = new Map((teachers || []).map((t: any) => [t.id, t]));
+            const dMap = new Map((depts || []) .map((d: any) => [d.id, d.department_name]));
+            const etMap = new Map((types || []) .map((t: any) => [t.id, t.name]));
+
+            return (rows as any[]).map((r: any) => {
+                const teacher = tMap.get(r.teacher_id) as any;
+                
                 return {
                     id: r.id,
                     name: r.title,
-                    date: r.start_datetime,
+                    date: r.start_date_str, // YYYY-MM-DD string
+                    start_time: r.start_time_str, // HH:mm string
+                    end_date: r.end_date_str, // YYYY-MM-DD string
+                    end_time: r.end_time_str, // HH:mm string
                     location: r.location || '',
                     visibility: r.visibility,
                     note: r.description || '',
-                    created_by: r.users ? `${r.users.first_name || ''} ${r.users.last_name || ''}` : '',
+                    created_by: '',
                     teacher_id: r.teacher_id,
-                    teacher_name: teacher ? `${teacher.name_prefixes?.prefix_name || ''}${teacher.first_name} ${teacher.last_name}` : '',
+                    teacher_name: teacher ? `${teacher.prefix || ''}${teacher.first_name} ${teacher.last_name || ''}` : '',
                     department_id: r.department_id,
-                    department_name: dept ? dept.department_name : '',
+                    department_name: dMap.get(r.department_id) || '',
                     event_type_id: r.event_type_id,
-                    event_type_name: type ? type.name : '',
+                    event_type_name: etMap.get(r.event_type_id) || '',
                 };
             });
         } catch (error: any) {
-            console.error('Error fetching activities with full relations, falling back to basic query:', error);
-            
-            // Fallback: fetch only what exists without risky joins
-            const basicRows = await prisma.events.findMany({
-                orderBy: { start_datetime: 'desc' }
-            });
-
-            return basicRows.map((r: any) => ({
-                id: r.id,
-                name: r.title,
-                date: r.start_datetime,
-                location: r.location || '',
-                visibility: r.visibility,
-                note: r.description || '',
-                created_by: '',
-                teacher_id: r.teacher_id,
-                teacher_name: '',
-                department_id: r.department_id,
-                department_name: '',
-                event_type_id: r.event_type_id,
-                event_type_name: '',
-            }));
+            console.error('Error in resilient getActivities:', error);
+            return [];
         }
     },
 
     async createActivity(data: any) {
-        // Build Date objects combining date and time if provided
-        let start = data.start_date ? new Date(data.start_date) : new Date();
-        if (data.start_time) {
-            const [h, m] = data.start_time.split(':');
-            start.setHours(parseInt(h), parseInt(m), 0, 0);
-        }
+        // Build YYYY-MM-DD HH:mm:ss strings directly to avoid JS timezone shifts
+        const startDateString = data.start_date || new Date().toISOString().split('T')[0];
+        const startTimeString = data.start_time || "00:00";
+        const start = `${startDateString} ${startTimeString}:00`;
 
-        let end = data.end_date ? new Date(data.end_date) : new Date(start);
-        if (data.end_time) {
-            const [h, m] = data.end_time.split(':');
-            end.setHours(parseInt(h), parseInt(m), 0, 0);
-        }
+        const endDateString = data.end_date || startDateString;
+        const endTimeString = data.end_time || "23:59";
+        const end = `${endDateString} ${endTimeString}:00`;
 
-        const createData: any = {
-            title: data.title || data.name || '',
-            description: data.description || data.note || '',
-            start_datetime: start,
-            end_datetime: end,
-            location: data.location || '',
-            visibility: String(data.visibility || 'public'),
-            is_all_day: data.is_all_day ?? (data.start_time ? false : true),
-            created_by: data.created_by || null,
-        };
+        const title = data.title || data.name || '';
+        const description = data.description || data.note || '';
+        const location = data.location || '';
+        const visibility = String(data.visibility || 'public');
+        const is_all_day = data.is_all_day ?? (data.start_time ? false : true);
+        const created_by = data.created_by ? Number(data.created_by) : null;
+        const teacher_id = data.teacher_id ? Number(data.teacher_id) : null;
+        const department_id = data.department_id ? Number(data.department_id) : null;
+        const event_type_id = data.event_type_id ? Number(data.event_type_id) : null;
 
-        // Use relation fields for foreign keys
-        if (data.teacher_id) createData.teachers = { connect: { id: Number(data.teacher_id) } };
-        if (data.department_id) createData.departments = { connect: { id: Number(data.department_id) } };
-        if (data.event_type_id) createData.event_types = { connect: { id: Number(data.event_type_id) } };
-
-        return prisma.events.create({ data: createData });
+        const res = await prisma.$queryRawUnsafe(`
+            INSERT INTO events (
+                title, description, start_datetime, end_datetime, 
+                is_all_day, location, visibility, created_by,
+                teacher_id, department_id, event_type_id
+            ) VALUES (
+                $1, $2, $3::timestamp, $4::timestamp, 
+                $5, $6, $7, $8, 
+                $9, $10, $11
+            ) RETURNING id
+        `, 
+        title, description, start, end, 
+        is_all_day, location, visibility, created_by,
+        teacher_id, department_id, event_type_id
+        );
+        return (res as any)[0];
     },
 
     async updateActivity(id: number, data: any) {
-        const current = await prisma.events.findUnique({ where: { id } });
+        const nid = Number(id);
+        const current = await (prisma.events as any).findUnique({ where: { id: nid } });
         if (!current) throw new Error('Activity not found');
 
-        let start = data.start_date ? new Date(data.start_date) : new Date(current.start_datetime);
-        if (data.start_time) {
-            const [h, m] = data.start_time.split(':');
-            start.setHours(parseInt(h), parseInt(m), 0, 0);
-        }
+        const startDate = data.date || data.start_date || new Date(current.start_datetime).toISOString().split('T')[0];
+        const startTime = data.start_time || new Date(current.start_datetime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+        const start = `${startDate} ${startTime}:00`;
 
-        let end = data.end_date ? new Date(data.end_date) : new Date(current.end_datetime);
-        if (data.end_time) {
-            const [h, m] = data.end_time.split(':');
-            end.setHours(parseInt(h), parseInt(m), 0, 0);
-        }
+        const endDate = data.end_date || new Date(current.end_datetime).toISOString().split('T')[0];
+        const endTime = data.end_time || new Date(current.end_datetime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
+        const end = `${endDate} ${endTime}:00`;
 
-        const updateData: any = {
-            title: data.title || data.name || current.title,
-            description: data.description !== undefined ? data.description : (data.note !== undefined ? data.note : current.description),
-            start_datetime: start,
-            end_datetime: end,
-            location: data.location !== undefined ? data.location : current.location,
-            visibility: data.visibility !== undefined ? String(data.visibility) : current.visibility,
-        };
-
-        // Use relation fields for foreign keys
-        if (data.teacher_id !== undefined) {
-            updateData.teachers = data.teacher_id ? { connect: { id: Number(data.teacher_id) } } : { disconnect: true };
-        }
-        if (data.department_id !== undefined) {
-            updateData.departments = data.department_id ? { connect: { id: Number(data.department_id) } } : { disconnect: true };
-        }
-        if (data.event_type_id !== undefined) {
-            updateData.event_types = data.event_type_id ? { connect: { id: Number(data.event_type_id) } } : { disconnect: true };
-        }
+        const title = data.title || data.name || current.title;
+        const description = data.description !== undefined ? data.description : (data.note !== undefined ? data.note : current.description);
+        const location = data.location !== undefined ? data.location : current.location;
+        const visibility = data.visibility !== undefined ? String(data.visibility) : current.visibility;
         
-        return prisma.events.update({ where: { id }, data: updateData });
+        // Use current as any to avoid lint for possibly missing fields in generated client
+        const c = current as any;
+        const teacher_id = data.teacher_id !== undefined ? (data.teacher_id ? Number(data.teacher_id) : null) : c.teacher_id;
+        const department_id = data.department_id !== undefined ? (data.department_id ? Number(data.department_id) : null) : c.department_id;
+        const event_type_id = data.event_type_id !== undefined ? (data.event_type_id ? Number(data.event_type_id) : null) : c.event_type_id;
+
+        return prisma.$executeRawUnsafe(`
+            UPDATE events 
+            SET title = $1, 
+                description = $2, 
+                start_datetime = $3::timestamp, 
+                end_datetime = $4::timestamp, 
+                location = $5, 
+                visibility = $6, 
+                teacher_id = $7, 
+                department_id = $8, 
+                event_type_id = $9
+            WHERE id = $10
+        `, 
+        title, 
+        description, 
+        start, 
+        end, 
+        location, 
+        visibility, 
+        teacher_id, 
+        department_id, 
+        event_type_id, 
+        nid
+        );
     },
 
     async getEventTypes() {
@@ -1084,14 +1098,17 @@ export const DirectorService = {
 
     // --- Projects ---
     async getProjects(year?: number, semester?: number) {
-        let query = `SELECT * FROM projects WHERE 1=1`;
+        let query = `SELECT p.*, ay.year_name as year_label 
+                     FROM projects p 
+                     LEFT JOIN academic_years ay ON p.academic_year_id = ay.id 
+                     WHERE 1=1`;
         const params: any[] = [];
         let idx = 1;
         if (year) {
-            query += ` AND academic_year_id = $${idx++}`;
+            query += ` AND p.academic_year_id = $${idx++}`;
             params.push(year);
         }
-        query += ` ORDER BY id DESC`;
+        query += ` ORDER BY p.id DESC`;
 
         const rows: any[] = await prisma.$queryRawUnsafe(query, ...params);
 
@@ -1099,13 +1116,13 @@ export const DirectorService = {
         const [pTypes, bTypes, sGroups, teachers] = await Promise.all([
             this.getProjectTypes(),
             this.getBudgetTypes(),
-            this.getLearningSubjectGroups(),
+            this.getDepartments(),
             this.getTeachers()
         ]);
 
         const ptMap = new Map(((pTypes || []) as any[]).map((t: any) => [t.id, t.name]));
         const btMap = new Map(((bTypes || []) as any[]).map((t: any) => [t.id, t.name]));
-        const sgMap = new Map(((sGroups || []) as any[]).map((g: any) => [g.id, g.group_name]));
+        const sgMap = new Map(((sGroups || []) as any[]).map((g: any) => [g.id, g.department_name]));
         const tMap = new Map((teachers || []).map((t: any) => [t.id, t]));
 
         return rows.map(r => {
@@ -1113,7 +1130,8 @@ export const DirectorService = {
             const budget_total = Number(r.allocated_budget || r.total_budget || 0);
             const budget_used_sem1 = Number(r.budget_used_sem1 || 0);
             const budget_used_sem2 = Number(r.budget_used_sem2 || 0);
-            const budget_remaining = budget_total - budget_used_sem1 - budget_used_sem2;
+            const budget_used = budget_used_sem1 + budget_used_sem2;
+            const budget_remaining = budget_total - budget_used;
             const teacher_id = r.teacher_id;
             const t = tMap.get(teacher_id) as any;
             const tName = t ? `${t.prefix || ''}${t.first_name} ${t.last_name}` : '';
@@ -1124,7 +1142,8 @@ export const DirectorService = {
                 name,
                 description: r.description || '',
                 year: r.academic_year_id,
-                semester: 1, // Semester column missing in current projects schema model manually but we can default or add if needed
+                year_label: r.year_label || String(r.academic_year_id || ''),
+                semester: 1, 
                 budget_total,
                 budget_used_sem1,
                 budget_used_sem2,
@@ -1136,8 +1155,8 @@ export const DirectorService = {
                 project_type: ptMap.get(r.project_type_id) || '',
                 budget_type_id: r.budget_type_id,
                 budget_type: btMap.get(r.budget_type_id) || '',
-                learning_subject_group_id: r.learning_subject_group_id,
-                department: sgMap.get(r.learning_subject_group_id) || '',
+                learning_subject_group_id: r.department_id,
+                department: sgMap.get(r.department_id) || '',
                 start_date: r.start_date,
                 end_date: r.end_date,
             };
@@ -1175,7 +1194,11 @@ export const DirectorService = {
             code
         ];
 
-        const placeholders = vals.map((_, i) => `$${i + 1}`).join(', ');
+        const placeholders = vals.map((_, i) => {
+            const pos = i + 1;
+            if (pos === 11 || pos === 12) return `$${pos}::date`;
+            return `$${pos}`;
+        }).join(', ');
         const sql = `INSERT INTO projects (${cols.join(', ')}) VALUES (${placeholders})`;
         console.log('CREATE SQL:', sql);
         return await prisma.$executeRawUnsafe(sql, ...vals);
@@ -1201,8 +1224,8 @@ export const DirectorService = {
         if (data.budget_used_sem2 !== undefined) { sets.push(`budget_used_sem2 = $${idx++}`); p.push(Number(data.budget_used_sem2)); }
         if (data.status !== undefined) { sets.push(`status = $${idx++}`); p.push(data.status); }
         if (data.teacher_id !== undefined) { sets.push(`teacher_id = $${idx++}`); p.push(data.teacher_id ? Number(data.teacher_id) : null); }
-        if (data.start_date !== undefined) { sets.push(`start_date = $${idx++}`); p.push(data.start_date ? new Date(data.start_date).toISOString() : null); }
-        if (data.end_date !== undefined) { sets.push(`end_date = $${idx++}`); p.push(data.end_date ? new Date(data.end_date).toISOString() : null); }
+        if (data.start_date !== undefined) { sets.push(`start_date = $${idx++}::date`); p.push(data.start_date ? new Date(data.start_date).toISOString() : null); }
+        if (data.end_date !== undefined) { sets.push(`end_date = $${idx++}::date`); p.push(data.end_date ? new Date(data.end_date).toISOString() : null); }
 
         if (sets.length === 0) return;
         p.push(id);
@@ -1330,5 +1353,12 @@ export const DirectorService = {
         });
 
         return Array.from(rooms).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    },
+
+    async getAcademicYears() {
+        return prisma.academic_years.findMany({
+            orderBy: { year_name: 'desc' },
+            select: { id: true, year_name: true, is_active: true }
+        });
     }
 };

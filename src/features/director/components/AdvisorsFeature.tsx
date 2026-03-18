@@ -53,8 +53,9 @@ export function AdvisorsFeature() {
     const [studentCounts, setStudentCounts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string>("");
-    const [year, setYear] = useState(new Date().getFullYear() + 543);
+    const [year, setYear] = useState(2568);
     const [semester, setSemester] = useState(1);
+    const [academicYears, setAcademicYears] = useState<{ id: number; year_name: string }[]>([]);
 
     const [editingAdvisor, setEditingAdvisor] = useState<any | null>(null);
     const [creatingAdvisor, setCreatingAdvisor] = useState(false);
@@ -134,12 +135,14 @@ export function AdvisorsFeature() {
             DirectorApiService.getStudentCount().catch(() => []),
             DirectorApiService.getGradeLevels().catch(() => []),
             DirectorApiService.getClassrooms().catch(() => []),
-        ]).then(([advisorRows, teacherRows, studentCountRows, levels, rooms]) => {
+            DirectorApiService.getAcademicYears().catch(() => []),
+        ]).then(([advisorRows, teacherRows, studentCountRows, levels, rooms, years]) => {
             setAllAdvisors(advisorRows || []);
             setTeachers(teacherRows || []);
             setStudentCounts(studentCountRows || []);
             setLevelOptions(levels || []);
             setRoomOptionsList(rooms || []);
+            setAcademicYears(years || []);
         });
     }, []);
 
@@ -244,9 +247,14 @@ export function AdvisorsFeature() {
             .map((r: any) => String(r.room || "")),
         form.room || "",
     ]);
-    const yearOptions = Array.from(new Set([...(advisorSource || []).map((a: any) => String(a.year ?? "")).filter(Boolean), form.year || "", String(year)]))
+    const yearOptions = Array.from(new Set([
+        ...(academicYears || []).map(y => String(y.year_name)),
+        ...(advisorSource || []).map((a: any) => String(a.year ?? "")).filter(Boolean),
+        form.year || "",
+        String(year)
+    ]))
         .filter(Boolean)
-        .sort((a, b) => Number(a) - Number(b));
+        .sort((a, b) => Number(b) - Number(a)); // Sort descending for better UX
     const semesterOptions = Array.from(new Set([...(advisorSource || []).map((a: any) => String(a.semester ?? "")).filter(Boolean), form.semester || "", String(semester), "1", "2"]))
         .filter(Boolean)
         .sort((a, b) => Number(a) - Number(b));
@@ -269,12 +277,13 @@ export function AdvisorsFeature() {
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-wrap gap-4 items-end">
                 <div className="flex flex-col gap-1">
                     <label className="text-xs text-slate-500 font-medium ml-1">ปีการศึกษา</label>
-                    <input
-                        type="number"
-                        className="px-3 py-2 border border-slate-200 rounded-xl w-32 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                    <select
+                        className="px-3 py-2 border border-slate-200 rounded-xl w-32 focus:ring-2 focus:ring-emerald-500 outline-none transition-all bg-white"
                         value={year}
                         onChange={(e) => setYear(Number(e.target.value))}
-                    />
+                    >
+                        {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
                 </div>
                 <div className="flex flex-col gap-1">
                     <label className="text-xs text-slate-500 font-medium ml-1">ภาคเรียน</label>
@@ -314,9 +323,6 @@ export function AdvisorsFeature() {
                 </div>
 
                 <div className="flex gap-2">
-                    <button onClick={load} className="px-5 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-all shadow-sm active:scale-95">
-                        โหลด
-                    </button>
                     <button onClick={openCreateModal} className="px-5 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-all shadow-sm active:scale-95">
                         เพิ่ม
                     </button>
@@ -343,7 +349,7 @@ export function AdvisorsFeature() {
                     <table className="w-full">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-200">
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">#</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">ลำดับ</th>
                                 <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">ชั้น</th>
                                 <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">ห้อง</th>
                                 <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">ครูที่ปรึกษา</th>

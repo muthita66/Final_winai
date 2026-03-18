@@ -205,4 +205,7 @@ export const DirectorApiService = {
     async getClassrooms() {
         return fetchApi<string[]>('/api/director/classrooms');
     },
+    async getAcademicYears() {
+        return fetchApi<any[]>('/api/director/lookups/academic-years');
+    },
 };
