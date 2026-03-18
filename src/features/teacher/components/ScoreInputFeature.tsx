@@ -91,6 +91,8 @@ export function ScoreInputFeature({ session }: { session: any }) {
     const [selectedHeaderId, setSelectedHeaderId] = useState<number | null>(null);
     const [scoreMap, setScoreMap] = useState<Record<number, Record<number, string>>>({}); // student_id -> header_id -> score
     const [originalScoreMap, setOriginalScoreMap] = useState<Record<number, Record<number, string>>>({});
+    const [isPassedMap, setIsPassedMap] = useState<Record<number, Record<number, boolean | null>>>({});
+    const [originalIsPassedMap, setOriginalIsPassedMap] = useState<Record<number, Record<number, boolean | null>>>({});
     const [loading, setLoading] = useState(true);
     const [scoreLoading, setScoreLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -106,14 +108,20 @@ export function ScoreInputFeature({ session }: { session: any }) {
     const [newTitle, setNewTitle] = useState("");
     const [newMax, setNewMax] = useState(100);
     const [addingHeader, setAddingHeader] = useState(false);
+    const [newIndicatorIds, setNewIndicatorIds] = useState<number[]>([]);
 
     // header inline edit
     const [editingHeaderId, setEditingHeaderId] = useState<number | null>(null);
     const [editTitle, setEditTitle] = useState("");
     const [editMax, setEditMax] = useState(100);
     const [updatingHeader, setUpdatingHeader] = useState(false);
+    const [editIndicatorIds, setEditIndicatorIds] = useState<number[]>([]);
     const activeHeader = headers.find((h) => h.id === selectedHeaderId) || null;
     const activeMax = toNum(activeHeader?.max_score);
+
+    // indicators
+    const [indicators, setIndicators] = useState<any[]>([]);
+    const [indicatorsLoading, setIndicatorsLoading] = useState(false);
 
     const scoreInputRefs = useRef<Record<string, HTMLInputElement | null>>({}); // key: studentId-headerId
 
@@ -131,7 +139,10 @@ export function ScoreInputFeature({ session }: { session: any }) {
         return Object.values(studentScores).some(v => v !== "");
     }).length;
 
+    const isPassFail = sectionInfo?.subjects?.evaluation_type_id === 2;
+
     const invalidCount = students.reduce((acc, s) => {
+        if (isPassFail) return acc;
         const studentScores = scoreMap[s.id] || {};
         headers.forEach(h => {
             const raw = studentScores[h.id];
@@ -148,8 +159,10 @@ export function ScoreInputFeature({ session }: { session: any }) {
     const changedCount = students.reduce((acc, s) => {
         const studentScores = scoreMap[s.id] || {};
         const originalStudentScores = originalScoreMap[s.id] || {};
+        const passScores = isPassedMap[s.id] || {};
+        const origPassScores = originalIsPassedMap[s.id] || {};
         headers.forEach(h => {
-            if ((studentScores[h.id] ?? "") !== (originalStudentScores[h.id] ?? "")) {
+            if ((studentScores[h.id] ?? "") !== (originalStudentScores[h.id] ?? "") || passScores[h.id] !== origPassScores[h.id]) {
                 acc++;
             }
         });
@@ -294,15 +307,20 @@ export function ScoreInputFeature({ session }: { session: any }) {
         try {
             const rows = await TeacherApiService.getSectionScores(sectionId);
             const map: Record<number, Record<number, string>> = {};
+            const passMap: Record<number, Record<number, boolean | null>> = {};
             (rows || []).forEach((r: any) => {
                 if (r?.student_id && r?.header_id) {
                     if (!map[r.student_id]) map[r.student_id] = {};
+                    if (!passMap[r.student_id]) passMap[r.student_id] = {};
                     map[r.student_id][r.header_id] = r.score == null ? "" : String(r.score);
+                    passMap[r.student_id][r.header_id] = r.is_passed;
                 }
             });
             setScoreMap(map);
             setOriginalScoreMap(JSON.parse(JSON.stringify(map)));
-        } catch { setScoreMap({}); setOriginalScoreMap({}); }
+            setIsPassedMap(passMap);
+            setOriginalIsPassedMap(JSON.parse(JSON.stringify(passMap)));
+        } catch { setScoreMap({}); setOriginalScoreMap({}); setIsPassedMap({}); setOriginalIsPassedMap({}); }
         finally { setScoreLoading(false); }
     }, []);
 
@@ -397,11 +415,11 @@ export function ScoreInputFeature({ session }: { session: any }) {
     const handleAddHeader = async () => {
         const title = newTitle.trim();
         if (!title) return alert("กรุณากรอกชื่อหัวข้อคะแนน");
-        if (toNum(newMax) <= 0) return alert("คะแนนเต็มต้องมากกว่า 0");
+        if (!isPassFail && toNum(newMax) <= 0) return alert("คะแนนเต็มต้องมากกว่า 0");
         setAddingHeader(true);
         try {
-            const created = await TeacherApiService.addScoreHeader(sectionId, title, toNum(newMax));
-            setNewTitle(""); setNewMax(100); setShowAddHeader(false);
+            const created = await TeacherApiService.addScoreHeader(sectionId, title, isPassFail ? 0 : toNum(newMax), newIndicatorIds);
+            setNewTitle(""); setNewMax(100); setNewIndicatorIds([]); setShowAddHeader(false);
             await loadSectionData();
             if (created?.id) setSelectedHeaderId(created.id);
         } catch { alert("เพิ่มหัวข้อคะแนนไม่สำเร็จ"); }
@@ -412,16 +430,17 @@ export function ScoreInputFeature({ session }: { session: any }) {
         setEditingHeaderId(h.id);
         setEditTitle(String(h.title || ""));
         setEditMax(toNum(h.max_score) || 100);
+        setEditIndicatorIds((h.indicators || []).map((ind: any) => ind.id));
     };
 
     const handleUpdateHeader = async () => {
         if (!editingHeaderId) return;
         const title = editTitle.trim();
         if (!title) return alert("กรุณากรอกชื่อหัวข้อ");
-        if (toNum(editMax) <= 0) return alert("คะแนนเต็มต้องมากกว่า 0");
+        if (!isPassFail && toNum(editMax) <= 0) return alert("คะแนนเต็มต้องมากกว่า 0");
         setUpdatingHeader(true);
         try {
-            await TeacherApiService.updateScoreHeader(editingHeaderId, title, toNum(editMax));
+            await TeacherApiService.updateScoreHeader(editingHeaderId, title, isPassFail ? 0 : toNum(editMax), editIndicatorIds);
             setEditingHeaderId(null);
             await loadSectionData();
         } catch { alert("แก้ไขหัวข้อไม่สำเร็จ"); }
@@ -446,7 +465,9 @@ export function ScoreInputFeature({ session }: { session: any }) {
                 return students.some(s => {
                     const current = (scoreMap[s.id] || {})[h.id] ?? "";
                     const original = (originalScoreMap[s.id] || {})[h.id] ?? "";
-                    return current !== original;
+                    const currentPass = (isPassedMap[s.id] || {})[h.id];
+                    const origPass = (originalIsPassedMap[s.id] || {})[h.id];
+                    return current !== original || currentPass !== origPass;
                 });
             });
 
@@ -461,16 +482,19 @@ export function ScoreInputFeature({ session }: { session: any }) {
                     h.id,
                     students.map((s) => {
                         const raw = (scoreMap[s.id] || {})[h.id];
+                        const ip = (isPassedMap[s.id] || {})[h.id];
                         const n = raw == null || raw === "" ? 0 : Number(raw);
                         return {
                             student_id: s.id,
-                            score: hMax > 0 ? Math.max(0, Math.min(hMax, toNum(n))) : Math.max(0, toNum(n))
+                            score: hMax > 0 ? Math.max(0, Math.min(hMax, toNum(n))) : Math.max(0, toNum(n)),
+                            is_passed: ip
                         };
                     })
                 );
             }));
 
             setOriginalScoreMap(JSON.parse(JSON.stringify(scoreMap)));
+            setOriginalIsPassedMap(JSON.parse(JSON.stringify(isPassedMap)));
             alert("บันทึกคะแนนเรียบร้อย");
         } catch (err) {
             console.error(err);
@@ -665,7 +689,18 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                     />
                                 </div>
                                 <button
-                                    onClick={() => setShowManageModal(true)}
+                                    onClick={async () => {
+                                        setShowManageModal(true);
+                                        const subjectId = sectionInfo?.subjects?.id || sectionInfo?.subject_id;
+                                        if (subjectId) {
+                                            setIndicatorsLoading(true);
+                                            try {
+                                                const data = await TeacherApiService.getIndicators(Number(subjectId));
+                                                setIndicators(Array.isArray(data) ? data : []);
+                                            } catch { setIndicators([]); }
+                                            finally { setIndicatorsLoading(false); }
+                                        }
+                                    }}
                                     className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition-colors"
                                 >
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
@@ -696,11 +731,11 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                     onClick={() => setSelectedHeaderId(h.id)}
                                                     className={`px-4 py-3 text-center text-xs font-bold uppercase tracking-wider border-r border-slate-100 min-w-[100px] cursor-pointer transition-colors ${selectedHeaderId === h.id ? "bg-amber-50 text-amber-700" : "text-slate-500 hover:bg-slate-100"}`}>
                                                     <div className="line-clamp-1" title={h.title}>{h.title}</div>
-                                                    <div className="mt-0.5 text-[10px] font-normal opacity-60">เต็ม {toNum(h.max_score)}</div>
+                                                    {!isPassFail && <div className="mt-0.5 text-[10px] font-normal opacity-60">เต็ม {toNum(h.max_score)}</div>}
                                                 </th>
                                             ))}
 
-                                            <th className="px-4 py-3 text-center text-xs font-bold text-amber-600 uppercase tracking-wider bg-amber-50/30 min-w-[100px]">คะแนนรวม</th>
+                                            {!isPassFail && <th className="px-4 py-3 text-center text-xs font-bold text-amber-600 uppercase tracking-wider bg-amber-50/30 min-w-[100px]">คะแนนรวม</th>}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
@@ -722,11 +757,30 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                         const originalRaw = studentOriginalScores[h.id] ?? "";
                                                         const n = raw === "" ? null : Number(raw);
                                                         const hMax = toNum(h.max_score);
-                                                        const invalid = raw !== "" && (!Number.isFinite(n) || (n as number) < 0 || (hMax > 0 && (n as number) > hMax));
-                                                        const changed = raw !== originalRaw;
+                                                        const invalid = !isPassFail && raw !== "" && (!Number.isFinite(n) || (n as number) < 0 || (hMax > 0 && (n as number) > hMax));
+                                                        
+                                                        const passRaw = (isPassedMap[s.id] || {})[h.id];
+                                                        const originalPassRaw = (originalIsPassedMap[s.id] || {})[h.id];
+                                                        const changed = isPassFail ? passRaw !== originalPassRaw : raw !== originalRaw;
 
                                                         return (
                                                             <td key={h.id} className={`px-2 py-1.5 text-center border-r border-slate-50 ${selectedHeaderId === h.id ? "bg-amber-50/20" : ""}`}>
+                                                                {isPassFail ? (
+                                                                    <label className="inline-flex items-center justify-center cursor-pointer w-full h-full">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            className={`w-5 h-5 rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer ${changed ? "ring-2 ring-amber-400" : ""}`}
+                                                                            checked={passRaw === true}
+                                                                            onChange={(e) => setIsPassedMap(prev => ({
+                                                                                ...prev,
+                                                                                [s.id]: { ...(prev[s.id] || {}), [h.id]: e.target.checked }
+                                                                            }))}
+                                                                        />
+                                                                        <span className={`ml-2 text-sm font-bold ${passRaw ? "text-green-600" : "text-slate-400"}`}>
+                                                                            {passRaw ? "ผ" : "มผ"}
+                                                                        </span>
+                                                                    </label>
+                                                                ) : (
                                                                 <input
                                                                     ref={(el) => {
                                                                         scoreInputRefs.current[`${s.id}-${h.id}`] = el;
@@ -743,16 +797,19 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                                         : changed ? "border-amber-300 bg-amber-50 text-amber-800 focus:ring-amber-400"
                                                                             : "border-slate-200 focus:border-amber-400 focus:ring-amber-400/20"
                                                                         }`}
-                                                                />
+                                                                    />
+                                                                )}
                                                             </td>
                                                         );
                                                     })}
 
-                                                    <td className="px-4 py-2 text-center bg-amber-50/10">
-                                                        <span className={`text-sm font-bold ${total > 0 ? "text-amber-600" : "text-slate-300"}`}>
-                                                            {total.toLocaleString()}
-                                                        </span>
-                                                    </td>
+                                                    {!isPassFail && (
+                                                        <td className="px-4 py-2 text-center bg-amber-50/10">
+                                                            <span className={`text-sm font-bold ${total > 0 ? "text-amber-600" : "text-slate-300"}`}>
+                                                                {total.toLocaleString()}
+                                                            </span>
+                                                        </td>
+                                                    )}
                                                 </tr>
                                             );
                                         })}
@@ -818,6 +875,13 @@ export function ScoreInputFeature({ session }: { session: any }) {
                         </div>
 
                         <div className="p-6 max-h-[60vh] overflow-y-auto">
+                            {/* Loading indicators */}
+                            {indicatorsLoading && (
+                                <div className="flex items-center justify-center py-4 text-slate-400 text-sm">
+                                    <div className="w-4 h-4 border-2 border-slate-200 border-t-slate-500 rounded-full animate-spin mr-2" />
+                                    กำลังโหลดตัวชี้วัด...
+                                </div>
+                            )}
                             <div className="space-y-3">
                                 {headers.map((h) => {
                                     const isEditing = editingHeaderId === h.id;
@@ -831,15 +895,39 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                         className="w-full rounded-xl border border-amber-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-400"
                                                         placeholder="ชื่อหัวข้อ"
                                                     />
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs text-slate-500 font-medium">คะแนนเต็ม:</span>
-                                                        <input
-                                                            type="number"
-                                                            value={editMax}
-                                                            onChange={(e) => setEditMax(Number(e.target.value))}
-                                                            className="w-20 rounded-xl border border-amber-200 px-3 py-1.5 text-sm text-center outline-none focus:ring-2 focus:ring-amber-400"
-                                                        />
-                                                    </div>
+                                                    {!isPassFail && (
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs text-slate-500 font-medium">คะแนนเต็ม:</span>
+                                                            <input
+                                                                type="number"
+                                                                value={editMax}
+                                                                onChange={(e) => setEditMax(Number(e.target.value))}
+                                                                className="w-20 rounded-xl border border-amber-200 px-3 py-1.5 text-sm text-center outline-none focus:ring-2 focus:ring-amber-400"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    {indicators.length > 0 && (
+                                                        <div className="mt-2">
+                                                            <span className="text-xs text-slate-500 font-medium block mb-1.5">ตัวชี้วัด:</span>
+                                                            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                                                                {indicators.map((ind) => (
+                                                                    <label key={ind.id} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all border ${editIndicatorIds.includes(ind.id) ? "bg-amber-100 border-amber-400 text-amber-800" : "bg-white border-slate-200 text-slate-500 hover:border-amber-300"}`}>
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={editIndicatorIds.includes(ind.id)}
+                                                                            onChange={(e) => {
+                                                                                if (e.target.checked) setEditIndicatorIds((prev) => [...prev, ind.id]);
+                                                                                else setEditIndicatorIds((prev) => prev.filter((id) => id !== ind.id));
+                                                                            }}
+                                                                            className="accent-amber-500 w-3.5 h-3.5"
+                                                                        />
+                                                                        <span className="font-semibold">{ind.code}</span>
+                                                                        <span className="hidden sm:inline truncate max-w-[180px]">{ind.description}</span>
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div className="flex flex-col gap-2">
                                                     <button onClick={handleUpdateHeader} disabled={updatingHeader} className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 disabled:opacity-50">บันทึก</button>
@@ -852,7 +940,16 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                         <div key={h.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 bg-white hover:border-amber-200 hover:shadow-md transition-all group">
                                             <div>
                                                 <div className="font-bold text-slate-700">{h.title}</div>
-                                                <div className="text-xs text-slate-400 font-medium mt-1">เต็ม {toNum(h.max_score)} คะแนน</div>
+                                                {!isPassFail && <div className="text-xs text-slate-400 font-medium mt-1">เต็ม {toNum(h.max_score)} คะแนน</div>}
+                                                {h.indicators && h.indicators.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1 mt-1.5">
+                                                        {h.indicators.map((ind: any) => (
+                                                            <span key={ind.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-semibold border border-blue-100" title={ind.description}>
+                                                                {ind.code}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button onClick={() => handleStartEdit(h)} className="p-2 rounded-lg text-slate-400 hover:bg-amber-100 hover:text-amber-600" title="แก้ไข">
@@ -876,20 +973,44 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                             autoFocus
                                         />
                                         <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-slate-500 font-medium">คะแนนเต็ม:</span>
-                                                <input
-                                                    type="number"
-                                                    value={newMax}
-                                                    onChange={(e) => setNewMax(Number(e.target.value))}
-                                                    className="w-20 rounded-xl border border-emerald-200 px-3 py-1.5 text-sm text-center outline-none focus:ring-2 focus:ring-emerald-400"
-                                                />
-                                            </div>
-                                            <div className="flex gap-2">
+                                            {!isPassFail && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-slate-500 font-medium">คะแนนเต็ม:</span>
+                                                    <input
+                                                        type="number"
+                                                        value={newMax}
+                                                        onChange={(e) => setNewMax(Number(e.target.value))}
+                                                        className="w-20 rounded-xl border border-emerald-200 px-3 py-1.5 text-sm text-center outline-none focus:ring-2 focus:ring-emerald-400"
+                                                    />
+                                                </div>
+                                            )}
+                                            <div className="flex gap-2 ml-auto">
                                                 <button onClick={handleAddHeader} disabled={addingHeader} className="px-4 py-2 rounded-xl bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 disabled:opacity-50">เพิ่ม</button>
-                                                <button onClick={() => { setShowAddHeader(false); setNewTitle(""); }} className="px-4 py-2 rounded-xl bg-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-300">ยกเลิก</button>
+                                                <button onClick={() => { setShowAddHeader(false); setNewTitle(""); setNewIndicatorIds([]); }} className="px-4 py-2 rounded-xl bg-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-300">ยกเลิก</button>
                                             </div>
                                         </div>
+                                        {indicators.length > 0 && (
+                                            <div>
+                                                <span className="text-xs text-slate-500 font-medium block mb-1.5">ตัวชี้วัด:</span>
+                                                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                                                    {indicators.map((ind) => (
+                                                        <label key={ind.id} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all border ${newIndicatorIds.includes(ind.id) ? "bg-emerald-100 border-emerald-400 text-emerald-800" : "bg-white border-slate-200 text-slate-500 hover:border-emerald-300"}`}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={newIndicatorIds.includes(ind.id)}
+                                                                onChange={(e) => {
+                                                                    if (e.target.checked) setNewIndicatorIds((prev) => [...prev, ind.id]);
+                                                                    else setNewIndicatorIds((prev) => prev.filter((id) => id !== ind.id));
+                                                                }}
+                                                                className="accent-emerald-500 w-3.5 h-3.5"
+                                                            />
+                                                            <span className="font-semibold">{ind.code}</span>
+                                                            <span className="hidden sm:inline truncate max-w-[180px]">{ind.description}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <button

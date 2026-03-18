@@ -30,7 +30,7 @@ model allergens {
 model assessment_item_indicators {
   assessment_item_id Int
   indicator_id       Int
-  id                 Int              @id
+  id                 Int              @id @default(autoincrement())
   assessment_items   assessment_items @relation(fields: [assessment_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   indicators         indicators       @relation(fields: [indicator_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
@@ -168,6 +168,7 @@ model day_of_weeks {
 model departments {
   id              Int        @id @default(autoincrement())
   department_name String     @unique @db.VarChar(100)
+  events          events[]
   projects        projects[]
   teachers        teachers[]
 }
@@ -348,14 +349,23 @@ model grade_categories {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model grade_scales {
-  id                 Int               @id @default(autoincrement())
-  min_score          Decimal           @db.Decimal(5, 2)
-  max_score          Decimal           @db.Decimal(5, 2)
-  letter_grade       String            @db.VarChar(5)
-  grade_point        Decimal           @db.Decimal(3, 2)
-  evaluation_type_id Int?              @default(1)
-  final_grades       final_grades[]
-  evaluation_types   evaluation_types? @relation(fields: [evaluation_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                   Int                 @id @default(autoincrement())
+  min_score            Decimal             @db.Decimal(5, 2)
+  max_score            Decimal             @db.Decimal(5, 2)
+  letter_grade         String              @db.VarChar(5)
+  grade_point          Decimal             @db.Decimal(3, 2)
+  evaluation_type_id   Int?                @default(1)
+  grade_scale_group_id Int?
+  final_grades         final_grades[]
+  evaluation_types     evaluation_types?   @relation(fields: [evaluation_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  grade_scale_groups   grade_scale_groups? @relation(fields: [grade_scale_group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model grade_scale_groups {
+  id           Int            @id @default(autoincrement())
+  group_name   String         @db.VarChar(100)
+  description  String?
+  grade_scales grade_scales[]
 }
 
 model health_checkup_records {
@@ -594,6 +604,7 @@ model student_scores {
   enrollment_id      Int
   score              Decimal?         @default(0.00) @db.Decimal(5, 2)
   is_missing         Boolean?         @default(false)
+  is_passed          Boolean?
   remark             String?
   created_at         DateTime?        @default(now()) @db.Timestamp(6)
   updated_at         DateTime?        @default(now()) @db.Timestamp(6)

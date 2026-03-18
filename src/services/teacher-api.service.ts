@@ -112,22 +112,25 @@ export const TeacherApiService = {
     async getSectionScores(section_id: number) {
         return fetchApi<any[]>(`/api/teacher/scores?action=all_scores&section_id=${section_id}`);
     },
-    async addScoreHeader(section_id: number, header_name: string, max_score: number) {
+    async getIndicators(subject_id: number) {
+        return fetchApi<any[]>(`/api/teacher/scores?action=indicators&subject_id=${subject_id}`);
+    },
+    async addScoreHeader(section_id: number, header_name: string, max_score: number, indicator_ids?: number[]) {
         return fetchApi<any>('/api/teacher/scores', {
             method: 'POST',
-            body: JSON.stringify({ action: 'header_add', section_id, header_name, max_score })
+            body: JSON.stringify({ action: 'header_add', section_id, header_name, max_score, indicator_ids })
         });
     },
-    async updateScoreHeader(id: number, title: string, max_score: number) {
+    async updateScoreHeader(id: number, title: string, max_score: number, indicator_ids?: number[]) {
         return fetchApi<any>('/api/teacher/scores', {
             method: 'POST',
-            body: JSON.stringify({ action: 'header_update', id, title, max_score })
+            body: JSON.stringify({ action: 'header_update', id, title, max_score, indicator_ids })
         });
     },
     async deleteScoreHeader(id: number) {
         return fetchApi<any>(`/api/teacher/scores?action=header_delete&id=${id}`, { method: 'DELETE' });
     },
-    async saveScores(header_id: number, scores: { student_id: number; score: number }[]) {
+    async saveScores(header_id: number, scores: { student_id: number; score: number; is_passed?: boolean | null }[]) {
         return fetchApi<any>('/api/teacher/scores', {
             method: 'POST',
             body: JSON.stringify({ action: 'save', header_id, scores })

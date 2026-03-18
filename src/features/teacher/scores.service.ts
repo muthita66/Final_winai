@@ -31,6 +31,7 @@ export const TeacherScoresService = {
                 name: ta.subjects.subject_name,
                 subject_name: ta.subjects.subject_name,
                 credit: ta.subjects.credit ? Number(ta.subjects.credit) : 0,
+                evaluation_type_id: ta.subjects.evaluation_type_id,
             } : null;
 
             const schedules = ((ta as any).class_schedules || []).map((sc: any) => ({
@@ -86,7 +87,12 @@ export const TeacherScoresService = {
             where: { teaching_assignment_id },
             include: {
                 assessment_items: {
-                    orderBy: { id: 'asc' }
+                    orderBy: { id: 'asc' },
+                    include: {
+                        assessment_item_indicators: {
+                            include: { indicators: true }
+                        }
+                    }
                 }
             },
             orderBy: { id: 'asc' }
@@ -103,6 +109,11 @@ export const TeacherScoresService = {
                     title: item.name,
                     max_score: Number(item.max_score),
                     weight_percent: Number(cat.weight_percent),
+                    indicators: (item as any).assessment_item_indicators?.map((ai: any) => ({
+                        id: ai.indicators.id,
+                        code: ai.indicators.code,
+                        description: ai.indicators.description,
+                    })) || [],
                 });
             });
         });
@@ -114,7 +125,8 @@ export const TeacherScoresService = {
         teaching_assignment_id: number,
         category_name_or_title: string,
         title_or_max: string | number,
-        max_score_arg?: number
+        max_score_arg?: number,
+        indicator_ids?: number[]
     ) {
         const isThreeArgShape = typeof title_or_max === 'number' && max_score_arg === undefined;
         const category_name = isThreeArgShape ? 'ทั่วไป' : category_name_or_title;
@@ -136,27 +148,74 @@ export const TeacherScoresService = {
             });
         }
 
-        return prisma.assessment_items.create({
+        const item = await prisma.assessment_items.create({
             data: {
                 grade_category_id: category.id,
                 name: title,
                 max_score: Number.isFinite(max_score) ? max_score : 0,
             }
         });
+
+        // Save indicator links
+        if (indicator_ids && indicator_ids.length > 0) {
+            const maxId = await prisma.assessment_item_indicators.aggregate({ _max: { id: true } });
+            let nextId = (maxId._max.id || 0) + 1;
+            await prisma.assessment_item_indicators.createMany({
+                data: indicator_ids.map((indicator_id: number) => ({
+                    id: nextId++,
+                    assessment_item_id: item.id,
+                    indicator_id,
+                })),
+            });
+        }
+
+        return item;
     },
 
     // Update assessment item
-    async updateHeader(id: number, title: string, max_score: number) {
-        return prisma.assessment_items.update({
+    async updateHeader(id: number, title: string, max_score: number, indicator_ids?: number[]) {
+        const item = await prisma.assessment_items.update({
             where: { id },
             data: { name: title, max_score }
         });
+
+        // Sync indicator links
+        if (indicator_ids !== undefined) {
+            await prisma.assessment_item_indicators.deleteMany({ where: { assessment_item_id: id } });
+            if (indicator_ids.length > 0) {
+                const maxId = await prisma.assessment_item_indicators.aggregate({ _max: { id: true } });
+                let nextId = (maxId._max.id || 0) + 1;
+                await prisma.assessment_item_indicators.createMany({
+                    data: indicator_ids.map((indicator_id: number) => ({
+                        id: nextId++,
+                        assessment_item_id: id,
+                        indicator_id,
+                    })),
+                });
+            }
+        }
+
+        return item;
     },
 
     // Delete assessment item and its scores
     async deleteHeader(id: number) {
+        await prisma.assessment_item_indicators.deleteMany({ where: { assessment_item_id: id } });
         await prisma.student_scores.deleteMany({ where: { assessment_item_id: id } });
         return prisma.assessment_items.delete({ where: { id } });
+    },
+
+    // Get indicators for a subject
+    async getIndicators(subject_id: number) {
+        const indicators = await prisma.indicators.findMany({
+            where: { subject_id },
+            orderBy: { code: 'asc' },
+        });
+        return indicators.map(i => ({
+            id: i.id,
+            code: i.code,
+            description: i.description,
+        }));
     },
 
     // Get students enrolled in a teaching assignment
@@ -214,6 +273,7 @@ export const TeacherScoresService = {
             student_id: s.enrollments?.student_id || 0,
             score: Number(s.score || 0),
             is_missing: s.is_missing || false,
+            is_passed: s.is_passed,
             remark: s.remark || '',
         }));
     },
@@ -243,6 +303,7 @@ export const TeacherScoresService = {
                         header_id: item.id,
                         student_id: s.enrollments?.student_id || 0,
                         score: Number(s.score || 0),
+                        is_passed: s.is_passed,
                     });
                 });
             });
@@ -251,7 +312,7 @@ export const TeacherScoresService = {
     },
 
     // Save scores for an assessment item
-    async saveScores(assessment_item_id: number, scores: { enrollment_id?: number; student_id?: number; score: number }[]) {
+    async saveScores(assessment_item_id: number, scores: { enrollment_id?: number; student_id?: number; score: number; is_passed?: boolean | null }[]) {
         const item = await prisma.assessment_items.findUnique({
             where: { id: assessment_item_id },
             select: {
@@ -288,7 +349,10 @@ export const TeacherScoresService = {
             if (existing) {
                 await prisma.student_scores.update({
                     where: { id: existing.id },
-                    data: { score: sc.score }
+                    data: {
+                        score: sc.score,
+                        is_passed: sc.is_passed !== undefined ? sc.is_passed : null
+                    }
                 });
             } else {
                 await prisma.student_scores.create({
@@ -296,6 +360,7 @@ export const TeacherScoresService = {
                         assessment_item_id,
                         enrollment_id,
                         score: sc.score,
+                        is_passed: sc.is_passed !== undefined ? sc.is_passed : null
                     }
                 });
             }

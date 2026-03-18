@@ -37,6 +37,13 @@ export async function GET(request: Request) {
             return successResponse(data);
         }
 
+        if (action === 'indicators') {
+            const subject_id = Number(searchParams.get('subject_id'));
+            if (!subject_id || Number.isNaN(subject_id)) return errorResponse('subject_id required', 400);
+            const data = await TeacherScoresService.getIndicators(subject_id);
+            return successResponse(data);
+        }
+
         return errorResponse('Unknown action', 400);
     } catch (error: any) {
         return errorResponse('Failed', 500, error.message);
@@ -50,12 +57,12 @@ export async function POST(request: Request) {
 
         if (action === 'header_add') {
             if (!Number(body.section_id) || Number.isNaN(Number(body.section_id))) return errorResponse('section_id required', 400);
-            const data = await TeacherScoresService.addHeader(body.section_id, body.header_name, body.max_score);
+            const data = await TeacherScoresService.addHeader(body.section_id, body.header_name, body.max_score, undefined, body.indicator_ids);
             return successResponse(data);
         }
         if (action === 'header_update') {
             if (!Number(body.id) || Number.isNaN(Number(body.id))) return errorResponse('id required', 400);
-            const data = await TeacherScoresService.updateHeader(body.id, body.title, body.max_score);
+            const data = await TeacherScoresService.updateHeader(body.id, body.title, body.max_score, body.indicator_ids);
             return successResponse(data);
         }
         if (action === 'save') {
