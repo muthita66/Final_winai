@@ -214,6 +214,33 @@ export const TeacherApiService = {
     async getAcademicYears() {
         return fetchApi<any[]>('/api/teacher/fitness?action=years');
     },
+    async getAdvisorClasses(teacher_id: number) {
+        return fetchApi<any[]>(`/api/teacher/fitness?action=advisor-classes&teacher_id=${teacher_id}`);
+    },
+    async getFitnessCriteria(test_name: string, class_level: string, year?: number) {
+        const params = new URLSearchParams({ action: 'criteria', test_name, class_level });
+        if (year) params.set('year', year.toString());
+        return fetchApi<any>(`/api/teacher/fitness?${params.toString()}`);
+    },
+    async getAllFitnessCriteria(filters?: { test_name?: string; class_level?: string; year?: number }) {
+        const params = new URLSearchParams({ action: 'list-all-criteria' });
+        if (filters?.test_name) params.set('test_name', filters.test_name);
+        if (filters?.class_level) params.set('class_level', filters.class_level);
+        if (filters?.year) params.set('year', filters.year.toString());
+        return fetchApi<any[]>(`/api/teacher/fitness?${params.toString()}`);
+    },
+    async upsertFitnessCriteria(data: any) {
+        return fetchApi<any>('/api/teacher/fitness', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'upsert-criteria', ...data })
+        });
+    },
+    async deleteFitnessCriteria(id: number) {
+        return fetchApi<any>('/api/teacher/fitness', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'delete-criteria', id })
+        });
+    },
     async getFitnessStudents(teacher_id: number, class_level: string, room: string) {
         return fetchApi<any[]>(`/api/teacher/fitness?action=students&teacher_id=${teacher_id}&class_level=${class_level}&room=${room}`);
     },

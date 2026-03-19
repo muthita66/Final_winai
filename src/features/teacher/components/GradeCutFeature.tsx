@@ -326,70 +326,130 @@ export function GradeCutFeature({ session }: { session: any }) {
                 </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <label className="block">
-                        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">วิชาที่สอน</span>
-                        <select
-                            value={selectedSubjectKey}
-                            onChange={(e) => handleSubjectSelect(e.target.value)}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none hover:bg-slate-100 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all text-slate-700"
-                        >
-                            <option value="">เลือกวิชา...</option>
-                            {subjectOptions.map((o) => (
-                                <option key={o.value} value={o.value}>{o.label}</option>
-                            ))}
-                        </select>
-                    </label>
+            {/* ── Selection Box (Premium Design) ── */}
+            <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50 transition-all mb-6">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-indigo-400 to-blue-600" />
+                <div className="p-6">
+                    <div className="mb-5 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100">
+                                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black text-slate-800 tracking-tight">ข้อมูลสำหรับการตัดเกรด</h2>
+                                <p className="text-xs font-medium text-slate-400">เลือกวิชาและห้องเรียนที่ต้องการคำนวณเกรด</p>
+                            </div>
+                        </div>
+                        {!hasSection && (
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 animate-pulse">
+                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">กรุณาเลือกข้อมูลให้ครบ</span>
+                            </div>
+                        )}
+                    </div>
 
-                    <label className="block">
-                        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">ห้องเรียน</span>
-                        <select
-                            disabled={!selectedSubjectKey}
-                            value={selectedRoomKey}
-                            onChange={(e) => handleRoomSelect(e.target.value)}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none hover:bg-slate-100 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all disabled:opacity-50 text-slate-700"
-                        >
-                            <option value="">เลือกห้อง...</option>
-                            {roomOptions.map((o) => (
-                                <option key={o.value} value={o.value}>{o.label}</option>
-                            ))}
-                        </select>
-                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {/* Subject */}
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                                <svg className="h-4 w-4 text-indigo-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                                วิชาที่สอน
+                            </label>
+                            <div className="relative group">
+                                <select
+                                    value={selectedSubjectKey}
+                                    onChange={(e) => handleSubjectSelect(e.target.value)}
+                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-indigo-400 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer appearance-none"
+                                >
+                                    <option value="">เลือกวิชา...</option>
+                                    {subjectOptions.map((o) => (
+                                        <option key={o.value} value={o.value}>{o.label}</option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-indigo-500 transition-colors">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                            </div>
+                        </div>
 
-                    <label className="block">
-                        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">ปีการศึกษา</span>
-                        <select
-                            disabled={!selectedRoomKey}
-                            value={selectedYearKey}
-                            onChange={(e) => handleYearSelect(e.target.value)}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none hover:bg-slate-100 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all disabled:opacity-50 text-slate-700"
-                        >
-                            <option value="">เลือกปีการศึกษา...</option>
-                            {yearOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+                        {/* Room */}
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                                <svg className="h-4 w-4 text-indigo-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                                ห้องเรียน
+                            </label>
+                            <div className="relative group">
+                                <select
+                                    disabled={!selectedSubjectKey}
+                                    value={selectedRoomKey}
+                                    onChange={(e) => handleRoomSelect(e.target.value)}
+                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-indigo-400 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-40 cursor-pointer appearance-none"
+                                >
+                                    <option value="">เลือกห้อง...</option>
+                                    {roomOptions.map((o) => (
+                                        <option key={o.value} value={o.value}>{o.label}</option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-indigo-500 transition-colors">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                            </div>
+                        </div>
 
-                    <label className="block">
-                        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">ภาคเรียน</span>
-                        <select
-                            value={selectedTermKey ? txt(sections.find(s => getTermKey(s) === selectedTermKey)?.semester) : ""}
-                            onChange={(e) => handleSemesterSelect(e.target.value)}
-                            disabled={!selectedYearKey}
-                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none hover:bg-slate-100 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all disabled:opacity-50 text-slate-700"
-                        >
-                            <option value="">{selectedYearKey ? "เลือกภาคเรียน..." : "เลือกปีก่อน"}</option>
-                            {semesterOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+                        {/* Academic Year */}
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                                <svg className="h-4 w-4 text-indigo-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                ปีการศึกษา
+                            </label>
+                            <div className="relative group">
+                                <select
+                                    disabled={!selectedRoomKey}
+                                    value={selectedYearKey}
+                                    onChange={(e) => handleYearSelect(e.target.value)}
+                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-indigo-400 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-40 cursor-pointer appearance-none"
+                                >
+                                    <option value="">เลือกปีการศึกษา...</option>
+                                    {yearOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-indigo-500 transition-colors">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Semester */}
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                                <svg className="h-4 w-4 text-indigo-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                                ภาคเรียน
+                            </label>
+                            <div className="relative group">
+                                <select
+                                    value={selectedTermKey ? txt(sections.find(s => getTermKey(s) === selectedTermKey)?.semester) : ""}
+                                    onChange={(e) => handleSemesterSelect(e.target.value)}
+                                    disabled={!selectedYearKey}
+                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-indigo-400 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-40 cursor-pointer appearance-none"
+                                >
+                                    <option value="">{selectedYearKey ? "เลือกภาคเรียน..." : "เลือกปีก่อน"}</option>
+                                    {semesterOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-indigo-500 transition-colors">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
