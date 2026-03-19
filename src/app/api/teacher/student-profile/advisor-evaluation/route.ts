@@ -1,3 +1,4 @@
+import { NextRequest, NextResponse } from 'next/server';
 import { TeacherStudentsService } from '@/features/teacher/students.service';
 import { errorResponse, successResponse } from '@/lib/api-response';
 import { z } from 'zod';
@@ -11,48 +12,56 @@ const submitSchema = z.object({
         name: z.string().trim().min(1),
         score: z.number().int().min(1).max(5),
     })),
-    feedback: z.string().optional(),
+    feedback: z.string().optional().nullable(),
+    sub_mode: z.string().optional(),
 });
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const teacher_id = Number(searchParams.get('teacher_id'));
-        const student_id = Number(searchParams.get('student_id') || searchParams.get('id'));
-        const year = Number(searchParams.get('year'));
-        const semester = Number(searchParams.get('semester'));
+        const teacher_id = parseInt(searchParams.get('teacher_id') || '0');
+        const student_id = parseInt(searchParams.get('student_id') || '0');
+        const year = parseInt(searchParams.get('year') || '0');
+        const semester = parseInt(searchParams.get('semester') || '0');
+        const sub_mode = searchParams.get('sub_mode') || 'attributes';
 
-        if (!teacher_id || Number.isNaN(teacher_id)) return errorResponse('teacher_id required', 400);
-        if (!student_id || Number.isNaN(student_id)) return errorResponse('student_id required', 400);
-        if (!year || Number.isNaN(year)) return errorResponse('year required', 400);
-        if (!semester || Number.isNaN(semester)) return errorResponse('semester required', 400);
+        if (!teacher_id || !student_id || !year || !semester) {
+            return errorResponse('Missing required parameters', 400);
+        }
 
-        const data = await TeacherStudentsService.getAdvisorEvaluationTemplateForStudent(teacher_id, student_id, year, semester);
+        const data = await TeacherStudentsService.getAdvisorEvaluationTemplateForStudent(teacher_id, student_id, year, semester, sub_mode);
         return successResponse(data);
     } catch (error: any) {
+        console.error('[AdvisorEvaluation API GET] Error full details:', {
+            message: error?.message,
+            stack: error?.stack,
+            error
+        });
         return errorResponse(error?.message || 'Failed to load advisor evaluation template', 500, error?.message);
     }
 }
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
     try {
-        const body = await request.json();
+        const body = await req.json();
         const parsed = submitSchema.safeParse(body);
         if (!parsed.success) {
             return errorResponse('Invalid payload format', 400, parsed.error.format());
         }
 
-        const result = await TeacherStudentsService.submitAdvisorEvaluationForStudent(
-            parsed.data.teacher_id,
-            parsed.data.student_id,
-            parsed.data.year,
-            parsed.data.semester,
-            parsed.data.data,
-            parsed.data.feedback
-        );
+        const result = await TeacherStudentsService.submitAdvisorEvaluationForStudent({
+            teacher_id: parsed.data.teacher_id,
+            student_id: parsed.data.student_id,
+            year: parsed.data.year,
+            semester: parsed.data.semester,
+            data: parsed.data.data,
+            feedback: parsed.data.feedback || undefined,
+            sub_mode: parsed.data.sub_mode
+        });
 
-        return successResponse(result, 'Advisor evaluation saved');
+        return NextResponse.json(result);
     } catch (error: any) {
-        return errorResponse(error?.message || 'Failed to save advisor evaluation', 500, error?.message);
+        console.error('[AdvisorEvaluation API POST] Error:', error);
+        return errorResponse(error?.message || 'Failed to submit advisor evaluation', 500, error?.message);
     }
 }

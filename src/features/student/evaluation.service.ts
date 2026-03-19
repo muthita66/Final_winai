@@ -63,12 +63,13 @@ export const EvaluationService = {
             const formId = formRows[0].form_id;
 
             // Fetch all sections and questions for this form
-            const rows: any[] = await prisma.$queryRaw`
+            const questions: any[] = await prisma.$queryRaw`
                 SELECT 
                     eq.id,
                     eq.question_text,
                     eq.question_type,
                     eq.order_number,
+                    eq.scale_type_id,
                     es.id as section_id,
                     es.section_name,
                     es.order_number as section_order
@@ -78,16 +79,40 @@ export const EvaluationService = {
                 ORDER BY es.order_number ASC, eq.order_number ASC
             `;
 
-            return rows.map(r => ({
-                id: Number(r.id),
-                form_id: formId,
-                type: r.question_type || 'scale',
-                name: r.question_text,
-                section_id: Number(r.section_id),
-                section_name: r.section_name,
-                section_order: Number(r.section_order),
-                order_number: Number(r.order_number),
-            }));
+            // Fetch scale items for these questions
+            const scaleIds = [...new Set(questions.map(q => q.scale_type_id).filter(id => id !== null))];
+            
+            let scaleItems: any[] = [];
+            if (scaleIds.length > 0) {
+                // Raw SQL for evaluation_scale_items
+                scaleItems = await prisma.$queryRawUnsafe(`
+                    SELECT scale_type_id, label, score_value, order_number 
+                    FROM evaluation_scale_items 
+                    WHERE scale_type_id IN (${scaleIds.join(',')})
+                    ORDER BY scale_type_id, order_number ASC
+                `);
+            }
+
+            return questions.map(q => {
+                const options = scaleItems
+                    .filter(si => si.scale_type_id === q.scale_type_id)
+                    .map(si => ({
+                        label: si.label,
+                        value: Number(si.score_value)
+                    }));
+
+                return {
+                    id: Number(q.id),
+                    form_id: formId,
+                    type: q.question_type || 'scale',
+                    name: q.question_text,
+                    section_id: Number(q.section_id),
+                    section_name: q.section_name,
+                    section_order: Number(q.section_order),
+                    order_number: Number(q.order_number),
+                    options: options.length > 0 ? options : null
+                };
+            });
         } catch (e) {
             console.error('[EvaluationService.getTopics] DB error:', e);
             return [];

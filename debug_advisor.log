@@ -1,0 +1,64 @@
+[2026-03-19T14:17:20.023Z] [Template] Start: teacher=9, student=57, sub_mode=attributes
+[2026-03-19T14:17:20.274Z] [ensureForm] Searching for: แบบประเมินคุณลักษณะอันพึงประสงค์ or engineType: advisor
+[2026-03-19T14:17:20.600Z] [Template] ERROR: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].evaluation_forms.findFirst()` invocation in
+D:\new\WinAi_SeeuNextLift\.next\dev\server\chunks\[root-of-the-server]__f0e744c2._.js:185:182
+
+  182 const engineType = sub_mode === 'reading_thinking' ? 'reading_thinking' : 'advisor';
+  183 const formName = sub_mode === 'reading_thinking' ? 'แบบประเมินการอ่านคิดวิเคราะห์' : 'แบบประเมินคุณลักษณะอันพึงประสงค์';
+  184 await debugLog(`[ensureForm] Searching for: ${formName} or engineType: ${engineType}`);
+→ 185 const existingForm = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].evaluation_forms.findFirst(
+The column `evaluation_questions.question_type` does not exist in the current database.
+[2026-03-19T14:17:20.604Z] [Template] STACK: PrismaClientKnownRequestError: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].evaluation_forms.findFirst()` invocation in
+D:\new\WinAi_SeeuNextLift\.next\dev\server\chunks\[root-of-the-server]__f0e744c2._.js:185:182
+
+  182 const engineType = sub_mode === 'reading_thinking' ? 'reading_thinking' : 'advisor';
+  183 const formName = sub_mode === 'reading_thinking' ? 'แบบประเมินการอ่านคิดวิเคราะห์' : 'แบบประเมินคุณลักษณะอันพึงประสงค์';
+  184 await debugLog(`[ensureForm] Searching for: ${formName} or engineType: ${engineType}`);
+→ 185 const existingForm = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].evaluation_forms.findFirst(
+The column `evaluation_questions.question_type` does not exist in the current database.
+    at $n.handleRequestError (D:\new\WinAi_SeeuNextLift\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (D:\new\WinAi_SeeuNextLift\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (D:\new\WinAi_SeeuNextLift\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (D:\new\WinAi_SeeuNextLift\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async ensureAdvisorEvaluationForm (D:\new\WinAi_SeeuNextLift\.next\dev\server\chunks\[root-of-the-server]__f0e744c2._.js:185:30)
+    at async Object.getAdvisorEvaluationTemplateForStudent (D:\new\WinAi_SeeuNextLift\.next\dev\server\chunks\[root-of-the-server]__f0e744c2._.js:549:26)
+    at async GET (D:\new\WinAi_SeeuNextLift\.next\dev\server\chunks\[root-of-the-server]__f0e744c2._.js:763:22)
+    at async AppRouteRouteModule.do (D:\new\WinAi_SeeuNextLift\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.dev.js:5:37866)
+    at async AppRouteRouteModule.handle (D:\new\WinAi_SeeuNextLift\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.dev.js:5:45156)
+    at async responseGenerator (D:\new\WinAi_SeeuNextLift\.next\dev\server\chunks\node_modules_next_c7f09bde._.js:15344:38)
+    at async AppRouteRouteModule.handleResponse (D:\new\WinAi_SeeuNextLift\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.dev.js:1:191938)
+    at async handleResponse (D:\new\WinAi_SeeuNextLift\.next\dev\server\chunks\node_modules_next_c7f09bde._.js:15407:32)
+    at async Module.handler (D:\new\WinAi_SeeuNextLift\.next\dev\server\chunks\node_modules_next_c7f09bde._.js:15460:13)
+    at async DevServer.renderToResponseWithComponentsImpl (D:\new\WinAi_SeeuNextLift\node_modules\next\dist\server\base-server.js:1442:9)
+    at async DevServer.renderPageComponent (D:\new\WinAi_SeeuNextLift\node_modules\next\dist\server\base-server.js:1494:24)
+    at async DevServer.renderToResponseImpl (D:\new\WinAi_SeeuNextLift\node_modules\next\dist\server\base-server.js:1544:32)
+    at async DevServer.pipeImpl (D:\new\WinAi_SeeuNextLift\node_modules\next\dist\server\base-server.js:1038:25)
+    at async NextNodeServer.handleCatchallRenderRequest (D:\new\WinAi_SeeuNextLift\node_modules\next\dist\server\next-server.js:395:17)
+    at async DevServer.handleRequestImpl (D:\new\WinAi_SeeuNextLift\node_modules\next\dist\server\base-server.js:929:17)
+    at async D:\new\WinAi_SeeuNextLift\node_modules\next\dist\server\dev\next-dev-server.js:387:20
+    at async Span.traceAsyncFn (D:\new\WinAi_SeeuNextLift\node_modules\next\dist\trace\trace.js:157:20)
+    at async DevServer.handleRequest (D:\new\WinAi_SeeuNextLift\node_modules\next\dist\server\dev\next-dev-server.js:383:24)
+    at async invokeRender (D:\new\WinAi_SeeuNextLift\node_modules\next\dist\server\lib\router-server.js:248:21)
+    at async handleRequest (D:\new\WinAi_SeeuNextLift\node_modules\next\dist\server\lib\router-server.js:447:24)
+    at async requestHandlerImpl (D:\new\WinAi_SeeuNextLift\node_modules\next\dist\server\lib\router-server.js:496:13)
+    at async Server.requestListener (D:\new\WinAi_SeeuNextLift\node_modules\next\dist\server\lib\start-server.js:226:13)
+[2026-03-19T14:24:49.289Z] [Template] Start: teacher=9, student=57, sub_mode=attributes
+[2026-03-19T14:24:49.707Z] [ensureForm] Searching via Raw SQL for: แบบประเมินคุณลักษณะอันพึงประสงค์
+[2026-03-19T14:24:49.758Z] [ensureForm] Found 8 rows for form: 2
+[2026-03-19T14:24:49.787Z] [resolveEvaluationPeriodId] ERROR: 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "evaluation_periods" does not exist`
+[2026-03-19T14:24:50.190Z] [Template] Form: 2, Period: null
+[2026-03-19T14:34:03.291Z] [Template] Start: teacher=9, student=57, sub_mode=attributes
+[2026-03-19T14:34:03.427Z] [ensureForm] Searching via Raw SQL for: แบบประเมินคุณลักษณะอันพึงประสงค์
+[2026-03-19T14:34:03.479Z] [ensureForm] Found 8 rows for form: 2
+[2026-03-19T14:34:03.514Z] [resolveEvaluationPeriodId] ERROR: 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "evaluation_periods" does not exist`
+[2026-03-19T14:34:03.844Z] [Template] Form: 2, Period: null

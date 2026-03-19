@@ -7,7 +7,7 @@ import { parseIntegerParam, parseStudentIdFromSession } from '@/app/api/student/
 const submitEvaluationSchema = z.object({
     data: z.array(z.object({
         name: z.string().trim().min(1),
-        score: z.number().int().min(1).max(5),
+        score: z.number().int().min(0).max(10),
     })),
     year: z.number().int().positive(),
     semester: z.number().int().positive(),

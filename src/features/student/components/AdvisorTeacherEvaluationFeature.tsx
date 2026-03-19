@@ -353,7 +353,7 @@ export function AdvisorTeacherEvaluationFeature({ session }: AdvisorTeacherEvalu
                                     return (
                                         <div key={`${topic}-${idx}`} className="rounded-2xl border border-slate-200 p-4">
                                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
-                                                <div className="font-medium text-slate-800">{idx + 1}. {topic}</div>
+                                                <div className="font-medium text-slate-800">1.{idx + 1} {topic.replace(/^[\d.]+\s*/, '')}</div>
                                                 <div className="text-sm text-slate-500">
                                                     คะแนน: <span className="font-semibold text-slate-800">{value || "-"}</span> {value ? `/5 (${ratingLabel(value)})` : ""}
                                                 </div>

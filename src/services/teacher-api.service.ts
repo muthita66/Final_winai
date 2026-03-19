@@ -48,12 +48,13 @@ export const TeacherApiService = {
         if (teacher_id) params.set('teacher_id', String(teacher_id));
         return fetchApi<any>(`/api/teacher/student-profile?${params.toString()}`);
     },
-    async getStudentAdvisorEvaluationTemplate(student_id: number, teacher_id: number, year: number, semester: number) {
+    async getStudentAdvisorEvaluationTemplate(student_id: number, teacher_id: number, year: number, semester: number, sub_mode: string = 'attributes') {
         const params = new URLSearchParams({
             student_id: String(student_id),
             teacher_id: String(teacher_id),
             year: String(year),
             semester: String(semester),
+            sub_mode,
         });
         return fetchApi<any>(`/api/teacher/student-profile/advisor-evaluation?${params.toString()}`);
     },
@@ -64,6 +65,7 @@ export const TeacherApiService = {
         semester: number;
         data: { name: string; score: number }[];
         feedback?: string;
+        sub_mode?: string;
     }) {
         return fetchApi<any>('/api/teacher/student-profile/advisor-evaluation', {
             method: 'POST',

@@ -63,7 +63,7 @@ export const TeacherEvaluationService = {
             for (const ta of assignments) {
                 const countResult = await prisma.$queryRawUnsafe<any[]>(
                     `SELECT COUNT(*)::int as count FROM evaluation_responses 
-                     WHERE teaching_assignment_id = $1 
+                     WHERE target_subject_id = $1 
                      ${teachingFormId ? `AND form_id = ${teachingFormId}` : ''}`,
                     ta.id
                 );
@@ -89,11 +89,11 @@ export const TeacherEvaluationService = {
 
     async getTeachingEvaluationResults(teacher_id: number, section_id?: number, year?: number, semester?: number) {
         // Use Raw SQL for evaluation_responses to avoid missing user_id column
-        let sql = `SELECT * FROM evaluation_responses WHERE teaching_assignment_id IS NOT NULL `;
+        let sql = `SELECT * FROM evaluation_responses WHERE target_subject_id IS NOT NULL `;
         const params: any[] = [];
 
         if (section_id) {
-            sql += ` AND teaching_assignment_id = $1 `;
+            sql += ` AND target_subject_id = $1 `;
             params.push(section_id);
         } else {
             const assignments = await prisma.teaching_assignments.findMany({
@@ -110,7 +110,7 @@ export const TeacherEvaluationService = {
             });
             const ids = assignments.map(a => a.id);
             if (ids.length > 0) {
-                sql += ` AND teaching_assignment_id IN (${ids.join(',')}) `;
+                sql += ` AND target_subject_id IN (${ids.join(',')}) `;
             } else {
                 return { summary: [], comments: [] };
             }
@@ -150,16 +150,16 @@ export const TeacherEvaluationService = {
         for (const r of responses) {
             const rAnswers = allAnswers.filter(a => a.response_id === r.id);
             for (const a of rAnswers) {
-                if (a.score != null) {
-                    const topic = a.question_text || a.answer_text || 'อื่นๆ';
+                if (a.score_value != null) {
+                    const topic = a.question_text || a.text_value || 'อื่นๆ';
                     const current = topicScores.get(topic) || { total: 0, count: 0 };
                     topicScores.set(topic, {
-                        total: current.total + Number(a.score),
+                        total: current.total + Number(a.score_value),
                         count: current.count + 1
                     });
-                } else if (a.answer_text) {
+                } else if (a.text_value) {
                     comments.push({
-                        text: a.answer_text,
+                        text: a.text_value,
                         submitted_at: r.submitted_at
                     });
                 }
@@ -213,8 +213,8 @@ export const TeacherEvaluationService = {
             const latestEvalResult = await prisma.$queryRawUnsafe<any[]>(
                 `SELECT submitted_at FROM evaluation_responses 
                  WHERE evaluator_user_id = $1 
-                 AND student_id = $2 
-                 ${period_id ? `AND period_id = ${period_id}` : ''}
+                 AND target_student_id = $2 
+                 ${period_id ? `AND semester_id = ${period_id}` : ''}
                  ${formIds.length > 0 ? `AND form_id IN (${formIds.join(',')})` : ''}
                  ORDER BY submitted_at DESC LIMIT 1`,
                 teacher_user_id, s.id
@@ -280,8 +280,8 @@ export const TeacherEvaluationService = {
                 `SELECT id, submitted_at FROM evaluation_responses 
                  WHERE form_id = $1 
                  AND evaluator_user_id = $2 
-                 AND student_id = $3 
-                 ${period_id ? `AND period_id = ${Number(period_id)}` : ''}
+                 AND target_student_id = $3 
+                 ${period_id ? `AND semester_id = ${Number(period_id)}` : ''}
                  ORDER BY submitted_at DESC LIMIT 1`,
                 form.id, teacher.user_id, student_id
             );
@@ -298,9 +298,9 @@ export const TeacherEvaluationService = {
                     WHERE a.response_id = $1
                 `, latestResponse.id);
                 current = answers
-                    .filter(a => a.score != null)
-                    .map(a => ({ name: a.question_text || a.answer_text, score: Number(a.score) }));
-                feedback = answers.find(a => a.score == null)?.answer_text || '';
+                    .filter(a => a.score_value != null)
+                    .map(a => ({ name: a.question_text || a.text_value, score: Number(a.score_value) }));
+                feedback = answers.find(a => a.score_value == null)?.text_value || '';
             }
 
             const topics = ((form as any).evaluation_questions || []).map((q: any) => ({ id: q.id, name: q.question_text }));
@@ -344,7 +344,7 @@ export const TeacherEvaluationService = {
             // Raw SQL insert because user_id (student user id) is missing from table
             // We store student ID in target_id for SUBJECT_STUDENT
             const result = await tx.$queryRawUnsafe<any[]>(
-                `INSERT INTO evaluation_responses (form_id, evaluator_user_id, student_id, period_id, submitted_at) 
+                `INSERT INTO evaluation_responses (form_id, evaluator_user_id, target_student_id, semester_id, submitted_at) 
                  VALUES ($1, $2, $3, $4, NOW()) 
                  RETURNING id`,
                 form.id, teacher.user_id, student_id, period_id ?? undefined
@@ -354,14 +354,14 @@ export const TeacherEvaluationService = {
             for (const item of data) {
                 const qid = questionByText.get(item.name.toLowerCase()) || null;
                 await tx.$executeRawUnsafe(`
-                    INSERT INTO evaluation_answers (response_id, question_id, answer_text, score)
+                    INSERT INTO evaluation_answers (response_id, question_id, text_value, score_value)
                     VALUES ($1, $2, $3, $4)
                 `, responseId, qid, qid ? null : item.name, item.score);
             }
 
             if (feedback) {
                 await tx.$executeRawUnsafe(`
-                    INSERT INTO evaluation_answers (response_id, answer_text, score)
+                    INSERT INTO evaluation_answers (response_id, text_value, score_value)
                     VALUES ($1, $2, null)
                 `, responseId, feedback);
             }
@@ -389,8 +389,8 @@ export const TeacherEvaluationService = {
             INNER JOIN public.evaluation_forms ef ON ef.id = er.form_id
             LEFT JOIN public.evaluation_categories eft ON eft.id = ef.category_id
             WHERE LOWER(COALESCE(eft.engine_type, '')) = 'advisor'
-              AND er.student_id IN (${targetIds.join(',')})
-              ${period_id ? `AND er.period_id = ${Number(period_id)}` : ''}
+              AND er.target_student_id IN (${targetIds.join(',')})
+              ${period_id ? `AND er.semester_id = ${Number(period_id)}` : ''}
             ORDER BY er.submitted_at DESC NULLS LAST, er.id DESC
             `
         );
@@ -475,7 +475,7 @@ export const TeacherEvaluationService = {
             `
             SELECT
                 er.id,
-                er.student_id,
+                er.target_student_id as student_id,
                 er.submitted_at,
                 ay.year_name AS year,
                 sem.semester_number AS semester
@@ -487,8 +487,8 @@ export const TeacherEvaluationService = {
             LEFT JOIN public.academic_years ay ON ay.id = sem.academic_year_id
             WHERE LOWER(COALESCE(eft.engine_type, '')) = 'advisor'
               AND er.evaluator_user_id = ${teacherUserId}
-              AND er.student_id IN (${studentIds.join(',')})
-              ${period_id ? `AND er.period_id = ${Number(period_id)}` : ''}
+              AND er.target_student_id IN (${studentIds.join(',')})
+              ${period_id ? `AND er.semester_id = ${Number(period_id)}` : ''}
             ORDER BY er.submitted_at DESC NULLS LAST, er.id DESC
             `
         );
@@ -536,12 +536,12 @@ export const TeacherEvaluationService = {
                 const topics = responseAnswers
                     .filter((a: any) => a.score != null)
                     .map((a: any) => ({
-                        name: a.question_text || a.answer_text || 'ไม่ระบุหัวข้อ',
-                        score: Number(a.score),
+                        name: a.question_text || a.text_value || 'ไม่ระบุหัวข้อ',
+                        score: Number(a.score_value),
                     }))
                     .filter((a: any) => a.name && Number.isFinite(a.score));
 
-                const feedback = responseAnswers.find((a) => a.score == null && String(a.answer_text || '').trim())?.answer_text || '';
+                const feedback = responseAnswers.find((a) => a.score_value == null && String(a.text_value || '').trim())?.text_value || '';
                 const totalScore = topics.reduce((sum, t) => sum + Number(t.score || 0), 0);
                 const averageScore = topics.length ? Number((totalScore / topics.length).toFixed(2)) : 0;
 

@@ -421,17 +421,17 @@ export const TeacherScoresService = {
 
     // Get scores for an assessment item
     async getScores(assessment_item_id: number) {
-        const scores = await prisma.student_scores.findMany({
-            where: { assessment_item_id },
-            include: {
-                enrollments: { select: { student_id: true } }
-            }
-        });
+        const scores: any[] = await prisma.$queryRawUnsafe(`
+            SELECT ss.*, e.student_id
+            FROM student_scores ss
+            JOIN enrollments e ON ss.enrollment_id = e.id
+            WHERE ss.assessment_item_id = $1
+        `, assessment_item_id);
 
         return scores.map(s => ({
             id: s.id,
             enrollment_id: s.enrollment_id,
-            student_id: s.enrollments?.student_id || 0,
+            student_id: s.student_id || 0,
             score: Number(s.score || 0),
             is_missing: s.is_missing || false,
             is_passed: s.is_passed,
@@ -452,31 +452,23 @@ export const TeacherScoresService = {
         const types = await prisma.$queryRaw`SELECT id, type_name FROM "grade_category_types"` as any[];
         if (categories.length === 0) return [];
 
-        // 5. Fetch assessment items via ORM (linked to categories)
         const catIds = categories.map(c => c.id);
-        const assessmentItems = await prisma.assessment_items.findMany({
-            where: { grade_category_id: { in: catIds } },
-            include: {
-                student_scores: {
-                    include: {
-                        enrollments: { select: { student_id: true } }
-                    }
-                }
-            }
-        });
 
-        const scoreData: any[] = [];
-        assessmentItems.forEach(item => {
-            item.student_scores.forEach(s => {
-                scoreData.push({
-                    header_id: item.id,
-                    student_id: s.enrollments?.student_id || 0,
-                    score: Number(s.score || 0),
-                    is_passed: s.is_passed,
-                });
-            });
-        });
-        return scoreData;
+        // 5. Fetch scores via Raw SQL to avoid Prisma Client schema mismatches
+        const scores: any[] = await prisma.$queryRawUnsafe(`
+            SELECT ss.assessment_item_id as header_id, e.student_id, ss.score, ss.is_passed
+            FROM student_scores ss
+            JOIN enrollments e ON ss.enrollment_id = e.id
+            JOIN assessment_items ai ON ss.assessment_item_id = ai.id
+            WHERE ai.grade_category_id = ANY($1::int[])
+        `, catIds);
+
+        return scores.map(s => ({
+            header_id: s.header_id,
+            student_id: s.student_id || 0,
+            score: Number(s.score || 0),
+            is_passed: s.is_passed,
+        }));
     },
 
     // Save scores for an assessment item
@@ -512,26 +504,26 @@ export const TeacherScoresService = {
 
             if (!enrollment_id) continue;
 
-            const existing = await prisma.student_scores.findFirst({
-                where: { assessment_item_id, enrollment_id }
-            });
-            if (existing) {
-                await prisma.student_scores.update({
-                    where: { id: existing.id },
-                    data: {
-                        score: sc.score,
-                        is_passed: sc.is_passed !== undefined ? sc.is_passed : null
-                    }
-                });
+            const existing: any[] = await prisma.$queryRawUnsafe(`
+                SELECT id FROM student_scores 
+                WHERE assessment_item_id = $1 AND enrollment_id = $2
+                LIMIT 1
+            `, assessment_item_id, enrollment_id);
+
+            const isPassedVal = sc.is_passed !== undefined ? sc.is_passed : null;
+            const scoreVal = sc.score !== undefined ? sc.score : 0;
+
+            if (existing.length > 0) {
+                await prisma.$executeRawUnsafe(`
+                    UPDATE student_scores 
+                    SET score = $1, is_passed = $2, updated_at = NOW()
+                    WHERE id = $3
+                `, scoreVal, isPassedVal, existing[0].id);
             } else {
-                await prisma.student_scores.create({
-                    data: {
-                        assessment_item_id,
-                        enrollment_id,
-                        score: sc.score,
-                        is_passed: sc.is_passed !== undefined ? sc.is_passed : null
-                    }
-                });
+                await prisma.$executeRawUnsafe(`
+                    INSERT INTO student_scores (assessment_item_id, enrollment_id, score, is_passed, created_at, updated_at)
+                    VALUES ($1, $2, $3, $4, NOW(), NOW())
+                `, assessment_item_id, enrollment_id, scoreVal, isPassedVal);
             }
         }
         return { success: true };

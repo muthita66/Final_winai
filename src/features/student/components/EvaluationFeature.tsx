@@ -168,7 +168,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
     // Initialize
     useEffect(() => {
         initData();
-    }, [year, semester]);
+    }, [year, semester, mode]);
     const fetchTopics = async (type: 'teaching' | 'sdq' = 'teaching') => {
         setIsLoadingTopics(true);
         try {
@@ -180,9 +180,9 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                 // Initialize score state keyed by topic name
                 const initScores: Record<string, number | string> = {};
                 validTopics.forEach((t: any) => {
-                    const isTextTopic = t.type === 'text' ||
+                    const isTextTopic = t.type === 'text' || 
                         t.type === 'textarea' ||
-                        t.section_name?.includes("ตอนที่ 3") ||
+                        (mode === 'evaluate' && t.section_name?.includes("ตอนที่ 3")) ||
                         t.name?.includes("แสดงความคิดเห็น");
                     initScores[t.name] = isTextTopic ? "" : -1;
                 });
@@ -208,9 +208,9 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
         // Reset scores keyed by topic name
         const initScores: Record<string, number | string> = {};
         topics.forEach((t: any) => {
-            const isTextTopic = t.type === 'text' ||
+            const isTextTopic = t.type === 'text' || 
                 t.type === 'textarea' ||
-                t.section_name?.includes("ตอนที่ 3") ||
+                (mode === 'evaluate' && t.section_name?.includes("ตอนที่ 3")) ||
                 t.name?.includes("แสดงความคิดเห็น");
             initScores[t.name] = isTextTopic ? "" : -1;
         });
@@ -683,7 +683,17 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                         </div>
                                         <div>
                                             <h3 className="text-lg font-bold text-slate-800">รายการประเมิน</h3>
-                                            <p className="text-slate-500 text-sm">ตอบแบบประเมิน 5: มากที่สุด 4: มาก 3: ปานกลาง 2: น้อย 1: น้อยที่สุด 0: ไม่แน่ใจ</p>
+                                            <p className="text-slate-500 text-sm">
+                                                {(() => {
+                                                    const scaleTopic = topics.find((t: any) => t.options && t.options.length > 0);
+                                                    if (scaleTopic?.options) {
+                                                        return `ตอบแบบประเมิน ` + scaleTopic.options.map((s: any) => `${s.value}: ${s.label}`).reverse().join(' ');
+                                                    }
+                                                    return mode === 'evaluate_sdq'
+                                                        ? "ตอบแบบประเมิน 2: จริง 1: ค่อนข้างจริง 0: ไม่จริง"
+                                                        : "ตอบแบบประเมิน 5: มากที่สุด 4: มาก 3: ปานกลาง 2: น้อย 1: น้อยที่สุด 0: ไม่แน่ใจ";
+                                                })()}
+                                            </p>
                                         </div>
                                     </div>
 
@@ -702,49 +712,72 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                                     <thead className="text-xs text-slate-500 bg-slate-50 border-b border-slate-200">
                                                         <tr>
                                                             <th className="px-6 py-4 font-bold w-1/2 min-w-[300px]">หัวข้อประเมิน</th>
-                                                            <th className="px-3 py-4 font-medium text-center"><br /><span className="text-[12px] text-slate-600">มากที่สุด</span></th>
-                                                            <th className="px-3 py-4 font-medium text-center"><br /><span className="text-[12px] text-slate-600">มาก</span></th>
-                                                            <th className="px-3 py-4 font-medium text-center"><br /><span className="text-[12px] text-slate-600">ปานกลาง</span></th>
-                                                            <th className="px-3 py-4 font-medium text-center"><br /><span className="text-[12px] text-slate-600">น้อย</span></th>
-                                                            <th className="px-3 py-4 font-medium text-center"><br /><span className="text-[12px] text-slate-600">น้อยที่สุด</span></th>
-                                                            <th className="px-3 py-4 font-medium text-center"><br /><span className="text-[12px] text-slate-600">ไม่แน่ใจ</span></th>
+                                                            {(() => {
+                                                                // Find the first topic with options to determine the table header scale
+                                                                const scaleTopic = topics.find((t: any) => t.options && t.options.length > 0);
+                                                                return (scaleTopic?.options || []).map((s: any, i: number) => (
+                                                                    <th key={i} className="px-3 py-4 font-medium text-center">
+                                                                        <br /><span className="text-[12px] text-slate-600">{s.label}</span>
+                                                                    </th>
+                                                                ));
+                                                            })()}
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-slate-100">
-                                                        {topics.length === 0 ? (
-                                                            <tr>
-                                                                <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
-                                                                    ยังไม่มีหัวข้อ{mode === 'evaluate_sdq' ? 'ประเมิน SDQ' : 'ประเมินการสอน'}
-                                                                </td>
-                                                            </tr>
-                                                        ) : (() => {
+                                                        {(() => {
+                                                            // Determine global colCount from any topic with options
+                                                            const scaleTopic = topics.find((t: any) => t.options && t.options.length > 0);
+                                                            const colCount = 1 + (scaleTopic?.options?.length || 0);
+
+                                                            if (topics.length === 0) {
+                                                                return (
+                                                                    <tr>
+                                                                        <td colSpan={colCount} className="px-6 py-8 text-center text-slate-500">
+                                                                            ยังไม่มีหัวข้อ{mode === 'evaluate_sdq' ? 'ประเมิน SDQ' : 'ประเมินการสอน'}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            }
+
                                                             const rows: React.ReactNode[] = [];
                                                             let lastSectionId: number | null = null;
+                                                            let sectionIdx = 0;
+                                                            let itemIdx = 0;
                                                             topics.forEach((topic: any, idx: number) => {
                                                                 const sid = topic.section_id ?? null;
                                                                 if (sid !== lastSectionId) {
                                                                     lastSectionId = sid;
+                                                                    itemIdx = 0;
+                                                                    const sectionMatch = topic.section_name?.match(/ตอนที่\s*(\d+)/);
+                                                                    if (sectionMatch) {
+                                                                        sectionIdx = parseInt(sectionMatch[1]);
+                                                                    } else {
+                                                                        sectionIdx++;
+                                                                    }
+
                                                                     if (topic.section_name) {
                                                                         rows.push(
                                                                             <tr key={`sec-${sid}`} className="bg-teal-50 border-y border-teal-200">
-                                                                                <td colSpan={7} className="px-6 py-3 font-bold text-teal-800 text-sm">
+                                                                                <td colSpan={colCount} className="px-6 py-3 font-bold text-teal-800 text-sm">
                                                                                     {topic.section_name}
                                                                                 </td>
                                                                             </tr>
                                                                         );
                                                                     }
                                                                 }
+                                                                itemIdx++;
+                                                                const displayNum = `${sectionIdx}.${itemIdx}`;
 
                                                                 const isText = topic.type === 'text' ||
                                                                     topic.type === 'textarea' ||
-                                                                    topic.section_name?.includes("ตอนที่ 3") ||
+                                                                    (mode === 'evaluate' && topic.section_name?.includes("ตอนที่ 3")) ||
                                                                     topic.name?.includes("แสดงความคิดเห็น");
 
                                                                 rows.push(
                                                                     <tr key={idx} className="hover:bg-slate-50 transition-colors">
                                                                         {isText ? (
-                                                                            <td colSpan={7} className="px-6 py-4">
-                                                                                <div className="font-medium text-slate-700 mb-3">{topic.name.replace(/^[\d.]+\s*/, '')}</div>
+                                                                            <td colSpan={colCount} className="px-6 py-4">
+                                                                                <div className="font-medium text-slate-700 mb-3">{displayNum} {topic.name.replace(/^[\d.]+\s*/, '')}</div>
                                                                                 <textarea
                                                                                     value={scores[topic.name] || ''}
                                                                                     onChange={(e) => handleScoreChange(topic.name, e.target.value)}
@@ -755,17 +788,17 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                                                         ) : (
                                                                             <>
                                                                                 <td className="px-6 py-4 font-medium text-slate-700">
-                                                                                    {topic.name.replace(/^[\d.]+\s*/, '')}
+                                                                                    {displayNum} {topic.name.replace(/^[\d.]+\s*/, '')}
                                                                                 </td>
-                                                                                {[5, 4, 3, 2, 1, 0].map(val => (
-                                                                                    <td key={val} className="px-3 py-4 text-center">
+                                                                                {(topic.options || []).map((s: any) => (
+                                                                                    <td key={s.value} className="px-3 py-4 text-center">
                                                                                         <label className="flex justify-center items-center w-full h-full cursor-pointer group">
                                                                                             <input
                                                                                                 type="radio"
                                                                                                 name={`topic-${idx}`}
-                                                                                                value={val}
-                                                                                                checked={scores[topic.name] === val}
-                                                                                                onChange={() => handleScoreChange(topic.name, val)}
+                                                                                                value={s.value}
+                                                                                                checked={scores[topic.name] === s.value}
+                                                                                                onChange={() => handleScoreChange(topic.name, s.value)}
                                                                                                 className="w-5 h-5 text-teal-600 bg-slate-100 border-slate-300 focus:ring-teal-500 cursor-pointer"
                                                                                                 required
                                                                                             />
