@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { StudentApiService } from "@/services/student-api.service";
 import {
@@ -45,9 +46,26 @@ function ratingLabel(value: number) {
 }
 
 export function AdvisorTeacherEvaluationFeature({ session }: AdvisorTeacherEvaluationFeatureProps) {
+    const academicYearsQuery = useQuery({
+        queryKey: ["student", "lookups", "academic-years"],
+        queryFn: () => StudentApiService.getAcademicYears(),
+    });
+
+    const yearOptionsData = (academicYearsQuery.data as any[]) || [];
+    const yearOptions = yearOptionsData.map((y: any) => Number(y.year_name));
+
+    const selectedYearLookup = yearOptionsData.find((y: any) => Number(y.year_name) === Number(year));
+    const semesterOptions = selectedYearLookup?.semesters || [];
+
     const [year, setYear] = useState<number>(getCurrentAcademicYearBE());
     const [semester, setSemester] = useState<number>(getAcademicSemesterDefault());
-    const yearOptions = getAcademicYearOptionsForStudent(session?.class_level || "", year);
+
+    // Sync year state if data is loaded
+    useEffect(() => {
+        if (!year && yearOptions.length > 0) {
+            setYear(yearOptions[0]);
+        }
+    }, [year, yearOptions]);
 
     const [advisors, setAdvisors] = useState<AdvisorTeacher[]>([]);
     const [selectedTeacherId, setSelectedTeacherId] = useState<number | null>(null);
@@ -237,7 +255,7 @@ export function AdvisorTeacherEvaluationFeature({ session }: AdvisorTeacherEvalu
                             onChange={(e) => setYear(parseInt(e.target.value, 10))}
                             className="w-full border border-slate-300 rounded-xl px-4 py-2.5 bg-slate-50"
                         >
-                            {yearOptions.map((y) => (
+                            {yearOptions.map((y: any) => (
                                 <option key={y} value={y}>{y}</option>
                             ))}
                         </select>
@@ -249,8 +267,18 @@ export function AdvisorTeacherEvaluationFeature({ session }: AdvisorTeacherEvalu
                             onChange={(e) => setSemester(parseInt(e.target.value, 10))}
                             className="w-full border border-slate-300 rounded-xl px-4 py-2.5 bg-slate-50"
                         >
-                            <option value={1}>1</option>
-                            <option value={2}>2</option>
+                            {semesterOptions.length > 0 ? (
+                                semesterOptions.map((s: any) => (
+                                    <option key={s.semester_number} value={s.semester_number}>
+                                        {s.semester_number}
+                                    </option>
+                                ))
+                            ) : (
+                                <>
+                                    <option value={1}>1</option>
+                                    <option value={2}>2</option>
+                                </>
+                            )}
                         </select>
                     </div>
                 </div>

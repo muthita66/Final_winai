@@ -255,9 +255,9 @@ model events {
   event_participants event_participants[]
   event_targets      event_targets[]
   users              users?               @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  departments        departments?         @relation(fields: [department_id], references: [id], onUpdate: NoAction)
   event_types        event_types?         @relation(fields: [event_type_id], references: [id], onUpdate: NoAction)
   teachers           teachers?            @relation(fields: [teacher_id], references: [id], onUpdate: NoAction)
-  departments        departments?         @relation(fields: [department_id], references: [id], onUpdate: NoAction)
 }
 
 model exam_proctors {
@@ -338,13 +338,15 @@ model genders {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model grade_categories {
-  id                     Int                  @id @default(autoincrement())
+  id                     Int                   @id @default(autoincrement())
   teaching_assignment_id Int
-  name                   String               @db.VarChar(100)
-  weight_percent         Decimal              @db.Decimal(5, 2)
-  created_at             DateTime?            @default(now()) @db.Timestamp(6)
+  weight_percent         Decimal               @db.Decimal(5, 2)
+  created_at             DateTime?             @default(now()) @db.Timestamp(6)
+  category_type_id       Int?
+  name                   String                @default("Category") @db.VarChar(100)
   assessment_items       assessment_items[]
-  teaching_assignments   teaching_assignments @relation(fields: [teaching_assignment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  grade_category_types   grade_category_types? @relation(fields: [category_type_id], references: [id], onUpdate: NoAction)
+  teaching_assignments   teaching_assignments  @relation(fields: [teaching_assignment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -362,10 +364,13 @@ model grade_scales {
 }
 
 model grade_scale_groups {
-  id           Int            @id @default(autoincrement())
-  group_name   String         @db.VarChar(100)
-  description  String?
-  grade_scales grade_scales[]
+  id                   Int                    @id @default(autoincrement())
+  name                 String                 @db.VarChar(100)
+  is_default           Boolean?               @default(false)
+  description          String?
+  created_at           DateTime?              @default(now()) @db.Timestamp(6)
+  grade_scales         grade_scales[]
+  teaching_assignments teaching_assignments[]
 }
 
 model health_checkup_records {
@@ -604,10 +609,10 @@ model student_scores {
   enrollment_id      Int
   score              Decimal?         @default(0.00) @db.Decimal(5, 2)
   is_missing         Boolean?         @default(false)
-  is_passed          Boolean?
   remark             String?
   created_at         DateTime?        @default(now()) @db.Timestamp(6)
   updated_at         DateTime?        @default(now()) @db.Timestamp(6)
+  is_passed          Boolean?
   assessment_items   assessment_items @relation(fields: [assessment_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   enrollments        enrollments      @relation(fields: [enrollment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -718,22 +723,24 @@ model teachers {
 }
 
 model teaching_assignments {
-  id                  Int                   @id @default(autoincrement())
-  subject_id          Int
-  teacher_id          Int
-  semester_id         Int
-  classroom_id        Int?
-  capacity            Int?
-  status              String?               @default("open") @db.VarChar(20)
-  created_at          DateTime?             @default(now()) @db.Timestamp(6)
-  attendance_sessions attendance_sessions[]
-  class_schedules     class_schedules[]
-  enrollments         enrollments[]
-  grade_categories    grade_categories[]
-  classrooms          classrooms?           @relation(fields: [classroom_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  semesters           semesters             @relation(fields: [semester_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  subjects            subjects              @relation(fields: [subject_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  teachers            teachers              @relation(fields: [teacher_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                   Int                   @id @default(autoincrement())
+  subject_id           Int
+  teacher_id           Int
+  semester_id          Int
+  classroom_id         Int?
+  capacity             Int?
+  status               String?               @default("open") @db.VarChar(20)
+  created_at           DateTime?             @default(now()) @db.Timestamp(6)
+  grade_scale_group_id Int?
+  attendance_sessions  attendance_sessions[]
+  class_schedules      class_schedules[]
+  enrollments          enrollments[]
+  grade_categories     grade_categories[]
+  classrooms           classrooms?           @relation(fields: [classroom_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  grade_scale_groups   grade_scale_groups?   @relation(fields: [grade_scale_group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  semesters            semesters             @relation(fields: [semester_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  subjects             subjects              @relation(fields: [subject_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  teachers             teachers              @relation(fields: [teacher_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([subject_id, teacher_id, semester_id, classroom_id])
 }
@@ -930,6 +937,13 @@ model evaluation_sections {
   order_number         Int
   evaluation_questions evaluation_questions[]
   evaluation_forms     evaluation_forms?      @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model grade_category_types {
+  id               Int                @id @default(autoincrement())
+  type_name        String             @unique @db.VarChar(100)
+  description      String?
+  grade_categories grade_categories[]
 }
 
 enum exam_type {

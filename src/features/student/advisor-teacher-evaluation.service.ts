@@ -30,30 +30,35 @@ async function getTeacherUserId(teacher_id: number) {
     return teacher?.user_id ?? null;
 }
 
-async function resolveEvaluationPeriodId(year?: number, semester?: number) {
+async function resolveSemesterId(year?: number, semester?: number) {
     if (!year || !semester) return null;
-    const period: any[] = await prisma.$queryRawUnsafe(`
-        SELECT ep.id 
-        FROM evaluation_periods ep
-        INNER JOIN semesters s ON s.id = ep.semester_id
-        INNER JOIN academic_years ay ON ay.id = s.academic_year_id
-        WHERE s.semester_number = $1 AND ay.year_name = $2
-        ORDER BY ep.id DESC LIMIT 1
-    `, semester, String(year));
-    return period[0]?.id ?? null;
+    const result = await prisma.semesters.findFirst({
+        where: {
+            semester_number: semester,
+            academic_years: { year_name: String(year) },
+        },
+        select: { id: true },
+    });
+    return result?.id ?? null;
 }
 
 async function ensureAdvisorEvaluationForm() {
+    // Robust lookup using category engine_type or form name matching
     const existing: any[] = await prisma.$queryRawUnsafe(`
         SELECT ef.* FROM evaluation_forms ef
-        INNER JOIN evaluation_form_types eft ON eft.id = ef.type_id
-        WHERE eft.type_code = 'advisor'
+        LEFT JOIN evaluation_categories ec ON ec.id = ef.category_id
+        WHERE ec.engine_type = 'advisor' 
+           OR ef.form_name LIKE '%ที่ปรึกษา%'
         ORDER BY ef.id ASC LIMIT 1
     `);
     
     if (existing[0]) {
         const questions: any[] = await prisma.$queryRawUnsafe(`
-            SELECT * FROM evaluation_questions WHERE form_id = $1 ORDER BY id ASC
+            SELECT eq.* 
+            FROM evaluation_questions eq 
+            INNER JOIN evaluation_sections es ON es.id = eq.section_id
+            WHERE es.form_id = $1 
+            ORDER BY eq.id ASC
         `, existing[0].id);
         return { ...existing[0], evaluation_questions: questions };
     }
@@ -61,14 +66,19 @@ async function ensureAdvisorEvaluationForm() {
     return prisma.$transaction(async (tx: any) => {
         const existingAgain: any[] = await tx.$queryRawUnsafe(`
             SELECT ef.* FROM evaluation_forms ef
-            INNER JOIN evaluation_form_types eft ON eft.id = ef.type_id
-            WHERE eft.type_code = 'advisor'
+            LEFT JOIN evaluation_categories ec ON ec.id = ef.category_id
+            WHERE ec.engine_type = 'advisor'
+               OR ef.form_name LIKE '%ที่ปรึกษา%'
             ORDER BY ef.id ASC LIMIT 1
         `);
         
         if (existingAgain[0]) {
              const questions: any[] = await tx.$queryRawUnsafe(`
-                SELECT * FROM evaluation_questions WHERE form_id = $1 ORDER BY id ASC
+                SELECT eq.* 
+                FROM evaluation_questions eq 
+                INNER JOIN evaluation_sections es ON es.id = eq.section_id
+                WHERE es.form_id = $1 
+                ORDER BY eq.id ASC
             `, existingAgain[0].id);
             return { ...existingAgain[0], evaluation_questions: questions };
         }
@@ -79,25 +89,50 @@ async function ensureAdvisorEvaluationForm() {
         const formId = nextId(formMax[0].max_id);
         let questionId = nextId(questionMax[0].max_id);
 
-        const type: any[] = await tx.$queryRawUnsafe(`SELECT id FROM evaluation_form_types WHERE type_code = 'advisor' LIMIT 1`);
-        if (!type[0]) throw new Error("Advisor form type not found");
+        let type: any[] = await tx.$queryRawUnsafe(`SELECT id FROM evaluation_categories WHERE engine_type = 'advisor' LIMIT 1`);
+        
+        // If not found by engine_type, try by name
+        if (!type[0]) {
+            type = await tx.$queryRawUnsafe(`SELECT id FROM evaluation_categories WHERE name LIKE '%ที่ปรึกษา%' LIMIT 1`);
+        }
+        
+        // If still not found, create a placeholder category
+        let categoryId;
+        if (!type[0]) {
+             const catMax: any[] = await tx.$queryRawUnsafe(`SELECT MAX(id) as max_id FROM evaluation_categories`);
+             categoryId = nextId(catMax[0].max_id);
+             await tx.$executeRawUnsafe(`
+                INSERT INTO evaluation_categories (id, name, engine_type)
+                VALUES ($1, 'การประเมินครูที่ปรึกษา', 'advisor')
+             `, categoryId);
+        } else {
+            categoryId = type[0].id;
+        }
 
         await tx.$executeRawUnsafe(`
-            INSERT INTO evaluation_forms (id, name, type_id)
-            VALUES ($1, 'ผลประเมินโดยรวม (ครูที่ปรึกษา)', $2)
-        `, formId, type[0].id);
+            INSERT INTO evaluation_forms (id, form_name, category_id, is_active)
+            VALUES ($1, 'แบบประเมินครูที่ปรึกษา', $2, true)
+        `, formId, categoryId);
+
+        // Since questions require sections, we need to create a section first if missing
+        let sectionMax: any[] = await tx.$queryRawUnsafe(`SELECT MAX(id) as max_id FROM evaluation_sections`);
+        const sectionId = nextId(sectionMax[0].max_id);
+        await tx.$executeRawUnsafe(`
+            INSERT INTO evaluation_sections (id, form_id, section_name, order_number)
+            VALUES ($1, $2, 'ตอนที่ 1', 1)
+        `, sectionId, formId);
 
         const questions: any[] = [];
         for (const question_text of DEFAULT_ADVISOR_EVAL_TOPICS) {
             const qId = questionId++;
             await tx.$executeRawUnsafe(`
-                INSERT INTO evaluation_questions (id, form_id, question_text, question_type)
-                VALUES ($1, $2, $3, 'rating')
-            `, qId, formId, question_text);
+                INSERT INTO evaluation_questions (id, section_id, question_text, question_type, order_number)
+                VALUES ($1, $2, $3, 'rating', $4)
+            `, qId, sectionId, question_text, questions.length + 1);
             questions.push({ id: qId, question_text, question_type: 'rating' });
         }
 
-        return { id: formId, name: 'ผลประเมินโดยรวม (ครูที่ปรึกษา)', type_id: type[0].id, evaluation_questions: questions };
+        return { id: formId, form_name: 'ผลประเมินโดยรวม (ครูที่ปรึกษา)', category_id: categoryId, evaluation_questions: questions };
     });
 }
 
@@ -154,11 +189,11 @@ export const StudentAdvisorTeacherEvaluationService = {
             throw new Error(`ไม่สามารถประเมินได้: นักเรียนและครูที่เลือกไม่ได้อยู่ในห้องเดียวกัน หรือไม่พบข้อมูลครูที่ปรึกษา (Advisor not found for teacher_id: ${teacher_id})`);
         }
 
-        const [studentUserId, teacherUserId, form, periodId] = await Promise.all([
+        const [studentUserId, teacherUserId, form, semester_id] = await Promise.all([
             getStudentUserId(student_id),
             getTeacherUserId(teacher_id),
             ensureAdvisorEvaluationForm(),
-            resolveEvaluationPeriodId(year, semester),
+            resolveSemesterId(year, semester),
         ]);
 
         if (!studentUserId) throw new Error("ไม่พบบัญชีนักเรียน");
@@ -172,7 +207,7 @@ export const StudentAdvisorTeacherEvaluationService = {
             Number(form.id),
             Number(studentUserId),
             [teacher_id, Number(teacherUserId || 0)],
-            periodId ?? null
+            semester_id ?? null
         );
 
         const answers: any[] = latest
@@ -197,7 +232,7 @@ export const StudentAdvisorTeacherEvaluationService = {
 
         return {
             teacher_id,
-            period_id: periodId ?? null,
+            period_id: semester_id ?? null,
             topics,
             current,
             feedback,
@@ -216,10 +251,10 @@ export const StudentAdvisorTeacherEvaluationService = {
         const canEvaluate = await ensureStudentCanEvaluateAdvisor(student_id, teacher_id);
         if (!canEvaluate) throw new Error("ไม่พบครูที่ปรึกษา");
 
-        const [studentUserId, form, periodId] = await Promise.all([
+        const [studentUserId, form, semester_id] = await Promise.all([
             getStudentUserId(student_id),
             ensureAdvisorEvaluationForm(),
-            resolveEvaluationPeriodId(year, semester),
+            resolveSemesterId(year, semester),
         ]);
         if (!studentUserId) throw new Error("ไม่พบบัญชีนักเรียน");
 
@@ -237,9 +272,9 @@ export const StudentAdvisorTeacherEvaluationService = {
             let answerId = nextId(answerMax[0].max_id);
 
             await tx.$executeRawUnsafe(
-                `INSERT INTO evaluation_responses (id, form_id, evaluator_user_id, submitted_at, period_id, student_id)
+                `INSERT INTO evaluation_responses (id, form_id, evaluator_user_id, submitted_at, semester_id, student_id)
                  VALUES ($1, $2, $3, NOW(), $4, $5)`,
-                responseId, Number(form.id), Number(studentUserId), periodId ? Number(periodId) : null, Number(teacher_id)
+                responseId, Number(form.id), Number(studentUserId), semester_id ? Number(semester_id) : null, Number(teacher_id)
             );
 
             for (const item of data || []) {

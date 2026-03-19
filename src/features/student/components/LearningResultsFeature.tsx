@@ -19,15 +19,32 @@ export function LearningResultsFeature({
 }: LearningResultsFeatureProps) {
     const student = session;
 
+    const academicYearsQuery = useQuery({
+        queryKey: ["student", "lookups", "academic-years"],
+        queryFn: () => StudentApiService.getAcademicYears(),
+    });
+
+    const yearOptionsData = (academicYearsQuery.data as any[]) || [];
+    const yearOptions = yearOptionsData.map((y: any) => Number(y.year_name));
+
     // Select state
     const [year, setYear] = useState<number>(getCurrentAcademicYearBE());
     const [semester, setSemester] = useState<number>(getAcademicSemesterDefault());
     const [selectedSectionId, setSelectedSectionId] = useState<number | "">("");
     const [activeResultTab, setActiveResultTab] = useState<"subject" | "advisor">(initialTab);
-    const yearOptions = getAcademicYearOptionsForStudent(session.class_level, year);
-    const advisorOnlyMode = hideResultTabs && activeResultTab === "advisor";
     const [hasManualTermSelection, setHasManualTermSelection] = useState(false);
     const [didAutoFallback, setDidAutoFallback] = useState(false);
+
+    const selectedYearLookup = yearOptionsData.find((y: any) => Number(y.year_name) === Number(year));
+    const semesterOptions = selectedYearLookup?.semesters || [];
+
+    // Sync year state if data is loaded
+    useEffect(() => {
+        if (!year && yearOptions.length > 0) {
+            setYear(yearOptions[0]);
+        }
+    }, [year, yearOptions]);
+    const advisorOnlyMode = hideResultTabs && activeResultTab === "advisor";
 
     // Queries
     const enrollmentHistoryQuery = useQuery({
@@ -130,8 +147,10 @@ export function LearningResultsFeature({
                 return Array.from(semesters).sort((a, b) => a - b);
             }
         }
-        return [1, 2];
-    }, [history, year]);
+        return semesterOptions.length > 0
+            ? semesterOptions.map((s: any) => s.semester_number)
+            : [1, 2];
+    }, [history, year, semesterOptions]);
 
     useEffect(() => {
         if (history.length > 0 && !hasManualTermSelection && !didAutoFallback) {
@@ -260,7 +279,7 @@ export function LearningResultsFeature({
                             className="w-full border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 appearance-none"
                             style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: `right 0.5rem center`, backgroundRepeat: `no-repeat`, backgroundSize: `1.5em 1.5em` }}
                         >
-                            {dynamicYearOptions.map((y) => (
+                            {dynamicYearOptions.map((y: any) => (
                                 <option key={y} value={y}>{y}</option>
                             ))}
                         </select>
@@ -276,7 +295,7 @@ export function LearningResultsFeature({
                             className="w-full border border-slate-300 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 appearance-none"
                             style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: `right 0.5rem center`, backgroundRepeat: `no-repeat`, backgroundSize: `1.5em 1.5em` }}
                         >
-                            {dynamicSemesterOptions.map(s => (
+                            {dynamicSemesterOptions.map((s: any) => (
                                 <option key={s} value={String(s)}>{s}</option>
                             ))}
                         </select>

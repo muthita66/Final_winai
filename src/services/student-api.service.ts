@@ -134,8 +134,8 @@ export const StudentApiService = {
     },
 
     // --- Evaluation ---
-    async getEvaluationTopics(year?: number, semester?: number) {
-        const params = new URLSearchParams({ action: 'topics' });
+    async getEvaluationTopics(year?: number, semester?: number, type: 'teaching' | 'sdq' = 'teaching') {
+        const params = new URLSearchParams({ action: 'topics', type });
         if (year) params.append("year", year.toString());
         if (semester) params.append("semester", semester.toString());
         return fetchApi<any[]>(`/api/student/evaluation?${params.toString()}`);
@@ -161,7 +161,7 @@ export const StudentApiService = {
     },
 
     async submitEvaluation(
-        data: { name: string, score: number }[],
+        data: { name: string, value: number | string }[],
         year: number,
         semester: number,
         section_id: number | null,
@@ -212,5 +212,10 @@ export const StudentApiService = {
     // --- Activities ---
     async getAllActivities() {
         return fetchApi<any[]>('/api/student/activities');
+    },
+
+    // --- Lookups ---
+    async getAcademicYears() {
+        return fetchApi<any[]>('/api/student/lookups/academic-years');
     }
 };

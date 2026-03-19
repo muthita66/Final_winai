@@ -63,15 +63,32 @@ export function GradesFeature({ session }: GradesFeatureProps) {
     const student = session;
 
     const contentRef = useRef<HTMLDivElement>(null);
+    const academicYearsQuery = useQuery({
+        queryKey: ["student", "lookups", "academic-years"],
+        queryFn: () => StudentApiService.getAcademicYears(),
+    });
+
+    const yearOptionsData = (academicYearsQuery.data as any[]) || [];
+    const yearOptions = yearOptionsData.map((y: any) => y.year_name);
+
     const [year, setYear] = useState(String(getCurrentAcademicYearBE()));
     const [semester, setSemester] = useState(String(getAcademicSemesterDefault()));
     const [hasManualTermSelection, setHasManualTermSelection] = useState(false);
     const [didAutoFallback, setDidAutoFallback] = useState(false);
 
+    const selectedYearLookup = yearOptionsData.find((y: any) => String(y.year_name) === String(year));
+    const semesterOptions = selectedYearLookup?.semesters || [];
+
+    // Sync year state if data is loaded
+    useEffect(() => {
+        if (!year && yearOptions.length > 0) {
+            setYear(yearOptions[0]);
+        }
+    }, [year, yearOptions]);
+
     const yearNum = Number.parseInt(year, 10);
     const semesterNum = Number.parseInt(semester, 10);
     const hasValidTerm = Number.isFinite(yearNum) && yearNum > 0 && Number.isFinite(semesterNum) && semesterNum > 0;
-    const yearOptions = getAcademicYearOptionsForStudent(student.class_level, Number.isFinite(yearNum) ? yearNum : undefined);
 
     // Queries
     const allGradesQuery = useQuery({
@@ -119,10 +136,14 @@ export function GradesFeature({ session }: GradesFeatureProps) {
                 }
             });
         }
-        // Fallback to default if no data yet
-        if (semesters.size === 0) return [1, 2];
+        // Fallback to lookup table if no grade data yet
+        if (semesters.size === 0) {
+            return semesterOptions.length > 0
+                ? semesterOptions.map((s: any) => s.semester_number)
+                : [1, 2];
+        }
         return Array.from(semesters).sort((a, b) => a - b);
-    }, [allGrades, year]);
+    }, [allGrades, year, semesterOptions]);
 
     // Derived State (Calculations)
     const { termCredit, gpa } = useMemo(() => {
@@ -300,7 +321,7 @@ export function GradesFeature({ session }: GradesFeatureProps) {
                                     setSemester(e.target.value);
                                 }}
                             >
-                                {dynamicSemesterOptions.map((s) => (
+                                {dynamicSemesterOptions.map((s: any) => (
                                     <option key={s} value={String(s)} className="text-black">{s}</option>
                                 ))}
                             </select>

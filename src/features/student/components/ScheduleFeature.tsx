@@ -20,12 +20,32 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
 
     const urlYear = searchParams.get('year');
     const urlSemester = searchParams.get('semester');
+
+    const academicYearsQuery = useQuery({
+        queryKey: ["student", "lookups", "academic-years"],
+        queryFn: () => StudentApiService.getAcademicYears(),
+    });
+
+    const yearOptionsData = (academicYearsQuery.data as any[]) || [];
+    const yearOptions = yearOptionsData.map((y: any) => y.year_name);
+
+    const selectedYearData = yearOptionsData.find((y: any) => String(y.year_name) === String(year));
+    const semesterOptions = selectedYearData?.semesters || [];
+
+    // Initial year/semester setup
     const defaultYear = String(getCurrentAcademicYearBE());
     const defaultSemester = String(getAcademicSemesterDefault());
 
-    // State
     const [year, setYear] = useState(urlYear || defaultYear);
     const [semester, setSemester] = useState(urlSemester || defaultSemester);
+
+    // Sync year state if URL and default are not available but data is loaded
+    useEffect(() => {
+        if (!year && yearOptions.length > 0) {
+            setYear(yearOptions[0]);
+        }
+    }, [year, yearOptions]);
+
     const [activeTab, setActiveTab] = useState<"class" | "exam">("class");
     const [examFilter, setExamFilter] = useState<"all" | "midterm" | "final">("all");
     const [hasManualTermSelection, setHasManualTermSelection] = useState(Boolean(urlYear || urlSemester));
@@ -34,7 +54,6 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
     const yearNum = Number.parseInt(year, 10);
     const semesterNum = Number.parseInt(semester, 10);
     const hasValidTerm = Number.isFinite(yearNum) && yearNum > 0 && Number.isFinite(semesterNum) && semesterNum > 0;
-    const yearOptions = getAcademicYearOptionsForStudent(student.class_level, Number.isFinite(yearNum) ? yearNum : undefined);
 
     // Queries
     const classScheduleQuery = useQuery({
@@ -71,7 +90,7 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
     const cartItems = cartQuery.data || [];
     const advDataAny = advisorQuery.data as any;
     const advisors = advDataAny?.advisors || (advDataAny?.advisor ? [advDataAny.advisor] : []);
-    const isLoading = hasValidTerm && (classScheduleQuery.isLoading || examScheduleQuery.isLoading || advisorQuery.isLoading || cartQuery.isLoading);
+    const isLoading = (hasValidTerm && (classScheduleQuery.isLoading || examScheduleQuery.isLoading || advisorQuery.isLoading || cartQuery.isLoading)) || academicYearsQuery.isLoading;
 
     const fixedSlots = [
         "8:00-8:50", "9:00-9:50", "10:00-10:50", "11:00-11:50",
@@ -335,8 +354,18 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
                                     setSemester(e.target.value);
                                 }}
                             >
-                                <option value="1">1</option>
-                                <option value="2">2</option>
+                                    {semesterOptions.length > 0 ? (
+                                        semesterOptions.map((s: any) => (
+                                            <option key={s.semester_number} value={String(s.semester_number)}>
+                                                {s.semester_number}
+                                            </option>
+                                        ))
+                                    ) : (
+                                        <>
+                                            <option value="1">1</option>
+                                            <option value="2">2</option>
+                                        </>
+                                    )}
                             </select>
                         </div>
                     </div>

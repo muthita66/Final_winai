@@ -9,67 +9,89 @@ async function getStudentUserId(student_id: number) {
     return student?.user_id ?? null;
 }
 
-async function resolveEvaluationPeriodId(year?: number, semester?: number) {
+async function resolveSemesterId(year?: number, semester?: number) {
     if (!year || !semester) return null;
 
-    const period: any[] = await prisma.$queryRawUnsafe(`
-        SELECT ep.id 
-        FROM evaluation_periods ep
-        INNER JOIN semesters s ON s.id = ep.semester_id
-        INNER JOIN academic_years ay ON ay.id = s.academic_year_id
-        WHERE s.semester_number = $1 AND ay.year_name = $2
-        ORDER BY ep.id DESC LIMIT 1
-    `, semester, String(year));
+    const result = await prisma.semesters.findFirst({
+        where: {
+            semester_number: semester,
+            academic_years: { year_name: String(year) },
+        },
+        select: { id: true },
+    });
 
-    return period[0]?.id ?? null;
+    return result?.id ?? null;
 }
 
 export const EvaluationService = {
-    // Get question topics (flattened) for current UI
-    async getTopics(year?: number, semester?: number) {
-        void year;
-        void semester;
+    // Get question topics from DB evaluation tables (with section grouping)
+    async getTopics(year?: number, semester?: number, formType: 'teaching' | 'sdq' = 'teaching') {
+        try {
+            let formRows: any[] = [];
+            
+            if (formType === 'sdq') {
+                // Fetch SDQ form specifically
+                formRows = await prisma.$queryRaw`
+                    SELECT ef.id as form_id
+                    FROM evaluation_forms ef
+                    WHERE ef.form_name LIKE '%SDQ%' AND ef.is_active = true
+                    ORDER BY ef.id ASC
+                    LIMIT 1
+                `;
+            } else {
+                // Fetch teaching evaluation form flexibly
+                // Matches "แบบประเมินครูผู้สอน", "ประเมินการสอน", etc.
+                formRows = await prisma.$queryRaw`
+                    SELECT ef.id as form_id
+                    FROM evaluation_forms ef
+                    WHERE (ef.form_name LIKE '%ประเมินครูผู้สอน%' OR ef.form_name LIKE '%ประเมินการสอน%') 
+                    AND ef.is_active = true
+                    ORDER BY ef.id ASC
+                    LIMIT 1
+                `;
+            }
 
-        const forms: any[] = await prisma.$queryRawUnsafe(`
-            SELECT ef.*, eft.type_code
-            FROM evaluation_forms ef
-            LEFT JOIN evaluation_form_types eft ON eft.id = ef.type_id
-            ORDER BY ef.id ASC
-        `);
+            if (formRows.length === 0) {
+                // Fallback: try to get any active form if specific one not found (for robustness)
+                formRows = await prisma.$queryRaw`
+                    SELECT ef.id as form_id FROM evaluation_forms ef 
+                    WHERE ef.is_active = true LIMIT 1
+                `;
+                if (formRows.length === 0) return [];
+            }
 
-        const formIds = forms.map(f => f.id);
-        const questionsRaw: any[] = await prisma.$queryRawUnsafe(`
-            SELECT * FROM evaluation_questions 
-            WHERE form_id IN (${formIds.join(',')})
-            ORDER BY id ASC
-        `);
+            const formId = formRows[0].form_id;
 
-        const questions = forms.flatMap((f: any) =>
-            questionsRaw.filter(q => q.form_id === f.id).map((q: any) => ({
-                id: q.id,
-                form_id: f.id,
-                type: q.question_type || 'scale',
-                name: (q.question_text || '').trim(),
-            }))
-        );
+            // Fetch all sections and questions for this form
+            const rows: any[] = await prisma.$queryRaw`
+                SELECT 
+                    eq.id,
+                    eq.question_text,
+                    eq.question_type,
+                    eq.order_number,
+                    es.id as section_id,
+                    es.section_name,
+                    es.order_number as section_order
+                FROM evaluation_questions eq
+                JOIN evaluation_sections es ON es.id = eq.section_id
+                WHERE es.form_id = ${formId}
+                ORDER BY es.order_number ASC, eq.order_number ASC
+            `;
 
-        if (questions.length > 0) {
-            const seen = new Set<string>();
-            return questions.filter((q) => {
-                if (!q.name) return false; // ignore empty questions
-                const key = q.name.toLowerCase();
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            });
+            return rows.map(r => ({
+                id: Number(r.id),
+                form_id: formId,
+                type: r.question_type || 'scale',
+                name: r.question_text,
+                section_id: Number(r.section_id),
+                section_name: r.section_name,
+                section_order: Number(r.section_order),
+                order_number: Number(r.order_number),
+            }));
+        } catch (e) {
+            console.error('[EvaluationService.getTopics] DB error:', e);
+            return [];
         }
-
-        return forms.map((f) => ({
-            id: f.id,
-            form_id: f.id,
-            type: 'scale',
-            name: f.name,
-        }));
     },
 
     // Used by frontend only to check if student has submitted evaluation already
@@ -80,14 +102,14 @@ export const EvaluationService = {
         const user_id = await getStudentUserId(student_id);
         if (!user_id) return [];
 
-        const period_id = await resolveEvaluationPeriodId(year, semester);
+        const semester_id = await resolveSemesterId(year, semester);
 
         // Raw SQL for evaluation_responses because user_id column is missing
         // Assuming "Competency Results" are evaluations OF the student
         const responsesResult = await prisma.$queryRawUnsafe<any[]>(
             `SELECT * FROM evaluation_responses 
              WHERE student_id = $1 
-             ${period_id ? `AND period_id = ${period_id}` : ''}
+             ${semester_id ? `AND semester_id = ${semester_id}` : ''}
              ORDER BY submitted_at DESC`,
             student_id
         );
@@ -122,55 +144,57 @@ export const EvaluationService = {
         });
     },
 
-    // Submit from current frontend payload: [{name, score}] + year/semester/section_id + feedback
+    // Submit from current frontend payload: [{name, value}] + year/semester/section_id + feedback
     async submitEvaluation(
         student_id: number,
         year: number,
         semester: number,
         section_id: number | null,
-        data: { name: string; score: number }[],
+        data: { name: string; score?: number; value?: number | string }[],
         feedback?: string
     ) {
         if (!student_id || !year || !semester) {
             throw new Error('Missing required evaluation parameters');
         }
-        void section_id;
 
         const user_id = await getStudentUserId(student_id);
         if (!user_id) throw new Error('Student not found');
 
-        const forms: any[] = await prisma.$queryRawUnsafe(`
-            SELECT ef.*, eft.type_code
+        // Fetch teaching evaluation form flexibly (same logic as getTopics)
+        const formRows: any[] = await prisma.$queryRaw`
+            SELECT ef.id
             FROM evaluation_forms ef
-            LEFT JOIN evaluation_form_types eft ON eft.id = ef.type_id
+            WHERE (ef.form_name LIKE '%ประเมินครูผู้สอน%' OR ef.form_name LIKE '%ประเมินการสอน%') 
+            AND ef.is_active = true
             ORDER BY ef.id ASC
-        `);
-        if (forms.length === 0) throw new Error('No evaluation form configured');
+            LIMIT 1
+        `;
+        
+        const form = formRows.length > 0 ? formRows[0] : null;
+        if (!form) throw new Error('No evaluation form found');
 
-        const form =
-            forms.find((f: any) => String(f.type_code || '').toLowerCase() !== 'advisor') ||
-            forms[0];
+        const questionsRaw: any[] = await prisma.$queryRaw`
+            SELECT id, question_text, question_type FROM evaluation_questions WHERE section_id IN (
+                SELECT id FROM evaluation_sections WHERE form_id = ${form.id}
+            )
+        `;
 
-        const questionsRaw: any[] = await prisma.$queryRawUnsafe(`
-            SELECT id, question_text FROM evaluation_questions WHERE form_id = $1
-        `, form.id);
-
-        const questionByText = new Map<string, number>();
+        const questionDetails = new Map<string, { id: number, type: string }>();
         questionsRaw.forEach((q: any) => {
             const key = String(q.question_text || '').trim().toLowerCase();
-            if (key && !questionByText.has(key)) questionByText.set(key, q.id);
+            if (key) questionDetails.set(key, { id: q.id, type: q.question_type });
         });
 
-        const period_id = await resolveEvaluationPeriodId(year, semester);
+        const semester_id = await resolveSemesterId(year, semester);
 
         // Guard: check if student already submitted for this section (prevent duplicates)
         if (section_id) {
-            const existing: any[] = await prisma.$queryRawUnsafe(`
+            const existing: any[] = await prisma.$queryRaw`
                 SELECT id FROM evaluation_responses 
-                WHERE evaluator_user_id = $1 AND teaching_assignment_id = $2
-                ${period_id ? `AND period_id = ${period_id}` : ''}
+                WHERE evaluator_user_id = ${user_id} AND target_subject_id = ${Number(section_id)}
+                ${semester_id ? prisma.$queryRaw`AND semester_id = ${semester_id}` : prisma.$queryRaw``}
                 LIMIT 1
-            `, user_id, Number(section_id));
+            `;
 
             if (existing.length > 0) {
                 throw new Error('นักเรียนได้ประเมินวิชานี้ไปแล้ว');
@@ -178,33 +202,38 @@ export const EvaluationService = {
         }
 
         return prisma.$transaction(async (tx: any) => {
-            // Raw SQL insert because user_id (the submitter) should be evaluator_user_id 
-            // and the user_id column is missing
-            const result = await tx.$queryRawUnsafe(
-                `INSERT INTO evaluation_responses (form_id, evaluator_user_id, period_id, teaching_assignment_id, submitted_at) 
-                 VALUES ($1, $2, $3, $4, NOW()) 
-                 RETURNING id`,
-                form.id, user_id, period_id ?? undefined, section_id ? Number(section_id) : null
-            );
+            const result = await tx.$queryRaw`
+                INSERT INTO evaluation_responses (form_id, evaluator_user_id, semester_id, target_subject_id, submitted_at) 
+                VALUES (${form.id}, ${user_id}, ${semester_id ?? null}, ${section_id ? Number(section_id) : null}, NOW()) 
+                RETURNING id
+            `;
             const responseId = (result as any[])[0].id;
 
             for (const item of data || []) {
                 const topicName = String(item?.name || '').trim();
-                const score = Number(item?.score);
-                const question_id = questionByText.get(topicName.toLowerCase()) ?? null;
+                const detail = questionDetails.get(topicName.toLowerCase());
+                
+                // Polymorphic value: prefer '.value', fallback to '.score'
+                const val = item.value !== undefined ? item.value : item.score;
+                
+                if (detail) {
+                    const isText = detail.type === 'text' || detail.type === 'textarea';
+                    const scoreVal = (!isText && typeof val === 'number') ? val : null;
+                    const textVal = (isText || typeof val === 'string') ? String(val) : null;
 
-                await tx.$executeRawUnsafe(`
-                    INSERT INTO evaluation_answers (response_id, question_id, answer_text, score)
-                    VALUES ($1, $2, $3, $4)
-                `, responseId, question_id, question_id ? null : (topicName || null), Number.isFinite(score) ? score : null);
+                    await tx.$executeRaw`
+                        INSERT INTO evaluation_answers (response_id, question_id, text_value, score_value)
+                        VALUES (${responseId}, ${detail.id}, ${textVal}, ${scoreVal})
+                    `;
+                }
             }
 
             const feedbackText = String(feedback || '').trim();
             if (feedbackText) {
-                await tx.$executeRawUnsafe(`
-                    INSERT INTO evaluation_answers (response_id, question_id, answer_text, score)
-                    VALUES ($1, null, $2, null)
-                `, responseId, feedbackText);
+                await tx.$executeRaw`
+                    INSERT INTO evaluation_answers (response_id, question_id, text_value, score_value)
+                    VALUES (${responseId}, null, ${feedbackText}, null)
+                `;
             }
 
             return { message: 'บันทึกสำเร็จ', response_id: responseId };
@@ -218,23 +247,23 @@ export const EvaluationService = {
         if (!user_id) return [];
 
         // Try to narrow by period_id if it exists, otherwise return all targets for this user
-        const period_id = await resolveEvaluationPeriodId(year, semester);
+        const semester_id = await resolveSemesterId(year, semester);
 
         const whereClause: any = {
             evaluator_user_id: user_id,
-            teaching_assignment_id: { not: null }
+            target_subject_id: { not: null },
         };
-        if (period_id) {
-            whereClause.period_id = period_id;
+        if (semester_id) {
+            whereClause.semester_id = semester_id;
         }
 
         const evaluated: any[] = await prisma.$queryRawUnsafe(`
-            SELECT teaching_assignment_id FROM evaluation_responses 
-            WHERE evaluator_user_id = $1 AND teaching_assignment_id IS NOT NULL
-            ${period_id ? `AND period_id = ${period_id}` : ''}
+            SELECT target_subject_id FROM evaluation_responses 
+            WHERE evaluator_user_id = $1 AND target_subject_id IS NOT NULL
+            ${semester_id ? `AND semester_id = ${semester_id}` : ''}
         `, user_id);
 
-        return evaluated.map(e => e.teaching_assignment_id);
+        return evaluated.map(e => e.target_subject_id);
     },
 };
 

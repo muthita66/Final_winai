@@ -67,13 +67,19 @@ async function ensureAdvisorEvaluationForm() {
     // Standard advisor topics if form creation fails due to missing models in Prisma
     const existing: any[] = await prisma.$queryRawUnsafe(`
         SELECT f.* FROM evaluation_forms f
-        JOIN evaluation_form_types t ON f.form_type_id = t.id
-        WHERE t.type_code = 'advisor'
+        JOIN evaluation_categories t ON f.category_id = t.id
+        WHERE t.engine_type = 'advisor'
         ORDER BY f.id ASC LIMIT 1
     `);
     
     if (existing.length > 0) {
-        const questions = await prisma.$queryRawUnsafe(`SELECT * FROM evaluation_questions WHERE form_id = $1 ORDER BY id ASC`, existing[0].id) as any[];
+        const questions = await prisma.$queryRawUnsafe(`
+            SELECT eq.* 
+            FROM evaluation_questions eq 
+            INNER JOIN evaluation_sections es ON es.id = eq.section_id
+            WHERE es.form_id = $1 
+            ORDER BY eq.id ASC
+        `, existing[0].id) as any[];
         existing[0].evaluation_questions = questions;
         return existing[0];
     }
@@ -333,8 +339,8 @@ export const TeacherStudentsService = {
 
         const formResult: any[] = await prisma.$queryRawUnsafe(`
             SELECT f.* FROM evaluation_forms f
-            JOIN evaluation_form_types t ON f.form_type_id = t.id
-            WHERE t.type_code = 'advisor'
+            JOIN evaluation_categories t ON f.category_id = t.id
+            WHERE t.engine_type = 'advisor'
             ORDER BY f.id ASC LIMIT 1
         `);
         const form = formResult[0] || null;

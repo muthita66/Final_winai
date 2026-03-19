@@ -605,7 +605,7 @@ export function TeachersFeature() {
             customFilters={[
                 {
                     key: "department",
-                    label: "กลุ่มสาระ",
+                    label: "กลุ่มสาระการเรียนรู้",
                     options: (items) => Array.from(new Set(items.map((t: any) => (t.department ?? "").toString().trim()).filter((v: string) => v.length > 0))).sort((a, b) => a.localeCompare(b, "th")),
                 },
                 {
@@ -659,6 +659,30 @@ export function TeachersFeature() {
                 { key: "phone", label: "เบอร์โทรศัพท์" },
                 { key: "status", label: "สถานะ" },
             ]}
+            customSort={(a, b) => {
+                // 0. Priority: Advisor vs Non-Advisor
+                const isAdvisorA = !!a.advisor_level;
+                const isAdvisorB = !!b.advisor_level;
+                
+                if (isAdvisorA !== isAdvisorB) {
+                    return isAdvisorA ? -1 : 1; // Advisor comes first
+                }
+
+                // 1. Sort by Advisor Level
+                const levelA = String(a.advisor_level || "");
+                const levelB = String(b.advisor_level || "");
+                if (levelA !== levelB) {
+                    return levelA.localeCompare(levelB, "th", { numeric: true });
+                }
+
+                // 2. Sort by Advisor Room Numerically
+                const roomA = parseInt(a.advisor_room || "0");
+                const roomB = parseInt(b.advisor_room || "0");
+                if (roomA !== roomB) return roomA - roomB;
+                
+                // 3. Fallback to teacher code
+                return String(a.teacher_code || "").localeCompare(String(b.teacher_code || ""));
+            }}
         />
     );
 }
@@ -1256,7 +1280,7 @@ export function ActivitiesFeature() {
             const teacherObj = teacherOptions.find(o => o.label === calendarEditValues.teacher_name);
             const deptObj = departmentOptions.find(o => o.label === calendarEditValues.department_name);
             const typeObj = eventTypeOptions.find(o => o.label === calendarEditValues.event_type_name);
-            
+
             setSavingCalendarEdit(true);
             await DirectorApiService.updateActivity(calendarEditItem.id, {
                 ...payload,
@@ -1293,22 +1317,20 @@ export function ActivitiesFeature() {
             <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
                 <button
                     onClick={() => setViewMode('list')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                        viewMode === 'list' 
-                        ? 'bg-white text-indigo-600 shadow-sm' 
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'list'
+                            ? 'bg-white text-indigo-600 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
                 >
                     <ListIcon size={16} />
                     รายการ
                 </button>
                 <button
                     onClick={() => setViewMode('calendar')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                        viewMode === 'calendar' 
-                        ? 'bg-white text-indigo-600 shadow-sm' 
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'calendar'
+                            ? 'bg-white text-indigo-600 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
                 >
                     <CalendarIcon size={16} />
                     ปฏิทิน
@@ -1380,10 +1402,9 @@ export function ActivitiesFeature() {
                             </div>
                             <div className="space-y-2">
                                 <p className="text-xs font-semibold text-slate-500">การเข้าร่วม</p>
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                                    item.visibility === 'public' ? 'bg-emerald-100 text-emerald-700' : 
-                                    item.visibility === 'internal' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
-                                }`}>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${item.visibility === 'public' ? 'bg-emerald-100 text-emerald-700' :
+                                        item.visibility === 'internal' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                                    }`}>
                                     {item.visibility || "public"}
                                 </span>
                             </div>
@@ -1400,9 +1421,9 @@ export function ActivitiesFeature() {
                         </div>
                     )}
                     columns={[
-                        { 
-                            key: "name", 
-                            label: "ชื่อกิจกรรม", 
+                        {
+                            key: "name",
+                            label: "ชื่อกิจกรรม",
                             render: (v, _, { toggleExpand, isExpanded }) => (
                                 <button
                                     onClick={toggleExpand}
@@ -1421,10 +1442,10 @@ export function ActivitiesFeature() {
                     ]}
                 />
             ) : (
-                <ActivitiesCalendar 
+                <ActivitiesCalendar
                     key={calendarKey}
-                    onAddClick={() => setViewMode('list')} 
-                    onBack={() => setViewMode('list')} 
+                    onAddClick={() => setViewMode('list')}
+                    onBack={() => setViewMode('list')}
                     onEditClick={openCalendarEdit}
                 />
             )}

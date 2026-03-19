@@ -1,23 +1,22 @@
 import { prisma } from '@/lib/prisma';
 
-async function resolveEvaluationPeriodId(year?: number, semester?: number) {
+async function resolveSemesterId(year?: number, semester?: number) {
     if (!year || !semester) return null;
-    const period: any[] = await prisma.$queryRawUnsafe(`
-        SELECT ep.id 
-        FROM evaluation_periods ep
-        INNER JOIN semesters s ON s.id = ep.semester_id
-        INNER JOIN academic_years ay ON ay.id = s.academic_year_id
-        WHERE s.semester_number = $1 AND ay.year_name = $2
-        ORDER BY ep.id DESC LIMIT 1
-    `, semester, String(year));
-    return period[0]?.id ?? null;
+    const result = await prisma.semesters.findFirst({
+        where: {
+            semester_number: semester,
+            academic_years: { year_name: String(year) },
+        },
+        select: { id: true },
+    });
+    return result?.id ?? null;
 }
 
 export const LearningResultsService = {
     // Advisor evaluation (1-5 scale)
     async getAdvisorEvaluation(student_id: number, year?: number, semester?: number) {
         if (!student_id) return [];
-        const period_id = await resolveEvaluationPeriodId(year, semester);
+        const semester_id = await resolveSemesterId(year, semester);
         const responseRows = await prisma.$queryRawUnsafe<Array<{ id: number }>>(
             `
             SELECT er.id
@@ -26,7 +25,7 @@ export const LearningResultsService = {
             WHERE LOWER(COALESCE(ef.type, '')) = 'advisor'
               AND UPPER(COALESCE(er.target_type, '')) = 'STUDENT'
               AND er.target_id = ${Number(student_id)}
-              ${period_id ? `AND er.period_id = ${Number(period_id)}` : ''}
+              ${semester_id ? `AND er.semester_id = ${Number(semester_id)}` : ''}
             ORDER BY er.submitted_at DESC NULLS LAST, er.id DESC
             LIMIT 1
             `
@@ -100,7 +99,7 @@ export const LearningResultsService = {
 
         if (enrollments.length === 0) return [];
 
-        const period_id = await resolveEvaluationPeriodId(year, semester);
+        const semester_id = await resolveSemesterId(year, semester);
 
         // Fetch teaching forms for evaluating students via Raw SQL
         const formRows: any[] = await prisma.$queryRawUnsafe(`
@@ -130,9 +129,9 @@ export const LearningResultsService = {
                 sql += ` AND evaluator_user_id = $2`;
                 params.push(teacher.user_id);
             }
-            if (period_id) {
-                sql += ` AND period_id = $${params.length + 1}`;
-                params.push(Number(period_id));
+            if (semester_id) {
+                sql += ` AND semester_id = $${params.length + 1}`;
+                params.push(Number(semester_id));
             }
 
             sql += ` ORDER BY submitted_at DESC LIMIT 1`;

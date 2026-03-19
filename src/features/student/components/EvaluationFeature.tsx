@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { StudentApiService } from "@/services/student-api.service";
+import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { getAcademicSemesterDefault, getAcademicYearOptionsForStudent, getCurrentAcademicYearBE } from "@/features/student/academic-term";
 import { useMemo } from "react";
@@ -14,19 +15,36 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
     const student = session;
 
     // View state
-    const [mode, setMode] = useState<'evaluate' | 'evaluate_advisor'>('evaluate');
+    const [mode, setMode] = useState<'evaluate' | 'evaluate_advisor' | 'evaluate_sdq'>('evaluate');
+
+    const academicYearsQuery = useQuery({
+        queryKey: ["student", "lookups", "academic-years"],
+        queryFn: () => StudentApiService.getAcademicYears(),
+    });
+
+    const yearOptionsData = (academicYearsQuery.data as any[]) || [];
+    const yearOptions = yearOptionsData.map((y: any) => Number(y.year_name));
 
     // Select state
     const [year, setYear] = useState<number>(getCurrentAcademicYearBE());
     const [semester, setSemester] = useState<number>(getAcademicSemesterDefault());
-    const yearOptions = getAcademicYearOptionsForStudent(session.class_level, year);
+
+    const selectedYearLookup = yearOptionsData.find((y: any) => Number(y.year_name) === Number(year));
+    const semesterOptions = selectedYearLookup?.semesters || [];
+
+    // Sync year state if data is loaded
+    useEffect(() => {
+        if (!year && yearOptions.length > 0) {
+            setYear(yearOptions[0]);
+        }
+    }, [year, yearOptions]);
 
     // Data state
     const [registeredSubjects, setRegisteredSubjects] = useState<any[]>([]);
     const [totalRegistered, setTotalRegistered] = useState<number>(0);
     const [evaluatedCount, setEvaluatedCount] = useState<number>(0);
     const [selectedSection, setSelectedSection] = useState<any | null>(null);
-    const [topics, setTopics] = useState<string[]>([]);
+    const [topics, setTopics] = useState<any[]>([]); // Full topic objects from DB with section info
     const [evaluatedSectionIds, setEvaluatedSectionIds] = useState<number[]>([]);
     const [history, setHistory] = useState<any[]>([]); // Student enrollment history for dynamic terms
 
@@ -42,7 +60,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
     const [isLoadingAdvisorData, setIsLoadingAdvisorData] = useState(false);
 
     // Form state (Subjects)
-    const [scores, setScores] = useState<Record<string, number>>({});
+    const [scores, setScores] = useState<Record<string, number | string>>({});
     const [feedback, setFeedback] = useState("");
 
     // Form state (Advisor)
@@ -74,9 +92,13 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                 }
             });
         }
-        if (semesters.size === 0) return [1, 2];
+        if (semesters.size === 0) {
+            return semesterOptions.length > 0
+                ? semesterOptions.map((s: any) => s.semester_number)
+                : [1, 2];
+        }
         return Array.from(semesters).sort((a, b) => a - b);
-    }, [history, year]);
+    }, [history, year, semesterOptions]);
 
 
     const initData = async () => {
@@ -132,7 +154,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
             setRegisteredSubjects(uniqueAll);
 
             // Fetch evaluation topics
-            await fetchTopics();
+            await fetchTopics(mode === 'evaluate_sdq' ? 'sdq' : 'teaching');
             setFetchError(null);
         } catch (err: any) {
             console.error("Failed to load initial evaluation data", err);
@@ -147,17 +169,23 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
     useEffect(() => {
         initData();
     }, [year, semester]);
-    const fetchTopics = async () => {
+    const fetchTopics = async (type: 'teaching' | 'sdq' = 'teaching') => {
         setIsLoadingTopics(true);
         try {
-            const result = await StudentApiService.getEvaluationTopics(year, semester);
+            const result = await StudentApiService.getEvaluationTopics(year, semester, type);
             if (result && Array.isArray(result)) {
-                const topicNames = result.map(t => t.name).filter(n => n && n.trim().length > 0);
-                setTopics(topicNames);
+                const validTopics = result.filter((t: any) => t.name && t.name.trim().length > 0);
+                setTopics(validTopics);
 
-                // Initialize score state
-                const initScores: Record<string, number> = {};
-                topicNames.forEach(t => initScores[t] = 0);
+                // Initialize score state keyed by topic name
+                const initScores: Record<string, number | string> = {};
+                validTopics.forEach((t: any) => {
+                    const isTextTopic = t.type === 'text' ||
+                        t.type === 'textarea' ||
+                        t.section_name?.includes("ตอนที่ 3") ||
+                        t.name?.includes("แสดงความคิดเห็น");
+                    initScores[t.name] = isTextTopic ? "" : -1;
+                });
                 setScores(initScores);
             }
         } catch (error) {
@@ -177,14 +205,20 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
         const subject = registeredSubjects.find(s => s.section_id === sectionId);
         setSelectedSection(subject || null);
 
-        // Reset scores
-        const initScores: Record<string, number> = {};
-        topics.forEach(t => initScores[t] = 0);
+        // Reset scores keyed by topic name
+        const initScores: Record<string, number | string> = {};
+        topics.forEach((t: any) => {
+            const isTextTopic = t.type === 'text' ||
+                t.type === 'textarea' ||
+                t.section_name?.includes("ตอนที่ 3") ||
+                t.name?.includes("แสดงความคิดเห็น");
+            initScores[t.name] = isTextTopic ? "" : -1;
+        });
         setScores(initScores);
         setFeedback("");
     };
 
-    const handleScoreChange = (topicName: string, value: number) => {
+    const handleScoreChange = (topicName: string, value: number | string) => {
         setScores(prev => ({
             ...prev,
             [topicName]: value
@@ -205,7 +239,13 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
         }
 
         // Validate all questions answered
-        const unanswered = topics.filter(t => scores[t] === 0);
+        const unanswered = topics.filter((t: any) => {
+            const val = scores[t.name];
+            if (t.type === 'text' || t.type === 'textarea') {
+                return val === undefined || val === null; // Empty string is fine for text
+            }
+            return val === undefined || val === null || val === -1;
+        });
         if (unanswered.length > 0) {
             toast.error("กรุณาตอบแบบประเมินให้ครบทุกข้อ");
             return;
@@ -213,9 +253,9 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
 
         setIsSubmitting(true);
         try {
-            const dataToSubmit = topics.map(t => ({
-                name: t,
-                score: scores[t]
+            const dataToSubmit = topics.map((t: any) => ({
+                name: t.name,
+                value: scores[t.name]
             }));
 
             await StudentApiService.submitEvaluation(
@@ -233,9 +273,15 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
             setSelectedSection(null);
             setFeedback("");
 
-            // Reset scores
-            const initScores: Record<string, number> = {};
-            topics.forEach(t => initScores[t] = 0);
+            // Reset scores keyed by topic name
+            const initScores: Record<string, number | string> = {};
+            topics.forEach((t: any) => {
+                const isTextTopic = t.type === 'text' ||
+                    t.type === 'textarea' ||
+                    t.section_name?.includes("ตอนที่ 3") ||
+                    t.name?.includes("แสดงความคิดเห็น");
+                initScores[t.name] = isTextTopic ? "" : -1;
+            });
             setScores(initScores);
 
         } catch (error: any) {
@@ -267,6 +313,10 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
     useEffect(() => {
         if (mode === 'evaluate_advisor') {
             fetchAdvisors();
+        } else if (mode === 'evaluate_sdq') {
+            fetchTopics('sdq');
+        } else {
+            fetchTopics('teaching');
         }
     }, [mode, year, semester]);
 
@@ -377,22 +427,22 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                 <div className="relative z-10 flex flex-col md:flex-row md:justify-between md:items-start gap-6">
                     <div>
                         <div className="inline-block bg-white/20 px-3 py-0.5 rounded-full text-xs font-medium mb-3 backdrop-blur-sm border border-white/20">
-                            {mode === 'evaluate' ? 'Evaluation' : 'Advisor Evaluation'}
+                            {mode === 'evaluate' ? 'Evaluation' : (mode === 'evaluate_sdq' ? 'SDQ Evaluation' : 'Advisor Evaluation')}
                         </div>
                         <h1 className="text-2xl font-bold mb-1">
-                            {mode === 'evaluate' ? 'แบบประเมินประสิทธิภาพการสอน' : 'ประเมินครูที่ปรึกษา'}
+                            {mode === 'evaluate' ? 'แบบประเมินประสิทธิภาพการสอน' : (mode === 'evaluate_sdq' ? 'แบบประเมิน SDQ' : 'ประเมินครูที่ปรึกษา')}
                         </h1>
                         <p className="text-teal-100 text-sm mt-1">
                             {mode === 'evaluate'
                                 ? 'ช่วยกันพัฒนาคุณภาพการเรียนการสอนด้วยคะแนนประเมิน'
-                                : 'ประเมินครูที่ปรึกษาของคุณ'}
+                                : (mode === 'evaluate_sdq' ? 'ประเมินพฤติกรรมและอารมณ์ของนักเรียน' : 'ประเมินครูที่ปรึกษาของคุณ')}
                         </p>
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 min-w-[200px]">
                         <div className="text-teal-100 text-xs font-medium mb-2">{mode === 'evaluate' ? 'สถานะ' : 'สถานะล่าสุด'}</div>
-                        {mode === 'evaluate' ? (
-                            allEvaluated ? (
+                        {mode === 'evaluate' || mode === 'evaluate_sdq' ? (
+                            allEvaluated && mode === 'evaluate' ? (
                                 <div className="text-lg font-bold text-white flex items-center gap-2">
                                     <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                                     ประเมินครบแล้ว
@@ -414,10 +464,10 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                     ) : (
                                         <div className="text-lg font-bold text-white flex items-center gap-2">
                                             <svg className="w-5 h-5 text-teal-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                            กรุณาเลือกวิชา
+                                            {mode === 'evaluate_sdq' ? 'พร้อมประเมิน' : 'กรุณาเลือกวิชา'}
                                         </div>
                                     )}
-                                    {totalRegistered > 0 && (
+                                    {mode === 'evaluate' && totalRegistered > 0 && (
                                         <div className="text-teal-200 text-[10px] mt-1">
                                             ประเมินแล้ว {evaluatedCount}/{totalRegistered} วิชา
                                         </div>
@@ -455,24 +505,57 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
             </section>
 
             {/* Tab Navigation Row */}
-            <div className="flex gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button
                     onClick={() => { setMode('evaluate'); setSelectedAdvisor(null); }}
-                    className={`px-5 py-2 rounded-full text-sm font-bold transition-all duration-300 ${mode === 'evaluate'
-                        ? 'bg-teal-600 text-white shadow-md'
-                        : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200'
+                    className={`flex items-center gap-3 px-6 py-4 rounded-2xl text-left font-semibold transition-all duration-300 border-2 ${mode === 'evaluate'
+                        ? 'bg-teal-600 text-white border-teal-600 shadow-lg scale-[1.02]'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300 hover:bg-teal-50'
                         }`}
                 >
-                    การประเมินครูรายวิชา
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${mode === 'evaluate' ? 'bg-white/20' : 'bg-teal-50 text-teal-600'}`}>
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div className="text-sm font-bold">ประเมินการสอน</div>
+                        <div className={`text-xs mt-0.5 ${mode === 'evaluate' ? 'text-teal-100' : 'text-slate-400'}`}>ประเมินครูผู้สอนรายวิชา</div>
+                    </div>
                 </button>
                 <button
                     onClick={() => setMode('evaluate_advisor')}
-                    className={`px-5 py-2 rounded-full text-sm font-bold transition-all duration-300 ${mode === 'evaluate_advisor'
-                        ? 'bg-teal-600 text-white shadow-md'
-                        : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200'
+                    className={`flex items-center gap-3 px-6 py-4 rounded-2xl text-left font-semibold transition-all duration-300 border-2 ${mode === 'evaluate_advisor'
+                        ? 'bg-teal-600 text-white border-teal-600 shadow-lg scale-[1.02]'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300 hover:bg-teal-50'
                         }`}
                 >
-                    ประเมินครูที่ปรึกษา
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${mode === 'evaluate_advisor' ? 'bg-white/20' : 'bg-indigo-50 text-indigo-600'}`}>
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div className="text-sm font-bold">ประเมินครูที่ปรึกษา</div>
+                        <div className={`text-xs mt-0.5 ${mode === 'evaluate_advisor' ? 'text-teal-100' : 'text-slate-400'}`}>ประเมินอาจารย์ที่ปรึกษาห้อง</div>
+                    </div>
+                </button>
+                <button
+                    onClick={() => { setMode('evaluate_sdq'); setSelectedAdvisor(null); setSelectedSection(null); }}
+                    className={`flex items-center gap-3 px-6 py-4 rounded-2xl text-left font-semibold transition-all duration-300 border-2 ${mode === 'evaluate_sdq'
+                        ? 'bg-teal-600 text-white border-teal-600 shadow-lg scale-[1.02]'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300 hover:bg-teal-50'
+                        }`}
+                >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${mode === 'evaluate_sdq' ? 'bg-white/20' : 'bg-orange-50 text-orange-600'}`}>
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div className="text-sm font-bold">ประเมิน SDQ</div>
+                        <div className={`text-xs mt-0.5 ${mode === 'evaluate_sdq' ? 'text-teal-100' : 'text-slate-400'}`}>แบบประเมินพฤติกรรม (SDQ)</div>
+                    </div>
                 </button>
             </div>
 
@@ -484,7 +567,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                     </div>
                     <div>
                         <h3 className="text-lg font-bold text-slate-800">
-                            {mode === 'evaluate' ? 'เลือกปี/เทอม และรายวิชา' : 'เลือกปีการศึกษา และภาคเรียน'}
+                            {mode === 'evaluate' ? 'เลือกปี/เทอม และรายวิชา' : (mode === 'evaluate_sdq' ? 'เลือกปีการศึกษา และภาคเรียน' : 'เลือกปีการศึกษา และภาคเรียน')}
                         </h3>
                         <p className="text-slate-500 text-sm">กำหนดช่วงเวลาและข้อมูลที่ต้องการประเมิน</p>
                     </div>
@@ -499,7 +582,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                             className="w-full border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-slate-100 appearance-none text-slate-700 shadow-sm"
                             style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: `right 0.5rem center`, backgroundRepeat: `no-repeat`, backgroundSize: `1.5em 1.5em` }}
                         >
-                            {dynamicYearOptions.map((y) => (
+                            {dynamicYearOptions.map((y: any) => (
                                 <option key={y} value={y}>{y}</option>
                             ))}
                         </select>
@@ -512,7 +595,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                             className="w-full border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-slate-100 appearance-none text-slate-700 shadow-sm"
                             style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: `right 0.5rem center`, backgroundRepeat: `no-repeat`, backgroundSize: `1.5em 1.5em` }}
                         >
-                            {dynamicSemesterOptions.map(s => (
+                            {dynamicSemesterOptions.map((s: any) => (
                                 <option key={s} value={s}>{s}</option>
                             ))}
                         </select>
@@ -541,10 +624,10 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                 </div>
             </section>
 
-            {mode === 'evaluate' ? (
+            {mode === 'evaluate' || mode === 'evaluate_sdq' ? (
                 <>
                     {/* Teacher Info */}
-                    {selectedSection && (
+                    {mode === 'evaluate' && selectedSection && (
                         <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
@@ -580,9 +663,9 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                     )}
 
                     {/* Evaluation Form / Status */}
-                    {selectedSection && (
+                    {(mode === 'evaluate_sdq' || selectedSection) && (
                         <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                            {evaluatedSectionIds.includes(selectedSection.section_id) ? (
+                            {mode === 'evaluate' && selectedSection && evaluatedSectionIds.includes(selectedSection.section_id) ? (
                                 <div className="flex flex-col items-center justify-center py-12 text-center">
                                     <div className="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mb-6 border-4 border-white shadow-xl">
                                         <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
@@ -600,7 +683,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                         </div>
                                         <div>
                                             <h3 className="text-lg font-bold text-slate-800">รายการประเมิน</h3>
-                                            <p className="text-slate-500 text-sm">ตอบแบบประเมิน - 5: ดีมาก, 4: ดี, 3: ปานกลาง, 2: พอใช้, 1: ปรับปรุง</p>
+                                            <p className="text-slate-500 text-sm">ตอบแบบประเมิน 5: มากที่สุด 4: มาก 3: ปานกลาง 2: น้อย 1: น้อยที่สุด 0: ไม่แน่ใจ</p>
                                         </div>
                                     </div>
 
@@ -618,66 +701,94 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                                 <table className="w-full text-sm text-left">
                                                     <thead className="text-xs text-slate-500 bg-slate-50 border-b border-slate-200">
                                                         <tr>
-                                                            <th className="px-6 py-4 font-medium w-1/2 min-w-[300px]">หัวข้อประเมิน</th>
-                                                            <th className="px-3 py-4 font-medium text-center">5<br /><span className="text-[10px] text-slate-400">ดีมาก</span></th>
-                                                            <th className="px-3 py-4 font-medium text-center">4<br /><span className="text-[10px] text-slate-400">ดี</span></th>
-                                                            <th className="px-3 py-4 font-medium text-center">3<br /><span className="text-[10px] text-slate-400">ปานกลาง</span></th>
-                                                            <th className="px-3 py-4 font-medium text-center">2<br /><span className="text-[10px] text-slate-400">พอใช้</span></th>
-                                                            <th className="px-3 py-4 font-medium text-center">1<br /><span className="text-[10px] text-slate-400">ปรับปรุง</span></th>
+                                                            <th className="px-6 py-4 font-bold w-1/2 min-w-[300px]">หัวข้อประเมิน</th>
+                                                            <th className="px-3 py-4 font-medium text-center"><br /><span className="text-[12px] text-slate-600">มากที่สุด</span></th>
+                                                            <th className="px-3 py-4 font-medium text-center"><br /><span className="text-[12px] text-slate-600">มาก</span></th>
+                                                            <th className="px-3 py-4 font-medium text-center"><br /><span className="text-[12px] text-slate-600">ปานกลาง</span></th>
+                                                            <th className="px-3 py-4 font-medium text-center"><br /><span className="text-[12px] text-slate-600">น้อย</span></th>
+                                                            <th className="px-3 py-4 font-medium text-center"><br /><span className="text-[12px] text-slate-600">น้อยที่สุด</span></th>
+                                                            <th className="px-3 py-4 font-medium text-center"><br /><span className="text-[12px] text-slate-600">ไม่แน่ใจ</span></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-slate-100">
                                                         {topics.length === 0 ? (
                                                             <tr>
-                                                                <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                                                                    ยังไม่มีหัวข้อประเมินการสอน
+                                                                <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
+                                                                    ยังไม่มีหัวข้อ{mode === 'evaluate_sdq' ? 'ประเมิน SDQ' : 'ประเมินการสอน'}
                                                                 </td>
                                                             </tr>
-                                                        ) : (
-                                                            topics.map((topic, idx) => (
-                                                                <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                                                    <td className="px-6 py-4 font-medium text-slate-700">
-                                                                        {idx + 1}. {topic}
-                                                                    </td>
-                                                                    {[5, 4, 3, 2, 1].map(val => (
-                                                                        <td key={val} className="px-3 py-4 text-center">
-                                                                            <label className="flex justify-center items-center w-full h-full cursor-pointer group">
-                                                                                <input
-                                                                                    type="radio"
-                                                                                    name={`topic-${idx}`}
-                                                                                    value={val}
-                                                                                    checked={scores[topic] === val}
-                                                                                    onChange={() => handleScoreChange(topic, val)}
-                                                                                    className="w-5 h-5 text-teal-600 bg-slate-100 border-slate-300 focus:ring-teal-500 cursor-pointer"
-                                                                                    required
-                                                                                />
-                                                                            </label>
-                                                                        </td>
-                                                                    ))}
-                                                                </tr>
-                                                            ))
-                                                        )}
+                                                        ) : (() => {
+                                                            const rows: React.ReactNode[] = [];
+                                                            let lastSectionId: number | null = null;
+                                                            topics.forEach((topic: any, idx: number) => {
+                                                                const sid = topic.section_id ?? null;
+                                                                if (sid !== lastSectionId) {
+                                                                    lastSectionId = sid;
+                                                                    if (topic.section_name) {
+                                                                        rows.push(
+                                                                            <tr key={`sec-${sid}`} className="bg-teal-50 border-y border-teal-200">
+                                                                                <td colSpan={7} className="px-6 py-3 font-bold text-teal-800 text-sm">
+                                                                                    {topic.section_name}
+                                                                                </td>
+                                                                            </tr>
+                                                                        );
+                                                                    }
+                                                                }
+
+                                                                const isText = topic.type === 'text' ||
+                                                                    topic.type === 'textarea' ||
+                                                                    topic.section_name?.includes("ตอนที่ 3") ||
+                                                                    topic.name?.includes("แสดงความคิดเห็น");
+
+                                                                rows.push(
+                                                                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                                                        {isText ? (
+                                                                            <td colSpan={7} className="px-6 py-4">
+                                                                                <div className="font-medium text-slate-700 mb-3">{topic.name.replace(/^[\d.]+\s*/, '')}</div>
+                                                                                <textarea
+                                                                                    value={scores[topic.name] || ''}
+                                                                                    onChange={(e) => handleScoreChange(topic.name, e.target.value)}
+                                                                                    placeholder="พิมพ์ข้อเสนอแนะของคุณ..."
+                                                                                    className="w-full h-24 p-4 border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-slate-50 transition-all resize-none"
+                                                                                ></textarea>
+                                                                            </td>
+                                                                        ) : (
+                                                                            <>
+                                                                                <td className="px-6 py-4 font-medium text-slate-700">
+                                                                                    {topic.name.replace(/^[\d.]+\s*/, '')}
+                                                                                </td>
+                                                                                {[5, 4, 3, 2, 1, 0].map(val => (
+                                                                                    <td key={val} className="px-3 py-4 text-center">
+                                                                                        <label className="flex justify-center items-center w-full h-full cursor-pointer group">
+                                                                                            <input
+                                                                                                type="radio"
+                                                                                                name={`topic-${idx}`}
+                                                                                                value={val}
+                                                                                                checked={scores[topic.name] === val}
+                                                                                                onChange={() => handleScoreChange(topic.name, val)}
+                                                                                                className="w-5 h-5 text-teal-600 bg-slate-100 border-slate-300 focus:ring-teal-500 cursor-pointer"
+                                                                                                required
+                                                                                            />
+                                                                                        </label>
+                                                                                    </td>
+                                                                                ))}
+                                                                            </>
+                                                                        )}
+                                                                    </tr>
+                                                                );
+                                                            });
+                                                            return rows;
+                                                        })()}
                                                     </tbody>
                                                 </table>
                                             </div>
 
-                                            <div className="mb-6">
-                                                <label className="block text-sm font-medium text-slate-700 mb-2">ข้อเสนอแนะเพิ่มเติม (ถ้ามี)</label>
-                                                <textarea
-                                                    value={feedback}
-                                                    onChange={(e) => setFeedback(e.target.value)}
-                                                    rows={4}
-                                                    className="w-full border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-slate-50"
-                                                    placeholder="พิมพ์ข้อเสนอแนะของคุณ..."
-                                                ></textarea>
-                                            </div>
-
-                                            <div className="flex justify-end pt-4 border-t border-slate-100">
+                                            <div className="flex justify-end pt-4">
                                                 <button
                                                     type="submit"
-                                                    disabled={isSubmitting || !selectedSection || topics.length === 0}
+                                                    disabled={isSubmitting || (mode === 'evaluate' && !selectedSection) || topics.length === 0}
                                                     className={`px-6 py-3 rounded-xl font-medium transition-colors flex items-center gap-2
-                                                ${(isSubmitting || !selectedSection || topics.length === 0)
+                                                ${(isSubmitting || (mode === 'evaluate' && !selectedSection) || topics.length === 0)
                                                             ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                                                             : "bg-teal-600 text-white hover:bg-teal-700"}`}
                                                 >
@@ -801,7 +912,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                                         advisorEvalTemplate.topics.map((topic: any, idx: number) => (
                                                             <tr key={idx} className="hover:bg-slate-50 transition-colors">
                                                                 <td className="px-6 py-4 font-medium text-slate-700">
-                                                                    {idx + 1}. {topic.name}
+                                                                    1.{idx + 1} {topic.name.replace(/^[\d.]+\s*/, '')}
                                                                 </td>
                                                                 {[5, 4, 3, 2, 1].map(val => (
                                                                     <td key={val} className="px-3 py-4 text-center">

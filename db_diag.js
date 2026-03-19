@@ -1,25 +1,25 @@
+
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const fs = require('fs');
 
 async function main() {
     try {
-        console.log('Testing connection...');
-        await prisma.$connect();
-        console.log('Connected.');
+        const forms = await prisma.evaluation_forms.findMany({
+            select: { id: true, form_name: true, is_active: true }
+        });
+        const categories = await prisma.evaluation_categories.findMany();
         
-        console.log('Checking projects table...');
-        const projects = await prisma.projects.findMany({ take: 1 });
-        console.log('Projects table exists. First row col names:', Object.keys(projects[0] || {}));
+        const output = {
+            forms,
+            categories
+        };
         
-        console.log('Checking project_expenses table...');
-        try {
-            const expenses = await prisma.project_expenses.findMany({ take: 1 });
-            console.log('Project expenses table exists.');
-        } catch (e) {
-            console.log('Project expenses table does NOT exist or error:', e.message);
-        }
+        fs.writeFileSync('db_output.json', JSON.stringify(output, null, 2));
+        console.log('Done');
     } catch (e) {
-        console.error('Connection failed:', e.message);
+        fs.writeFileSync('db_error.txt', e.stack);
+        console.log('Error');
     } finally {
         await prisma.$disconnect();
     }

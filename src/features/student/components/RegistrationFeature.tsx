@@ -17,8 +17,27 @@ interface UserSession {
 
 export function RegistrationFeature({ session }: { session: UserSession }) {
     const queryClient = useQueryClient();
+    const academicYearsQuery = useQuery({
+        queryKey: ["student", "lookups", "academic-years"],
+        queryFn: () => StudentApiService.getAcademicYears(),
+    });
+
+    const yearOptionsData = (academicYearsQuery.data as any[]) || [];
+    const yearOptions = yearOptionsData.map((y: any) => Number(y.year_name));
+
+    const selectedYearData = yearOptionsData.find((y: any) => Number(y.year_name) === Number(year));
+    const semesterOptions = selectedYearData?.semesters || [];
+
     const [year, setYear] = useState<number>(getCurrentAcademicYearBE());
     const [semester, setSemester] = useState<number>(getAcademicSemesterDefault());
+
+    // Sync year state if data is loaded
+    useEffect(() => {
+        if (!year && yearOptions.length > 0) {
+            setYear(yearOptions[0]);
+        }
+    }, [year, yearOptions]);
+
     const [hasManualTermSelection, setHasManualTermSelection] = useState(false);
     const [didAutoFallback, setDidAutoFallback] = useState(false);
 
@@ -86,8 +105,7 @@ export function RegistrationFeature({ session }: { session: UserSession }) {
     const latestAdvisors = advisorLatestQuery.data?.advisors || [];
     const cartItems = cartQuery.data || [];
     const registeredItems = registeredQuery.data || [];
-    const isInitLoading = advisorQuery.isLoading || cartQuery.isLoading || registeredQuery.isLoading;
-    const yearOptions = getAcademicYearOptionsForStudent(session.class_level, year);
+    const isInitLoading = advisorQuery.isLoading || cartQuery.isLoading || registeredQuery.isLoading || academicYearsQuery.isLoading;
     const getSubjectKey = (item: any) =>
         item?.subject_id != null && String(item.subject_id) !== ''
             ? `subject:${item.subject_id}`
@@ -302,8 +320,18 @@ export function RegistrationFeature({ session }: { session: UserSession }) {
                             }}
                             className="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block w-full p-2.5"
                         >
-                            <option value={1}>1</option>
-                            <option value={2}>2</option>
+                            {semesterOptions.length > 0 ? (
+                                semesterOptions.map((s: any) => (
+                                    <option key={s.semester_number} value={s.semester_number}>
+                                        {s.semester_number}
+                                    </option>
+                                ))
+                            ) : (
+                                <>
+                                    <option value={1}>1</option>
+                                    <option value={2}>2</option>
+                                </>
+                            )}
                         </select>
                     </div>
                 </div>

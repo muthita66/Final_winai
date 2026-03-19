@@ -31,8 +31,13 @@ export async function GET(request: Request) {
             const year = yearParsed.value;
             const semester = semesterParsed.value;
 
-            const topics = await EvaluationService.getTopics(year, semester);
-            return successResponse(topics, "Topics retrieved");
+            const type = searchParams.get('type') || 'teaching';
+            if (type !== 'teaching' && type !== 'sdq') {
+                return errorResponse("Invalid parameter: type. Must be 'teaching' or 'sdq'", 400);
+            }
+
+            const topics = await EvaluationService.getTopics(year, semester, type as 'teaching' | 'sdq');
+            return successResponse(topics, `Topics retrieved for ${type}`);
         }
 
         if (action === 'competency') {

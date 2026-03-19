@@ -53,8 +53,8 @@ export const TeacherEvaluationService = {
             // Pre-fetch the teaching evaluation form ID via Raw SQL
             const formResult: any[] = await prisma.$queryRawUnsafe(`
                 SELECT f.id FROM evaluation_forms f
-                JOIN evaluation_form_types t ON f.form_type_id = t.id
-                WHERE t.type_code = 'teaching'
+                JOIN evaluation_categories t ON f.category_id = t.id
+                WHERE t.engine_type = 'teaching'
                 LIMIT 1
             `);
             const teachingFormId = formResult[0]?.id || null;
@@ -119,8 +119,8 @@ export const TeacherEvaluationService = {
         // Fetch teaching form ID via Raw SQL
         const formResult: any[] = await prisma.$queryRawUnsafe(`
             SELECT f.id FROM evaluation_forms f
-            JOIN evaluation_form_types t ON f.form_type_id = t.id
-            WHERE t.type_code = 'teaching'
+            JOIN evaluation_categories t ON f.category_id = t.id
+            WHERE t.engine_type = 'teaching'
             LIMIT 1
         `);
         const teachingFormId = formResult[0]?.id || null;
@@ -200,8 +200,8 @@ export const TeacherEvaluationService = {
         const results = [];
         const formResult: any[] = await prisma.$queryRawUnsafe(`
             SELECT f.id FROM evaluation_forms f
-            JOIN evaluation_form_types t ON f.form_type_id = t.id
-            WHERE t.type_code = 'teacher_eval_student'
+            JOIN evaluation_categories t ON f.category_id = t.id
+            WHERE t.engine_type = 'teacher_eval_student'
         `);
         const formIds = formResult.map(f => f.id);
 
@@ -245,8 +245,8 @@ export const TeacherEvaluationService = {
         // Since models are missing from schema, use raw SQL for checks and inserts if needed
         const existing: any[] = await prisma.$queryRawUnsafe(`
             SELECT ef.* FROM evaluation_forms ef
-            JOIN evaluation_form_types eft ON ef.form_type_id = eft.id
-            WHERE eft.type_code = 'teacher_eval_student'
+            JOIN evaluation_categories eft ON ef.category_id = eft.id
+            WHERE eft.engine_type = 'teacher_eval_student'
             LIMIT 1
         `);
         if (existing.length > 0) {
@@ -387,8 +387,8 @@ export const TeacherEvaluationService = {
             SELECT er.id
             FROM public.evaluation_responses er
             INNER JOIN public.evaluation_forms ef ON ef.id = er.form_id
-            LEFT JOIN public.evaluation_form_types eft ON eft.id = ef.form_type_id
-            WHERE LOWER(COALESCE(eft.type_code, '')) = 'advisor'
+            LEFT JOIN public.evaluation_categories eft ON eft.id = ef.category_id
+            WHERE LOWER(COALESCE(eft.engine_type, '')) = 'advisor'
               AND er.student_id IN (${targetIds.join(',')})
               ${period_id ? `AND er.period_id = ${Number(period_id)}` : ''}
             ORDER BY er.submitted_at DESC NULLS LAST, er.id DESC
@@ -481,11 +481,11 @@ export const TeacherEvaluationService = {
                 sem.semester_number AS semester
             FROM public.evaluation_responses er
             INNER JOIN public.evaluation_forms ef ON ef.id = er.form_id
-            LEFT JOIN public.evaluation_form_types eft ON eft.id = ef.form_type_id
+            LEFT JOIN public.evaluation_categories eft ON eft.id = ef.category_id
             LEFT JOIN public.evaluation_periods ep ON ep.id = er.period_id
             LEFT JOIN public.semesters sem ON sem.id = ep.semester_id
             LEFT JOIN public.academic_years ay ON ay.id = sem.academic_year_id
-            WHERE LOWER(COALESCE(eft.type_code, '')) = 'advisor'
+            WHERE LOWER(COALESCE(eft.engine_type, '')) = 'advisor'
               AND er.evaluator_user_id = ${teacherUserId}
               AND er.student_id IN (${studentIds.join(',')})
               ${period_id ? `AND er.period_id = ${Number(period_id)}` : ''}
