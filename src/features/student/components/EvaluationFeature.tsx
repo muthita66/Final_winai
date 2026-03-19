@@ -180,7 +180,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                 // Initialize score state keyed by topic name
                 const initScores: Record<string, number | string> = {};
                 validTopics.forEach((t: any) => {
-                    const isTextTopic = t.type === 'text' || 
+                    const isTextTopic = t.type === 'text' ||
                         t.type === 'textarea' ||
                         (mode === 'evaluate' && t.section_name?.includes("ตอนที่ 3")) ||
                         t.name?.includes("แสดงความคิดเห็น");
@@ -208,7 +208,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
         // Reset scores keyed by topic name
         const initScores: Record<string, number | string> = {};
         topics.forEach((t: any) => {
-            const isTextTopic = t.type === 'text' || 
+            const isTextTopic = t.type === 'text' ||
                 t.type === 'textarea' ||
                 (mode === 'evaluate' && t.section_name?.includes("ตอนที่ 3")) ||
                 t.name?.includes("แสดงความคิดเห็น");
@@ -335,11 +335,12 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
             setAdvisorEvalTemplate(template);
 
             // Initialize advisor scores
-            const initScores: Record<string, number> = {};
+            const initScores: Record<string, any> = {};
             if (template.topics) {
                 template.topics.forEach((t: any) => {
                     const existing = template.current?.find((c: any) => c.name === t.name);
-                    initScores[t.name] = existing ? existing.score : 0;
+                    const isText = t.type === 'text' || t.type === 'textarea';
+                    initScores[t.name] = existing && existing.score != null ? existing.score : (isText ? "" : undefined);
                 });
             }
             setAdvisorScores(initScores);
@@ -364,8 +365,11 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
             return;
         }
 
-        const topics = advisorEvalTemplate.topics?.map((t: any) => t.name) || [];
-        const unanswered = topics.filter((t: string) => !advisorScores[t] || advisorScores[t] === 0);
+        const topicItems = advisorEvalTemplate.topics || [];
+        const requiredTopics = topicItems
+            .filter((t: any) => t.type !== 'text' && t.type !== 'textarea')
+            .map((t: any) => t.name);
+        const unanswered = requiredTopics.filter((t: string) => advisorScores[t] === undefined || advisorScores[t] === null);
 
         if (unanswered.length > 0) {
             toast.error("กรุณาตอบแบบประเมินให้ครบทุกข้อ");
@@ -915,7 +919,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                         </div>
                                         <div>
                                             <h3 className="text-xl font-bold text-slate-800">
-                                                ฟอร์มประเมิน {selectedAdvisor.prefix}{selectedAdvisor.first_name} {selectedAdvisor.last_name}
+                                                รายการประเมิน {selectedAdvisor.prefix}{selectedAdvisor.first_name} {selectedAdvisor.last_name}
                                             </h3>
                                             <p className="text-slate-500">กรุณาให้คะแนนตามความเป็นจริง</p>
                                         </div>
@@ -926,12 +930,23 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                             <table className="w-full text-sm text-left">
                                                 <thead className="text-xs text-slate-500 bg-slate-50 border-b border-slate-200">
                                                     <tr>
-                                                        <th className="px-6 py-4 font-medium w-1/2 min-w-[300px]">หัวข้อประเมิน (ที่ปรึกษา)</th>
-                                                        <th className="px-3 py-4 font-medium text-center">5<br /><span className="text-[10px] text-slate-400">ดีมาก</span></th>
-                                                        <th className="px-3 py-4 font-medium text-center">4<br /><span className="text-[10px] text-slate-400">ดี</span></th>
-                                                        <th className="px-3 py-4 font-medium text-center">3<br /><span className="text-[10px] text-slate-400">ปานกลาง</span></th>
-                                                        <th className="px-3 py-4 font-medium text-center">2<br /><span className="text-[10px] text-slate-400">พอใช้</span></th>
-                                                        <th className="px-3 py-4 font-medium text-center">1<br /><span className="text-[10px] text-slate-400">ปรับปรุง</span></th>
+                                                        <th className="px-6 py-4 font-medium w-1/2 min-w-[300px]">หัวข้อการประเมิน</th>
+                                                        {(() => {
+                                                            const scaleTopic = advisorEvalTemplate.topics.find((t: any) => t.options && t.options.length > 0);
+                                                            const fallback = [
+                                                                { value: 5, label: "ดีมาก" },
+                                                                { value: 4, label: "ดี" },
+                                                                { value: 3, label: "ปานกลาง" },
+                                                                { value: 2, label: "พอใช้" },
+                                                                { value: 1, label: "ปรับปรุง" },
+                                                            ];
+                                                            const optionsToRender = scaleTopic?.options || fallback;
+                                                            return optionsToRender.map((o: any, i: number) => (
+                                                                <th key={i} className="px-3 py-4 font-medium text-center">
+                                                                    {o.value}<br /><span className="text-[10px] text-slate-400">{o.label}</span>
+                                                                </th>
+                                                            ));
+                                                        })()}
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-100">
@@ -942,28 +957,73 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                                             </td>
                                                         </tr>
                                                     ) : (
-                                                        advisorEvalTemplate.topics.map((topic: any, idx: number) => (
-                                                            <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                                                <td className="px-6 py-4 font-medium text-slate-700">
-                                                                    1.{idx + 1} {topic.name.replace(/^[\d.]+\s*/, '')}
-                                                                </td>
-                                                                {[5, 4, 3, 2, 1].map(val => (
-                                                                    <td key={val} className="px-3 py-4 text-center">
-                                                                        <label className="flex justify-center items-center w-full h-full cursor-pointer group">
-                                                                            <input
-                                                                                type="radio"
-                                                                                name={`adv-topic-${idx}`}
-                                                                                value={val}
-                                                                                checked={advisorScores[topic.name] === val}
-                                                                                onChange={() => handleAdvisorScoreChange(topic.name, val)}
-                                                                                className="w-5 h-5 text-teal-600 bg-slate-100 border-slate-300 focus:ring-teal-500 cursor-pointer"
-                                                                                required
-                                                                            />
-                                                                        </label>
-                                                                    </td>
-                                                                ))}
-                                                            </tr>
-                                                        ))
+                                                        (() => {
+                                                            const scaleTopic = advisorEvalTemplate.topics.find((t: any) => t.options && t.options.length > 0);
+                                                            const colCount = 1 + (scaleTopic?.options?.length || 5);
+                                                            const rows: React.ReactNode[] = [];
+                                                            let lastSectionId: number | null = null;
+
+                                                            advisorEvalTemplate.topics.forEach((topic: any, idx: number) => {
+                                                                const sid = topic.section_id ?? null;
+                                                                if (sid !== lastSectionId) {
+                                                                    lastSectionId = sid;
+                                                                    if (topic.section_name) {
+                                                                        rows.push(
+                                                                            <tr key={`sec-${sid || idx}`} className="bg-slate-50/50">
+                                                                                <td colSpan={colCount} className="px-6 py-3 font-semibold text-slate-800 border-t border-slate-100">
+                                                                                    {topic.section_name}
+                                                                                </td>
+                                                                            </tr>
+                                                                        );
+                                                                    }
+                                                                }
+
+                                                                const isText = topic.type === 'text' || topic.type === 'textarea' || topic.name?.includes("แสดงความคิดเห็น");
+
+                                                                rows.push(
+                                                                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                                                        {isText ? (
+                                                                            <td colSpan={colCount} className="px-6 py-4">
+                                                                                <div className="font-medium text-slate-700 mb-3">{topic.name}</div>
+                                                                                <textarea
+                                                                                    value={advisorScores[topic.name] || ''}
+                                                                                    onChange={(e) => handleAdvisorScoreChange(topic.name, e.target.value as any)}
+                                                                                    placeholder="พิมพ์ข้อเสนอแนะของคุณ..."
+                                                                                    className="w-full h-24 p-4 border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-slate-50 transition-all resize-none"
+                                                                                ></textarea>
+                                                                            </td>
+                                                                        ) : (
+                                                                            <>
+                                                                                <td className="px-6 py-4 font-medium text-slate-700">
+                                                                                    {topic.name}
+                                                                                </td>
+                                                                                {(() => {
+                                                                                    const fallbackVals = [5, 4, 3, 2, 1];
+                                                                                    const vals = topic.options ? topic.options.map((o: any) => o.value) : fallbackVals;
+
+                                                                                    return vals.map((val: any) => (
+                                                                                        <td key={val} className="px-3 py-4 text-center">
+                                                                                            <label className="flex justify-center items-center w-full h-full cursor-pointer group">
+                                                                                                <input
+                                                                                                    type="radio"
+                                                                                                    name={`adv-topic-${idx}`}
+                                                                                                    value={val}
+                                                                                                    checked={advisorScores[topic.name] === val}
+                                                                                                    onChange={() => handleAdvisorScoreChange(topic.name, val)}
+                                                                                                    className="w-5 h-5 text-teal-600 bg-slate-100 border-slate-300 focus:ring-teal-500 cursor-pointer"
+                                                                                                    required
+                                                                                                />
+                                                                                            </label>
+                                                                                        </td>
+                                                                                    ));
+                                                                                })()}
+                                                                            </>
+                                                                        )}
+                                                                    </tr>
+                                                                );
+                                                            });
+                                                            return rows;
+                                                        })()
                                                     )}
                                                 </tbody>
                                             </table>

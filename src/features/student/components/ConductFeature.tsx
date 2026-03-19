@@ -108,10 +108,10 @@ export function ConductFeature({ session }: ConductFeatureProps) {
                             />
                             {/* Simple circle visualization, no actual progress calculation based on dynamic max since score can be infinite. Old code just had a static ring. */}
                             <circle
-                                className={score < 0 ? "text-red-400" : "text-white"}
+                                className={score <= 0 ? "text-red-400" : "text-white"}
                                 strokeWidth="8"
                                 strokeDasharray={264}
-                                strokeDashoffset={score < 0 ? 200 : (score === 0 ? 264 : 66)} // Just some visual flavor
+                                strokeDashoffset={264 - (Math.max(0, Math.min(100, score)) * 264 / 100)}
                                 strokeLinecap="round"
                                 stroke="currentColor"
                                 fill="transparent"
@@ -152,13 +152,15 @@ export function ConductFeature({ session }: ConductFeatureProps) {
                             <tr>
                                 <th className="px-6 py-4 font-medium rounded-tl-xl whitespace-nowrap">วันที่</th>
                                 <th className="px-6 py-4 font-medium w-full">รายการ</th>
+                                <th className="px-6 py-4 font-medium whitespace-nowrap">ผู้กรอก</th>
+                                <th className="px-6 py-4 font-medium whitespace-nowrap">ผู้อนุมัติ</th>
                                 <th className="px-6 py-4 font-medium text-right rounded-tr-xl whitespace-nowrap">คะแนน</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {history.length === 0 ? (
                                 <tr>
-                                    <td colSpan={3} className="px-6 py-8 text-center text-slate-500">
+                                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
                                         ยังไม่มีประวัติการตัด/เพิ่มคะแนนความประพฤติ
                                     </td>
                                 </tr>
@@ -168,8 +170,24 @@ export function ConductFeature({ session }: ConductFeatureProps) {
                                         <td className="px-6 py-4 whitespace-nowrap text-slate-600">
                                             {formatThaiDate(row.log_date)}
                                         </td>
-                                        <td className="px-6 py-4 font-medium text-slate-800">
-                                            {row.event || "-"}
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase transition-colors ${row.is_positive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                    {row.is_positive ? 'เชิงบวก' : 'เชิงลบ'}
+                                                </span>
+                                                <span className="font-semibold text-slate-800">{row.event || "-"}</span>
+                                            </div>
+                                            {row.note && (
+                                                <div className="text-xs text-slate-500 line-clamp-1 ml-1" title={row.note}>
+                                                    {row.note}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                            {row.reporter_name || <span className="text-slate-400">-</span>}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                            {row.approver_name || <span className="text-slate-400">-</span>}
                                         </td>
                                         <td className="px-6 py-4 text-right font-bold whitespace-nowrap">
                                             <span className={`px-2.5 py-1 rounded-lg text-sm ${row.point < 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>

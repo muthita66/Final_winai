@@ -1243,6 +1243,7 @@ export function ActivitiesFeature() {
     const [departmentOptions, setDepartmentOptions] = useState<{ id: number; label: string }[]>([]);
     const [eventTypeOptions, setEventTypeOptions] = useState<{ id: number; label: string }[]>([]);
     const [pendingEditItem, setPendingEditItem] = useState<any | null>(null);
+    const [calendarDetailItem, setCalendarDetailItem] = useState<any | null>(null);
     const [calendarEditItem, setCalendarEditItem] = useState<any | null>(null);
     const [calendarEditValues, setCalendarEditValues] = useState<Record<string, string>>({});
     const [savingCalendarEdit, setSavingCalendarEdit] = useState(false);
@@ -1262,6 +1263,10 @@ export function ActivitiesFeature() {
         { key: "note", label: "รายละเอียด", multiline: true },
     ];
 
+    const openCalendarDetail = (item: any) => {
+        setCalendarDetailItem(item);
+    };
+
     const openCalendarEdit = (item: any) => {
         const mappedItem: any = { ...item };
         activityFields.forEach(field => {
@@ -1269,6 +1274,7 @@ export function ActivitiesFeature() {
                 mappedItem[field.key] = item[field.key] == null ? "" : String(item[field.key]);
             }
         });
+        setCalendarDetailItem(null);
         setCalendarEditItem(item);
         setCalendarEditValues(buildInitialValues(activityFields, mappedItem));
     };
@@ -1446,8 +1452,96 @@ export function ActivitiesFeature() {
                     key={calendarKey}
                     onAddClick={() => setViewMode('list')}
                     onBack={() => setViewMode('list')}
-                    onEditClick={openCalendarEdit}
+                    onEditClick={openCalendarDetail}
                 />
+            )}
+
+            {/* Calendar Detail Modal (read-only) */}
+            {calendarDetailItem && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setCalendarDetailItem(null)} />
+                    <div className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                        {/* Header */}
+                        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-xs font-medium bg-white/20 inline-block px-2 py-0.5 rounded-full mb-2">
+                                        {calendarDetailItem.event_type_name || 'กิจกรรม'}
+                                    </div>
+                                    <h3 className="text-xl font-black text-white leading-tight">{calendarDetailItem.name}</h3>
+                                </div>
+                                <button onClick={() => setCalendarDetailItem(null)} className="p-2 hover:bg-white/20 rounded-xl transition-colors flex-shrink-0">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                        {/* Body */}
+                        <div className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-bold text-slate-400 uppercase">วันที่เริ่ม</p>
+                                    <p className="text-sm font-bold text-slate-800">
+                                        {calendarDetailItem.date ? new Date(calendarDetailItem.date).toLocaleDateString('th-TH', {day:'numeric',month:'long',year:'numeric'}) : '-'}
+                                        {calendarDetailItem.start_time && <span className="ml-1 text-emerald-600">({calendarDetailItem.start_time})</span>}
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-bold text-slate-400 uppercase">วันที่สิ้นสุด</p>
+                                    <p className="text-sm font-bold text-slate-800">
+                                        {calendarDetailItem.end_date ? new Date(calendarDetailItem.end_date).toLocaleDateString('th-TH', {day:'numeric',month:'long',year:'numeric'}) : '-'}
+                                        {calendarDetailItem.end_time && <span className="ml-1 text-emerald-600">({calendarDetailItem.end_time})</span>}
+                                    </p>
+                                </div>
+                                {calendarDetailItem.location && (
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-bold text-slate-400 uppercase">สถานที่</p>
+                                        <p className="text-sm font-bold text-slate-800">{calendarDetailItem.location}</p>
+                                    </div>
+                                )}
+                                {calendarDetailItem.department_name && (
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-bold text-slate-400 uppercase">ฝ่ายที่รับผิดชอบ</p>
+                                        <p className="text-sm font-bold text-slate-800">{calendarDetailItem.department_name}</p>
+                                    </div>
+                                )}
+                                {calendarDetailItem.teacher_name && (
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-bold text-slate-400 uppercase">ครูผู้รับผิดชอบ</p>
+                                        <p className="text-sm font-bold text-slate-800">{calendarDetailItem.teacher_name}</p>
+                                    </div>
+                                )}
+                                <div className="space-y-1">
+                                    <p className="text-xs font-bold text-slate-400 uppercase">การเข้าร่วม</p>
+                                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
+                                        calendarDetailItem.visibility === 'public' ? 'bg-emerald-100 text-emerald-700' :
+                                        calendarDetailItem.visibility === 'internal' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                                    }`}>{calendarDetailItem.visibility || 'public'}</span>
+                                </div>
+                            </div>
+                            {calendarDetailItem.note && (
+                                <div className="pt-3 border-t border-slate-100">
+                                    <p className="text-xs font-bold text-slate-400 uppercase mb-2">รายละเอียด</p>
+                                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap pl-3 border-l-2 border-emerald-200">{calendarDetailItem.note}</p>
+                                </div>
+                            )}
+                        </div>
+                        {/* Footer */}
+                        <div className="px-6 pb-6 flex gap-3">
+                            <button
+                                onClick={() => setCalendarDetailItem(null)}
+                                className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
+                            >
+                                ปิด
+                            </button>
+                            <button
+                                onClick={() => openCalendarEdit(calendarDetailItem)}
+                                className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-200"
+                            >
+                                แก้ไขกิจกรรม
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             <EditModal

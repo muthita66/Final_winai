@@ -24,6 +24,65 @@ async function resolveSemesterId(year?: number, semester?: number) {
 }
 
 export const EvaluationService = {
+    // Get generic questions for a specific form ID
+    async getFormQuestions(formId: number) {
+        try {
+            // Fetch all sections and questions for this form
+            const questions: any[] = await prisma.$queryRaw`
+                SELECT 
+                    eq.id,
+                    eq.question_text,
+                    eq.question_type_id,
+                    eq.order_number,
+                    eq.scale_type_id,
+                    es.id as section_id,
+                    es.section_name,
+                    es.order_number as section_order
+                FROM evaluation_questions eq
+                JOIN evaluation_sections es ON es.id = eq.section_id
+                WHERE es.form_id = ${formId}
+                ORDER BY es.order_number ASC, eq.order_number ASC
+            `;
+
+            // Fetch scale items for these questions
+            const scaleIds = [...new Set(questions.map(q => q.scale_type_id).filter(id => id !== null))];
+            
+            let scaleItems: any[] = [];
+            if (scaleIds.length > 0) {
+                scaleItems = await prisma.$queryRawUnsafe(`
+                    SELECT scale_type_id, label, score_value, order_number 
+                    FROM evaluation_scale_items 
+                    WHERE scale_type_id IN (${scaleIds.join(',')})
+                    ORDER BY scale_type_id, order_number ASC
+                `);
+            }
+
+            return questions.map(q => {
+                const options = scaleItems
+                    .filter(si => si.scale_type_id === q.scale_type_id)
+                    .map(si => ({
+                        label: si.label,
+                        value: Number(si.score_value)
+                    }));
+
+                return {
+                    id: Number(q.id),
+                    form_id: formId,
+                    type: q.question_type_id === 2 ? 'text' : 'scale',
+                    name: q.question_text,
+                    section_id: Number(q.section_id),
+                    section_name: q.section_name,
+                    section_order: Number(q.section_order),
+                    order_number: Number(q.order_number),
+                    options: options.length > 0 ? options : null
+                };
+            });
+        } catch (e) {
+            console.error('[EvaluationService.getFormQuestions] DB error:', e);
+            return [];
+        }
+    },
+
     // Get question topics from DB evaluation tables (with section grouping)
     async getTopics(year?: number, semester?: number, formType: 'teaching' | 'sdq' = 'teaching') {
         try {
@@ -34,31 +93,44 @@ export const EvaluationService = {
                 formRows = await prisma.$queryRaw`
                     SELECT ef.id as form_id
                     FROM evaluation_forms ef
-                    WHERE ef.form_name LIKE '%SDQ%' AND ef.is_active = true
+                    WHERE ef.form_name ILIKE '%SDQ%' AND ef.is_active = true
                     ORDER BY ef.id ASC
                     LIMIT 1
                 `;
+                if (formRows.length === 0) {
+                    // Fallback to inactive SDQ form
+                    formRows = await prisma.$queryRaw`
+                        SELECT ef.id as form_id
+                        FROM evaluation_forms ef
+                        WHERE ef.form_name ILIKE '%SDQ%'
+                        ORDER BY ef.id ASC
+                        LIMIT 1
+                    `;
+                }
             } else {
                 // Fetch teaching evaluation form flexibly
                 // Matches "แบบประเมินครูผู้สอน", "ประเมินการสอน", etc.
                 formRows = await prisma.$queryRaw`
                     SELECT ef.id as form_id
                     FROM evaluation_forms ef
-                    WHERE (ef.form_name LIKE '%ประเมินครูผู้สอน%' OR ef.form_name LIKE '%ประเมินการสอน%') 
+                    WHERE (ef.form_name ILIKE '%ประเมินครูผู้สอน%' OR ef.form_name ILIKE '%ประเมินการสอน%') 
                     AND ef.is_active = true
                     ORDER BY ef.id ASC
                     LIMIT 1
                 `;
+                if (formRows.length === 0) {
+                    // Fallback to inactive teaching form
+                    formRows = await prisma.$queryRaw`
+                        SELECT ef.id as form_id
+                        FROM evaluation_forms ef
+                        WHERE (ef.form_name ILIKE '%ประเมินครูผู้สอน%' OR ef.form_name ILIKE '%ประเมินการสอน%')
+                        ORDER BY ef.id ASC
+                        LIMIT 1
+                    `;
+                }
             }
 
-            if (formRows.length === 0) {
-                // Fallback: try to get any active form if specific one not found (for robustness)
-                formRows = await prisma.$queryRaw`
-                    SELECT ef.id as form_id FROM evaluation_forms ef 
-                    WHERE ef.is_active = true LIMIT 1
-                `;
-                if (formRows.length === 0) return [];
-            }
+            if (formRows.length === 0) return [];
 
             const formId = formRows[0].form_id;
 
@@ -67,7 +139,7 @@ export const EvaluationService = {
                 SELECT 
                     eq.id,
                     eq.question_text,
-                    eq.question_type,
+                    eq.question_type_id,
                     eq.order_number,
                     eq.scale_type_id,
                     es.id as section_id,
@@ -104,7 +176,7 @@ export const EvaluationService = {
                 return {
                     id: Number(q.id),
                     form_id: formId,
-                    type: q.question_type || 'scale',
+                    type: q.question_type_id === 2 ? 'text' : 'scale',
                     name: q.question_text,
                     section_id: Number(q.section_id),
                     section_name: q.section_name,

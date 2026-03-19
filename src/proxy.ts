@@ -48,6 +48,10 @@ export async function proxy(request: NextRequest) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     if (pathname.startsWith('/api/teacher') && role !== 'teacher') {
+        // Allow Director to access behavior API
+        if (role === 'director' && pathname.startsWith('/api/teacher/behavior')) {
+            return NextResponse.next();
+        }
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     if (pathname.startsWith('/api/director') && role !== 'director') {

@@ -344,4 +344,58 @@ export const TeacherApiService = {
             body: JSON.stringify(data),
         });
     },
+
+    // --- Behavior ---
+    async getBehaviorMetadata() {
+        return fetchApi<any>('/api/teacher/behavior?action=init');
+    },
+    async getBehaviorClassrooms(level_id?: number) {
+        const params = new URLSearchParams({ action: 'classrooms' });
+        if (level_id) params.set('level_id', String(level_id));
+        return fetchApi<any[]>(`/api/teacher/behavior?${params.toString()}`);
+    },
+    async getBehaviorFilteredStudents(params: { 
+        teacher_id: number; 
+        year?: number; 
+        semester?: number; 
+        level_id?: number; 
+        classroom_id?: number;
+    }) {
+        const urlParams = new URLSearchParams({ action: 'students' });
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined) urlParams.set(key, String(value));
+        });
+        return fetchApi<any[]>(`/api/teacher/behavior?${urlParams.toString()}`);
+    },
+    async recordBehavior(payload: {
+        student_id: number;
+        behavior_type_id: number;
+        points: number;
+        note?: string;
+        year?: number;
+        semester?: number;
+    }) {
+        return fetchApi<any>('/api/teacher/behavior', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+    },
+    async getBehaviorPendingRecords() {
+        return fetchApi<any[]>('/api/teacher/behavior?action=pending');
+    },
+    async approveBehaviorRecord(id: number) {
+        return fetchApi<any>('/api/teacher/behavior', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'approve', id })
+        });
+    },
+    async rejectBehaviorRecord(id: number, reason?: string) {
+        return fetchApi<any>('/api/teacher/behavior', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'reject', id, reason })
+        });
+    },
+    async getBehaviorHistory(studentId: number) {
+        return fetchApi<any[]>(`/api/teacher/behavior?action=history&student_id=${studentId}`);
+    }
 };

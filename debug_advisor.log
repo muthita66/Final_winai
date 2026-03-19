@@ -62,3 +62,30 @@ Invalid `prisma.$queryRawUnsafe()` invocation:
 
 Raw query failed. Code: `42P01`. Message: `relation "evaluation_periods" does not exist`
 [2026-03-19T14:34:03.844Z] [Template] Form: 2, Period: null
+[2026-03-19T14:54:53.173Z] [Template] Start: teacher=9, student=57, sub_mode=reading_thinking
+[2026-03-19T14:54:53.446Z] [ensureForm] Searching via Raw SQL for: แบบประเมินการอ่านคิดวิเคราะห์
+[2026-03-19T14:54:53.509Z] [ensureForm] No form found by name: แบบประเมินการอ่านคิดวิเคราะห์
+[2026-03-19T14:54:53.551Z] [resolveEvaluationPeriodId] ERROR: 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "evaluation_periods" does not exist`
+[2026-03-19T14:54:54.155Z] [Template] Form: undefined, Period: null
+[2026-03-19T15:28:28.340Z] [Template] Start: teacher=9, student=57, sub_mode=attributes
+[2026-03-19T15:28:28.480Z] [ensureForm] Searching via Raw SQL for: แบบประเมินคุณลักษณะอันพึงประสงค์
+[2026-03-19T15:28:28.545Z] [ensureForm] Found 8 rows for form: 2
+[2026-03-19T15:28:28.572Z] [resolveEvaluationPeriodId] ERROR: 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "evaluation_periods" does not exist`
+[2026-03-19T15:28:28.796Z] [Template] Form: 2, Period: null
+[2026-03-19T15:28:35.296Z] [Template] Start: teacher=9, student=57, sub_mode=reading_thinking
+[2026-03-19T15:28:35.379Z] [ensureForm] Searching via Raw SQL for: แบบประเมินการอ่านคิดวิเคราะห์
+[2026-03-19T15:28:35.426Z] [ensureForm] No form found by name: แบบประเมินการอ่านคิดวิเคราะห์
+[2026-03-19T15:28:35.448Z] [resolveEvaluationPeriodId] ERROR: 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42P01`. Message: `relation "evaluation_periods" does not exist`
+[2026-03-19T15:28:35.680Z] [Template] Form: undefined, Period: null

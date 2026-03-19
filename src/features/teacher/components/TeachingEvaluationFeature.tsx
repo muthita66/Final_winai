@@ -278,45 +278,43 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
             </section>
 
             {/* Mode Selection Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 {/* 1. ประเมินรายวิชา */}
                 <button
                     onClick={() => setEvalMode('subject')}
-                    className={`group relative overflow-hidden rounded-3xl p-4 transition-all duration-300 border-2 text-left ${evalMode === 'subject'
-                        ? 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-200 scale-[1.02]'
-                        : 'bg-white border-slate-100 hover:border-amber-200 text-slate-600 hover:shadow-md'
+                    className={`flex items-center gap-3 px-6 py-4 rounded-2xl text-left font-semibold transition-all duration-300 border-2 ${evalMode === 'subject'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-lg scale-[1.02]'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-amber-300 hover:bg-amber-50'
                         }`}
                 >
-                    <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors shrink-0 ${evalMode === 'subject' ? 'bg-white/20' : 'bg-amber-50'
-                            }`}>
-                            <svg className={`w-5 h-5 ${evalMode === 'subject' ? 'text-white' : 'text-amber-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                            </svg>
-                        </div>
-                        <h3 className="font-bold text-lg leading-tight">ประเมินรายวิชา</h3>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${evalMode === 'subject' ? 'bg-white/20' : 'bg-amber-50 text-amber-600'}`}>
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
                     </div>
-                    <p className={`text-sm mt-2 ${evalMode === 'subject' ? 'text-white/80' : 'text-slate-400'}`}>ประเมินนักเรียนและพฤติกรรมในวิชาที่สอน</p>
+                    <div>
+                        <div className="text-sm font-bold">ประเมินรายวิชา</div>
+                        <div className={`text-xs mt-0.5 ${evalMode === 'subject' ? 'text-amber-100' : 'text-slate-400'}`}>ประเมินนักเรียนและพฤติกรรมในวิชาที่สอน</div>
+                    </div>
                 </button>
 
                 {/* 2. ประเมินนักเรียนในที่ปรึกษา (Combining Attributes and Reading/Thinking) */}
                 <button
                     onClick={() => setEvalMode('advisor')}
-                    className={`group relative overflow-hidden rounded-3xl p-4 transition-all duration-300 border-2 text-left ${evalMode === 'advisor'
-                        ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-200 scale-[1.02]'
-                        : 'bg-white border-slate-100 hover:border-orange-200 text-slate-600 hover:shadow-md'
+                    className={`flex items-center gap-3 px-6 py-4 rounded-2xl text-left font-semibold transition-all duration-300 border-2 ${evalMode === 'advisor'
+                        ? 'bg-orange-600 text-white border-orange-600 shadow-lg scale-[1.02]'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-orange-300 hover:bg-orange-50'
                         }`}
                 >
-                    <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors shrink-0 ${evalMode === 'advisor' ? 'bg-white/20' : 'bg-orange-50'
-                            }`}>
-                            <svg className={`w-5 h-5 ${evalMode === 'advisor' ? 'text-white' : 'text-orange-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                        </div>
-                        <h3 className="font-bold text-lg leading-tight">ประเมินนักเรียนในที่ปรึกษา</h3>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${evalMode === 'advisor' ? 'bg-white/20' : 'bg-orange-50 text-orange-600'}`}>
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
                     </div>
-                    <p className={`text-sm mt-2 ${evalMode === 'advisor' ? 'text-white/80' : 'text-slate-400'}`}>คุณลักษณะอันพึงประสงค์, การอ่าน คิดวิเคราะห์ และเขียน</p>
+                    <div>
+                        <div className="text-sm font-bold">ประเมินนักเรียนในที่ปรึกษา</div>
+                        <div className={`text-xs mt-0.5 ${evalMode === 'advisor' ? 'text-orange-100' : 'text-slate-400'}`}>คุณลักษณะอันพึงประสงค์, การอ่าน คิดวิเคราะห์ และเขียน</div>
+                    </div>
                 </button>
 
             </div>
@@ -697,6 +695,153 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                     </div>
                 )}
             </div>
+
+            {/* === Modal Popup: Subject Evaluation === */}
+            {isModalOpen && evalTemplate && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/60 backdrop-blur-md"
+                        onClick={() => setIsModalOpen(false)}
+                    />
+                    {/* Modal box */}
+                    <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                        {/* Modal Header */}
+                        <div className="flex items-start justify-between px-8 pt-8 pb-6 border-b border-slate-100 shrink-0">
+                            <div>
+                                <div className="flex items-center gap-3 mb-1">
+                                    <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600">
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-black text-slate-800">ประเมินนักเรียน</h2>
+                                        <p className="text-sm font-bold text-amber-600">{targetStudent?.name}</p>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-slate-400 font-medium">{selectedAssignment?.subject_code} - {selectedAssignment?.subject_name}</p>
+                            </div>
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                className="w-9 h-9 rounded-full bg-slate-100 hover:bg-amber-100 hover:text-amber-600 flex items-center justify-center transition-all shrink-0"
+                            >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Modal body (Scrollable) */}
+                        <div className="overflow-y-auto flex-1 px-8 py-6 space-y-8">
+                            {/* Tips */}
+                            <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex gap-3">
+                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0">
+                                    <span className="text-lg">💡</span>
+                                </div>
+                                <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                                    กรุณาพิจารณาผลการเรียนและพฤติกรรมของนักเรียนตามความเป็นจริง เพื่อประโยชน์ต่อการพัฒนาการเรียนการสอน
+                                </p>
+                            </div>
+
+                            {/* Questions */}
+                            <div className="space-y-6">
+                                {(evalTemplate.sections || []).length > 0 ? (
+                                    evalTemplate.sections.map((section: any, idx: number) => (
+                                        <div key={section.id || idx} className="space-y-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-6 bg-amber-500 rounded-full"></div>
+                                                <h3 className="text-md font-bold text-slate-800">{section.name}</h3>
+                                            </div>
+                                            <div className="space-y-4">
+                                                {(section.topics || []).map((t: any) => (
+                                                    <div key={t.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                                                        <p className="text-sm font-bold text-slate-700">{t.name}</p>
+                                                        <div className="flex gap-2">
+                                                            {[1, 2, 3, 4, 5].map(score => (
+                                                                <button
+                                                                    key={score}
+                                                                    onClick={() => handleScoreChange(t.name, score)}
+                                                                    className={`flex-1 py-2 rounded-xl text-sm font-black transition-all border-2 ${evalForm.scores[t.name] === score
+                                                                        ? 'bg-amber-500 border-amber-500 text-white shadow-md'
+                                                                        : 'bg-white border-slate-200 text-slate-400 hover:border-amber-200 hover:text-amber-500'
+                                                                        }`}
+                                                                >
+                                                                    {score}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    (evalTemplate.topics || []).map((t: any) => (
+                                        <div key={t.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                                            <p className="text-sm font-bold text-slate-700">{t.name}</p>
+                                            <div className="flex gap-2">
+                                                {[1, 2, 3, 4, 5].map(score => (
+                                                    <button
+                                                        key={score}
+                                                        onClick={() => handleScoreChange(t.name, score)}
+                                                        className={`flex-1 py-2 rounded-xl text-sm font-black transition-all border-2 ${evalForm.scores[t.name] === score
+                                                            ? 'bg-amber-500 border-amber-500 text-white shadow-md'
+                                                            : 'bg-white border-slate-200 text-slate-400 hover:border-amber-200 hover:text-amber-500'
+                                                            }`}
+                                                    >
+                                                        {score}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+
+                                {/* Feedback Area */}
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-bold text-slate-700 ml-1">ข้อเสนอแนะเพิ่มเติม <span className="text-slate-400 font-medium">(ถ้ามี)</span></label>
+                                    <textarea
+                                        value={evalForm.feedback}
+                                        onChange={(e) => setEvalForm(prev => ({ ...prev, feedback: e.target.value }))}
+                                        placeholder="พิมพ์ข้อความที่นี่..."
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm focus:ring-4 focus:ring-amber-400/10 focus:border-amber-400 outline-none transition-all min-h-[100px] resize-none"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="shrink-0 flex gap-3 px-8 py-6 border-t border-slate-100 bg-white">
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-all"
+                            >
+                                ยกเลิก
+                            </button>
+                            <button
+                                onClick={handleSubmitEvaluation}
+                                disabled={isSubmitting}
+                                className="flex-[2] py-3 bg-amber-600 text-white rounded-2xl text-sm font-bold hover:bg-amber-700 shadow-lg shadow-amber-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        <span>กำลังบันทึก...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        <span>บันทึกการประเมิน</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* === Modal Popup: Advisor Attributes Evaluation === */}
             {expandedAdvisorStudentId !== null && advisorEvalTemplate && (

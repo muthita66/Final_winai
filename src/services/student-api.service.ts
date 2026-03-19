@@ -200,6 +200,32 @@ export const StudentApiService = {
         return fetchApi<any[]>(`/api/student/learning-results?${params.toString()}`);
     },
 
+    // --- Activities Evaluation ---
+    async getActivityEvaluations(year: number, semester: number) {
+        const params = new URLSearchParams({
+            year: year.toString(),
+            semester: semester.toString()
+        });
+        return fetchApi<any[]>(`/api/student/activities/evaluation?${params.toString()}`);
+    },
+
+    async submitActivityEvaluation(data: {
+        activity_id: number,
+        year: number,
+        semester: number,
+        data: { name: string, value: number | string }[],
+        feedback?: string
+    }) {
+        return fetchApi<any>('/api/student/activities/evaluation', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    },
+
+    async getEvaluationFormQuestions(form_id: number) {
+        return fetchApi<any[]>(`/api/student/evaluation/questions?form_id=${form_id}`);
+    },
+
     // --- Conduct ---
     async getConductScore() {
         return fetchApi<any>(`/api/student/conduct?action=score`);

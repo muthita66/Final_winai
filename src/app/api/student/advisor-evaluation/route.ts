@@ -10,7 +10,7 @@ const submitAdvisorTeacherEvaluationSchema = z.object({
     semester: z.number().int().positive(),
     data: z.array(z.object({
         name: z.string().trim().min(1),
-        score: z.number().int().min(1).max(5),
+        score: z.union([z.number().int().min(0).max(6), z.string()]).nullable().optional(),
     })),
     feedback: z.string().optional(),
 });

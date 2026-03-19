@@ -113,93 +113,117 @@ export const TeacherFitnessService = {
         }));
     },
     async getFitnessCriteria(test_name: string, grade_level: string, academic_year?: number, gender?: string) {
-        const where: any = { test_name: { contains: test_name } };
+        let sql = `SELECT * FROM fitness_test_criteria WHERE test_name ILIKE $1`;
+        const params: any[] = [`%${test_name}%`];
+        let pIdx = 2;
+
         if (grade_level) {
             const levelNum = extractLevelNumber(grade_level);
             if (levelNum) {
-                where.OR = [
-                    { grade_level: { contains: levelNum } },
-                    { grade_level: { contains: grade_level } }
-                ];
+                sql += ` AND (grade_level ILIKE $${pIdx} OR grade_level ILIKE $${pIdx + 1})`;
+                params.push(`%${levelNum}%`, `%${grade_level}%`);
+                pIdx += 2;
             } else {
-                where.grade_level = { contains: grade_level };
+                sql += ` AND grade_level ILIKE $${pIdx}`;
+                params.push(`%${grade_level}%`);
+                pIdx++;
             }
         }
         if (academic_year) {
-            where.academic_year = academic_year;
+            sql += ` AND academic_year = $${pIdx}`;
+            params.push(academic_year);
+            pIdx++;
         }
         if (gender) {
-            where.gender = gender;
+            sql += ` AND gender = $${pIdx}`;
+            params.push(gender);
+            pIdx++;
         }
+        sql += ` ORDER BY created_at DESC LIMIT 1`;
 
-        return (prisma as any).fitness_test_criteria.findFirst({
-            where,
-            orderBy: { created_at: 'desc' }
-        });
+        const results = await prisma.$queryRawUnsafe<any[]>(sql, ...params);
+        return results[0] || null;
     },
     async getFitnessCriteriaForClass(test_name: string, grade_level: string, academic_year?: number) {
-        const where: any = { test_name: { contains: test_name } };
+        let sql = `SELECT * FROM fitness_test_criteria WHERE test_name ILIKE $1`;
+        const params: any[] = [`%${test_name}%`];
+        let pIdx = 2;
+
         if (grade_level) {
             const levelNum = extractLevelNumber(grade_level);
             if (levelNum) {
-                where.OR = [
-                    { grade_level: { contains: levelNum } },
-                    { grade_level: { contains: grade_level } }
-                ];
+                sql += ` AND (grade_level ILIKE $${pIdx} OR grade_level ILIKE $${pIdx + 1})`;
+                params.push(`%${levelNum}%`, `%${grade_level}%`);
+                pIdx += 2;
             } else {
-                where.grade_level = { contains: grade_level };
+                sql += ` AND grade_level ILIKE $${pIdx}`;
+                params.push(`%${grade_level}%`);
+                pIdx++;
             }
         }
         if (academic_year) {
-            where.academic_year = academic_year;
+            sql += ` AND academic_year = $${pIdx}`;
+            params.push(academic_year);
+            pIdx++;
         }
+        sql += ` ORDER BY created_at DESC`;
 
-        return (prisma as any).fitness_test_criteria.findMany({
-            where,
-            orderBy: { created_at: 'desc' }
-        });
+        return prisma.$queryRawUnsafe<any[]>(sql, ...params);
     },
 
     async getAllCriteria(test_name?: string, grade_level?: string, academic_year?: number) {
-        const where: any = {};
-        if (test_name) where.test_name = { contains: test_name };
-        if (grade_level) where.grade_level = { contains: grade_level };
-        if (academic_year) where.academic_year = academic_year;
+        let sql = `SELECT * FROM fitness_test_criteria WHERE 1=1`;
+        const params: any[] = [];
+        let pIdx = 1;
 
-        return (prisma as any).fitness_test_criteria.findMany({
-            where,
-            orderBy: [{ test_name: 'asc' }, { grade_level: 'asc' }, { gender: 'asc' }]
-        });
+        if (test_name) {
+            sql += ` AND test_name ILIKE $${pIdx}`;
+            params.push(`%${test_name}%`);
+            pIdx++;
+        }
+        if (grade_level) {
+            sql += ` AND grade_level ILIKE $${pIdx}`;
+            params.push(`%${grade_level}%`);
+            pIdx++;
+        }
+        if (academic_year) {
+            sql += ` AND academic_year = $${pIdx}`;
+            params.push(academic_year);
+            pIdx++;
+        }
+        sql += ` ORDER BY test_name ASC, grade_level ASC, gender ASC`;
+
+        return prisma.$queryRawUnsafe<any[]>(sql, ...params);
     },
 
     async upsertCriteria(data: any) {
         const { id, test_name, grade_level, gender, passing_threshold, unit, comparison_type, academic_year } = data;
-        const recordData = {
-            test_name,
-            grade_level,
-            gender,
-            passing_threshold: parseFloat(passing_threshold) || 0,
-            unit,
-            comparison_type,
-            academic_year: academic_year ? parseInt(academic_year as any) : undefined
-        };
+        const pThres = parseFloat(passing_threshold) || 0;
+        const aYear = academic_year ? parseInt(academic_year as any) : null;
 
         if (id) {
-            return (prisma as any).fitness_test_criteria.update({
-                where: { id: parseInt(id as any) },
-                data: recordData
-            });
+            const results = await prisma.$queryRawUnsafe<any[]>(`
+                UPDATE fitness_test_criteria 
+                SET test_name = $1, grade_level = $2, gender = $3, passing_threshold = $4, 
+                    unit = $5, comparison_type = $6, academic_year = $7
+                WHERE id = $8
+                RETURNING *
+            `, test_name, grade_level, gender, pThres, unit, comparison_type, aYear, parseInt(id as any));
+            return results[0];
         } else {
-            return (prisma as any).fitness_test_criteria.create({
-                data: recordData
-            });
+            const results = await prisma.$queryRawUnsafe<any[]>(`
+                INSERT INTO fitness_test_criteria (test_name, grade_level, gender, passing_threshold, unit, comparison_type, academic_year)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING *
+            `, test_name, grade_level, gender, pThres, unit, comparison_type, aYear);
+            return results[0];
         }
     },
 
     async deleteCriteria(id: number) {
-        return (prisma as any).fitness_test_criteria.delete({
-            where: { id: parseInt(id as any) }
-        });
+        return prisma.$executeRawUnsafe(`
+            DELETE FROM fitness_test_criteria WHERE id = $1
+        `, parseInt(id as any));
     },
     async saveFitnessTest(data: any) {
         const { student_id, teacher_id, test_name, result_value, standard_value, status, year, semester } = data;
