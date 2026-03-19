@@ -327,6 +327,8 @@ model fitness_test_criteria {
   comparison_type         String?                   @default(">=") @db.VarChar(10)
   created_at              DateTime?                 @default(now()) @db.Timestamp(6)
   academic_year           Int?
+  gender                  String?                   @db.VarChar(20)
+  grade_level             String?                   @db.VarChar(100)
   student_fitness_records student_fitness_records[]
 }
 
@@ -345,7 +347,8 @@ model grade_categories {
   category_type_id       Int?
   name                   String                @default("Category") @db.VarChar(100)
   assessment_items       assessment_items[]
-  teaching_assignments   teaching_assignments @relation(fields: [teaching_assignment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  grade_category_types   grade_category_types? @relation(fields: [category_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  teaching_assignments   teaching_assignments  @relation(fields: [teaching_assignment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -835,6 +838,8 @@ model evaluation_answers {
   score_value              Decimal?                @db.Decimal(5, 2)
   text_value               String?
   evaluation_scale_item_id Int?
+  choice_id                Int?
+  evaluation_choices       evaluation_choices?     @relation(fields: [choice_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   evaluation_questions     evaluation_questions?   @relation(fields: [question_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   evaluation_scale_items   evaluation_scale_items? @relation(fields: [evaluation_scale_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "evaluation_answers_scale_item_id_fkey")
 }
@@ -864,16 +869,18 @@ model evaluation_forms {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model evaluation_questions {
-  id                     Int                     @id @default(autoincrement())
-  section_id             Int?
-  question_text          String
-  question_type          String                  @db.VarChar(50)
-  scale_type_id          Int?
-  is_required            Boolean?                @default(true)
-  order_number           Int
-  evaluation_answers     evaluation_answers[]
-  evaluation_scale_types evaluation_scale_types? @relation(fields: [scale_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  evaluation_sections    evaluation_sections?    @relation(fields: [section_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                        Int                       @id @default(autoincrement())
+  section_id                Int?
+  question_text             String
+  scale_type_id             Int?
+  is_required               Boolean?                  @default(true)
+  order_number              Int
+  question_type_id          Int
+  evaluation_answers        evaluation_answers[]
+  evaluation_choices        evaluation_choices[]
+  evaluation_question_types evaluation_question_types @relation(fields: [question_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  evaluation_scale_types    evaluation_scale_types?   @relation(fields: [scale_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  evaluation_sections       evaluation_sections?      @relation(fields: [section_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -902,7 +909,7 @@ model evaluation_scale_items {
   id                     Int                     @id @default(autoincrement())
   scale_type_id          Int?
   label                  String                  @db.VarChar(100)
-  score_value            Decimal                 @db.Decimal(5, 2)
+  score_value            Decimal?                @db.Decimal(5, 2)
   order_number           Int
   evaluation_answers     evaluation_answers[]
   evaluation_scale_types evaluation_scale_types? @relation(fields: [scale_type_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -943,6 +950,24 @@ model grade_category_types {
   type_name        String             @unique @db.VarChar(100)
   description      String?
   grade_categories grade_categories[]
+}
+
+model evaluation_choices {
+  id                   Int                  @id @default(autoincrement())
+  question_id          Int
+  choice_text          String
+  order_number         Int?                 @default(1)
+  evaluation_answers   evaluation_answers[]
+  evaluation_questions evaluation_questions @relation(fields: [question_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model evaluation_question_types {
+  id                   Int                    @id @default(autoincrement())
+  code_name            String                 @unique @db.VarChar(50)
+  display_name         String                 @db.VarChar(100)
+  requires_choices     Boolean?               @default(false)
+  description          String?
+  evaluation_questions evaluation_questions[]
 }
 
 enum exam_type {

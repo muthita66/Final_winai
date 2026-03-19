@@ -2,6 +2,16 @@
 import { useState, useEffect } from "react";
 import { TeacherApiService } from "@/services/teacher-api.service";
 import { getCurrentAcademicYearBE, getAcademicYearOptions } from "@/features/student/academic-term";
+import { FitnessCriteriaManagement } from "./FitnessCriteriaManagement";
+
+const TEST_TYPES = [
+    { id: 'run_50', name: 'วิ่ง 50 เมตร', unit: 'วินาที', direction: 'lower' },
+    { id: 'run_1000', name: 'วิ่ง 1000 เมตร', unit: 'นาที:วินาที', direction: 'lower' },
+    { id: 'sit_up_60', name: 'ลุก-นั่ง 60 วินาที', unit: 'ครั้ง', direction: 'higher' },
+    { id: 'push_up', name: 'ดันพื้น', unit: 'ครั้ง', direction: 'higher' },
+    { id: 'sit_reach_flex', name: 'นั่งงอตัว', unit: 'เซนติเมตร', direction: 'higher' },
+    { id: 'standing_jump', name: 'ยืนกระโดดไกล', unit: 'เซนติเมตร', direction: 'higher' },
+];
 
 export function FitnessFeature({ session }: { session: any }) {
     const [students, setStudents] = useState<any[]>([]);
@@ -15,19 +25,30 @@ export function FitnessFeature({ session }: { session: any }) {
     const [academicYears, setAcademicYears] = useState<any[]>([]);
     const [semester, setSemester] = useState<string | number>(1);
     const [results, setResults] = useState<Record<number, any>>({});
+    const [advisorClasses, setAdvisorClasses] = useState<any[]>([]);
+    const [isAdvisor, setIsAdvisor] = useState<boolean | null>(null);
     const [saving, setSaving] = useState(false);
+    const [isCriteriaModalOpen, setIsCriteriaModalOpen] = useState(false);
+
 
     useEffect(() => {
-        const fetchYears = async () => {
+        const fetchData = async () => {
             try {
-                const yearsData = await TeacherApiService.getAcademicYears();
-                // Merge DB years with default generated years (recent 5 years)
+                const [yearsData, classes] = await Promise.all([
+                    TeacherApiService.getAcademicYears(),
+                    TeacherApiService.getAdvisorClasses(session.id)
+                ]);
+
+                setAdvisorClasses(classes || []);
+                setIsAdvisor((classes || []).length > 0);
+                if ((classes || []).length > 0) {
+                    setClassLevel(classes[0].class_level);
+                    setRoom(classes[0].room);
+                }
+
                 const dbYearNums = (yearsData || []).map((y: any) => parseInt(y.year_name));
                 const defaultYears = getAcademicYearOptions(getCurrentAcademicYearBE(), 5);
-
-                // Combine and remove duplicates, sort desc
                 const combined = Array.from(new Set([...dbYearNums, ...defaultYears])).sort((a, b) => b - a);
-
                 const merged = combined.map(yNum => {
                     const dbMatch = yearsData?.find((dy: any) => parseInt(dy.year_name) === yNum);
                     return {
@@ -36,25 +57,68 @@ export function FitnessFeature({ session }: { session: any }) {
                         is_active: dbMatch?.is_active || false
                     };
                 });
-
                 setAcademicYears(merged);
-
-                // If there's an active year, set it as default
                 const active = merged.find((y: any) => y.is_active);
                 if (active) setYear(parseInt(active.year_name));
             } catch (e) {
-                console.error("Failed to fetch years", e);
-                // Fallback to just generated options
-                const fallback = getAcademicYearOptions(getCurrentAcademicYearBE(), 5).map(y => ({
-                    id: `err-${y}`,
-                    year_name: y.toString(),
-                    is_active: false
-                }));
-                setAcademicYears(fallback);
+                console.error("Failed to fetch initial data", e);
+                setIsAdvisor(false);
             }
         };
-        fetchYears();
-    }, []);
+        fetchData();
+    }, [session.id]);
+
+
+    useEffect(() => {
+        const fetchCriteria = async () => {
+            if (!testName || !classLevel) return;
+            try {
+                // Fetch all criteria for this test and grade level
+                const criteriaList = await TeacherApiService.getFitnessCriteria(testName, classLevel, year);
+                
+                if (Array.isArray(criteriaList) && criteriaList.length > 0) {
+                    setResults(prev => {
+                        const next = { ...prev };
+                        students.forEach(s => {
+                            if (!next[s.id]) next[s.id] = {};
+                            
+                            // Find matching criteria by gender and grade level
+                            const genderMatch = criteriaList.find(c => {
+                                const cGender = (c.gender || '').toLowerCase();
+                                const sGender = (s.gender || '').toLowerCase();
+                                const cGrade = (c.grade_level || '').toLowerCase();
+                                const sGrade = (s.grade_level || classLevel || '').toLowerCase();
+                                
+                                const matchesGender = cGender === 'ทั้งหมด' || cGender.includes(sGender) || sGender.includes(cGender);
+                                const matchesGrade = cGrade.includes(sGrade) || sGrade.includes(cGrade);
+                                
+                                return matchesGender && matchesGrade;
+                            }) || criteriaList.find(c => {
+                                // Fallback matching if precise fails
+                                const cGender = (c.gender || '').toLowerCase();
+                                const sGender = (s.gender || '').toLowerCase();
+                                return cGender === 'ทั้งหมด' || cGender.includes(sGender) || sGender.includes(cGender);
+                            }) || criteriaList[0];
+
+                            if (genderMatch && genderMatch.passing_threshold) {
+                                next[s.id].standard = parseFloat(genderMatch.passing_threshold).toString();
+                                next[s.id].criteriaSource = `${genderMatch.gender} / ${genderMatch.grade_level}`;
+                                // Recalculate status if result exists
+                                if (next[s.id].result) {
+                                    next[s.id].status = calculateStatus(next[s.id].result, next[s.id].standard, testName);
+                                }
+                            }
+                        });
+                        return next;
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to fetch criteria", e);
+            }
+        };
+        fetchCriteria();
+    }, [testName, classLevel, year, students]);
+
 
     const loadStudents = async () => {
         setLoading(true);
@@ -175,21 +239,24 @@ export function FitnessFeature({ session }: { session: any }) {
                 </div>
             </section>
 
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-wrap gap-4 items-end">
+            <div className={`bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-wrap gap-4 items-end transition-opacity ${!isAdvisor ? 'opacity-50 pointer-events-none' : ''}`}>
                 <div>
                     <label className="text-xs text-slate-500 font-medium block mb-1">ชั้น</label>
                     <select className="px-4 py-2 border border-slate-200 rounded-xl outline-none min-w-[140px]" value={classLevel} onChange={(e) => setClassLevel(e.target.value)}>
-                        <option value="ทั้งหมด">ทั้งหมด</option>
-                        {["มัธยมศึกษาปีที่ 1", "มัธยมศึกษาปีที่ 2", "มัธยมศึกษาปีที่ 3", "มัธยมศึกษาปีที่ 4", "มัธยมศึกษาปีที่ 5", "มัธยมศึกษาปีที่ 6"].map((l) => <option key={l} value={l}>{l}</option>)}
+                        {advisorClasses.map(c => c.class_level).filter((v, i, a) => a.indexOf(v) === i).map(l => (
+                            <option key={l} value={l}>{l}</option>
+                        ))}
                     </select>
                 </div>
                 <div>
                     <label className="text-xs text-slate-500 font-medium block mb-1">ห้อง</label>
                     <select className="px-4 py-2 border border-slate-200 rounded-xl outline-none min-w-[100px]" value={room} onChange={(e) => setRoom(e.target.value)}>
-                        <option value="ทั้งหมด">ทั้งหมด</option>
-                        {["1", "2", "3", "4", "5"].map((r) => <option key={r} value={r}>{r}</option>)}
+                        {advisorClasses.filter(c => c.class_level === classLevel).map(c => c.room).map(r => (
+                            <option key={r} value={r}>{r}</option>
+                        ))}
                     </select>
                 </div>
+
                 <div>
                     <label className="text-xs text-slate-500 font-medium block mb-1">ปีการศึกษา</label>
                     <select
@@ -236,14 +303,49 @@ export function FitnessFeature({ session }: { session: any }) {
                         <select
                             className="px-4 py-2 border border-slate-200 rounded-xl outline-none min-w-[160px]"
                             value={testName}
-                            onChange={(e) => setTestName(e.target.value)}
+                            onChange={(e) => {
+                                setTestName(e.target.value);
+                                setResults({});
+                            }}
                         >
-                            {testOptions.map((t) => <option key={t}>{t}</option>)}
+                            {TEST_TYPES.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
                         </select>
+
                     </div>
                 )}
-                <button onClick={loadStudents} className="px-5 py-2 bg-orange-600 text-white rounded-xl font-medium hover:bg-orange-700 transition-colors shadow-sm active:scale-95">ค้นหา</button>
+                <button 
+                    disabled={!isAdvisor}
+                    onClick={loadStudents} 
+                    className="px-5 py-2 bg-orange-600 text-white rounded-xl font-medium hover:bg-orange-700 transition-colors shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    ค้นหา
+                </button>
+
+                <button
+                    onClick={() => setIsCriteriaModalOpen(true)}
+                    disabled={!isAdvisor}
+                    className="px-6 py-2 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-all flex items-center gap-2 hover:scale-105 active:scale-95 disabled:opacity-50"
+                >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37a1.724 1.724 0 002.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    จัดการเกณฑ์
+                </button>
             </div>
+
+            {isAdvisor === false && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-amber-800 flex items-center gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
+                    <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div>
+                        <h3 className="font-bold text-lg">เฉพาะครูที่ปรึกษา</h3>
+                        <p className="text-amber-700">คุณไม่สามารถบันทึกข้อมูลสมรรถภาพได้ เนื่องจากคุณไม่ได้เป็นครูที่ปรึกษาประจำชั้นใดๆ</p>
+                    </div>
+                </div>
+            )}
+
 
             {loading && <div className="text-center py-8 text-slate-500">กำลังโหลด...</div>}
             {!loading && hasSearched && students.length === 0 && (
@@ -258,6 +360,7 @@ export function FitnessFeature({ session }: { session: any }) {
                                 <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600 w-16">เลขที่</th>
                                 <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600 w-32">รหัสนักเรียน</th>
                                 <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600 min-w-[200px]">ชื่อ-นามสกุล</th>
+                                <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600 w-20">เพศ</th>
                                 {recordType === "weight_height" ? (
                                     <>
                                         <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">น้ำหนัก (กก.)</th>
@@ -314,6 +417,15 @@ export function FitnessFeature({ session }: { session: any }) {
                                                 <div className="text-xs text-indigo-600 font-bold uppercase mt-1">{s.class_name}</div>
                                             )}
                                         </td>
+                                        <td className="px-4 py-3 text-center">
+                                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                                                s.gender === 'ชาย' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 
+                                                s.gender === 'หญิง' ? 'bg-pink-50 text-pink-600 border border-pink-100' : 
+                                                'bg-slate-50 text-slate-500 border border-slate-100'
+                                            }`}>
+                                                {s.gender || '-'}
+                                            </span>
+                                        </td>
 
                                         {recordType === "weight_height" ? (
                                             <>
@@ -362,16 +474,23 @@ export function FitnessFeature({ session }: { session: any }) {
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
-                                                    <input
-                                                        className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none"
-                                                        placeholder="เกณฑ์"
-                                                        value={res.standard || ""}
-                                                        onChange={(e) => {
-                                                            const newStandard = e.target.value;
-                                                            const newStatus = calculateStatus(res.result || "", newStandard, testName);
-                                                            setResults({ ...results, [s.id]: { ...res, standard: newStandard, status: newStatus } });
-                                                        }}
-                                                    />
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <input
+                                                            className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none text-sm"
+                                                            placeholder="เกณฑ์"
+                                                            value={res.standard || ""}
+                                                            onChange={(e) => {
+                                                                const newStandard = e.target.value;
+                                                                const newStatus = calculateStatus(res.result || "", newStandard, testName);
+                                                                setResults({ ...results, [s.id]: { ...res, standard: newStandard, status: newStatus } });
+                                                            }}
+                                                        />
+                                                        {res.criteriaSource && (
+                                                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-tighter opacity-80 leading-none">
+                                                                {res.criteriaSource}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
                                                     <span className={`inline-block px-3 py-1.5 rounded-lg text-sm font-bold ${!res.status ? "bg-slate-100 text-slate-400" :
@@ -414,9 +533,9 @@ export function FitnessFeature({ session }: { session: any }) {
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3 text-center border-x border-slate-50 bg-orange-50/20">
-                                                    <div className="flex flex-col gap-1">
+                                                    <div className="flex flex-col gap-1 items-center">
                                                         <input
-                                                            className="w-20 px-1.5 py-1 border border-slate-200 rounded-lg text-center text-[10px] outline-none"
+                                                            className="w-20 px-1.5 py-1 border border-slate-200 rounded-lg text-center text-[10px] outline-none group-hover:bg-white"
                                                             placeholder="เกณฑ์"
                                                             value={res.standard || ""}
                                                             onChange={(e) => {
@@ -425,6 +544,11 @@ export function FitnessFeature({ session }: { session: any }) {
                                                                 setResults({ ...results, [s.id]: { ...res, standard: newStandard, status: newStatus } });
                                                             }}
                                                         />
+                                                        {res.criteriaSource && (
+                                                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter opacity-80 leading-none">
+                                                                {res.criteriaSource}
+                                                            </div>
+                                                        )}
                                                         <span className={`inline-block px-2 py-1 rounded-lg text-[10px] font-bold ${!res.status ? "bg-slate-100 text-slate-400" :
                                                             (res.status === "ไม่ผ่าน") ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
                                                             }`}>
@@ -449,6 +573,11 @@ export function FitnessFeature({ session }: { session: any }) {
                     </div>
                 </div>
             )}
-        </div>
-    );
+        <FitnessCriteriaManagement 
+            isOpen={isCriteriaModalOpen} 
+            onClose={() => setIsCriteriaModalOpen(false)} 
+            currentYear={year} 
+        />
+    </div>
+);
 }
