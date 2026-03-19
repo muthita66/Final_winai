@@ -83,29 +83,48 @@ export const TeacherScoresService = {
 
     // Get grade categories + assessment items for a teaching assignment
     async getHeaders(teaching_assignment_id: number) {
-        const categories = await prisma.grade_categories.findMany({
-            where: { teaching_assignment_id },
-            include: {
-                assessment_items: {
-                    orderBy: { id: 'asc' },
-                    include: {
-                        assessment_item_indicators: {
-                            include: { indicators: true }
-                        }
+        // Fetch categories using raw query to bypass stale client
+        const categories = await prisma.$queryRaw`
+            SELECT id, teaching_assignment_id, weight_percent, category_type_id FROM "grade_categories"
+            WHERE "teaching_assignment_id" = ${teaching_assignment_id}
+            ORDER BY "id" ASC
+        ` as any[];
+
+        // Fetch assessment items for these categories
+        const categoryIds = categories.map(c => c.id);
+        const assessmentItems = categoryIds.length > 0 
+            ? await prisma.assessment_items.findMany({
+                where: { grade_category_id: { in: categoryIds } },
+                include: {
+                    assessment_item_indicators: {
+                        include: { indicators: true }
                     }
-                }
-            },
-            orderBy: { id: 'asc' }
+                },
+                orderBy: { id: 'asc' }
+            })
+            : [];
+
+        // Fetch types manually since Prisma Client might be stale
+        const types = await this.getCategoryTypes() as any[];
+        const typeMap = new Map(types.map((t: any) => [t.id, t]));
+
+        // Map items back to categories for flattening
+        const catMap = new Map(categories.map(c => [c.id, { ...c, assessment_items: [] }]));
+        assessmentItems.forEach(item => {
+            const cat = catMap.get(item.grade_category_id);
+            if (cat) cat.assessment_items.push(item);
         });
 
         // Flatten to simple header list
         const headers: any[] = [];
-        categories.forEach(cat => {
-            cat.assessment_items.forEach(item => {
+        categories.forEach((cat: any) => {
+            const typeInfo: any = cat.category_type_id ? typeMap.get(cat.category_type_id) : null;
+            const catWithItems = catMap.get(cat.id);
+            catWithItems?.assessment_items.forEach((item: any) => {
                 headers.push({
                     id: item.id,
                     category_id: cat.id,
-                    category_name: cat.name,
+                    category_name: typeInfo?.type_name || "(ไม่มีชื่อ)",
                     title: item.name,
                     max_score: Number(item.max_score),
                     weight_percent: Number(cat.weight_percent),
@@ -120,37 +139,176 @@ export const TeacherScoresService = {
         return headers;
     },
 
-    // Add a new assessment item under a grade category
+    // Get grade categories for a teaching assignment
+    async getCategories(teaching_assignment_id: number) {
+        const categories = await prisma.$queryRaw`
+            SELECT id, teaching_assignment_id, weight_percent, category_type_id FROM "grade_categories"
+            WHERE "teaching_assignment_id" = ${teaching_assignment_id}
+            ORDER BY "id" ASC
+        ` as any[];
+
+        // Join types manually
+        const types = await this.getCategoryTypes() as any[];
+        const typeMap = new Map(types.map((t: any) => [t.id, t]));
+
+        return categories.map((cat: any) => ({
+            ...cat,
+            grade_category_types: cat.category_type_id ? typeMap.get(cat.category_type_id) : null
+        }));
+    },
+
+    // Get predefined grade category types - Use raw query if client is stale
+    async getCategoryTypes() {
+        try {
+            return await prisma.$queryRaw`SELECT id, type_name, description FROM "grade_category_types" ORDER BY id ASC`;
+        } catch (err) {
+            console.error("Raw query for category types failed:", err);
+            return [];
+        }
+    },
+
+    // Add a new grade category type
+    async addCategoryType(type_name: string) {
+        try {
+            await prisma.$executeRaw`
+                INSERT INTO "grade_category_types" ("type_name")
+                VALUES (${type_name})
+            `;
+            return { success: true };
+        } catch (err) {
+            console.error("Raw insert for category type failed:", err);
+            throw err;
+        }
+    },
+
+    // Update a grade category type
+    async updateCategoryType(id: number, type_name: string) {
+        try {
+            await prisma.$executeRaw`
+                UPDATE "grade_category_types"
+                SET "type_name" = ${type_name}
+                WHERE "id" = ${id}
+            `;
+            return { success: true };
+        } catch (err) {
+            console.error("Raw update for category type failed:", err);
+            throw err;
+        }
+    },
+
+    // Delete a grade category type
+    async deleteCategoryType(id: number) {
+        try {
+            await prisma.$executeRaw`
+                DELETE FROM "grade_category_types"
+                WHERE "id" = ${id}
+            `;
+            return { success: true };
+        } catch (err) {
+            console.error("Raw delete for category type failed:", err);
+            throw err;
+        }
+    },
+
+    // Add a new grade category
+    async addCategory(
+        teaching_assignment_id: number,
+        name: string, // Kept for interface compatibility but ignored
+        weight_percent: number,
+        category_type_id?: number
+    ) {
+        // Use raw query for creation to bypass stale client
+        const weight = Number.isFinite(weight_percent) ? weight_percent : 0;
+        
+        try {
+            await prisma.$executeRaw`
+                INSERT INTO "grade_categories" ("teaching_assignment_id", "weight_percent", "category_type_id")
+                VALUES (${teaching_assignment_id}, ${weight}, ${category_type_id || null})
+            `;
+            // Return something compatible or null
+            return { success: true };
+        } catch (err) {
+            console.error("Raw insert for category failed:", err);
+            throw err;
+        }
+    },
+
+    // Update a grade category
+    async updateCategory(id: number, name: string, weight_percent: number, category_type_id?: number) {
+        const weight = Number.isFinite(weight_percent) ? weight_percent : 0;
+
+        try {
+            await prisma.$executeRaw`
+                UPDATE "grade_categories"
+                SET "category_type_id" = ${category_type_id || null}, "weight_percent" = ${weight}
+                WHERE "id" = ${id}
+            `;
+            return { success: true };
+        } catch (err) {
+            console.error("Raw update for category failed:", err);
+            throw err;
+        }
+    },
+
+    // Delete a grade category
+    async deleteCategory(id: number) {
+        try {
+            // 1. Delete all related records using raw SQL to bypass stale client
+            await prisma.$executeRaw`DELETE FROM "assessment_item_indicators" WHERE "assessment_item_id" IN (SELECT id FROM "assessment_items" WHERE "grade_category_id" = ${id})`;
+            await prisma.$executeRaw`DELETE FROM "student_scores" WHERE "assessment_item_id" IN (SELECT id FROM "assessment_items" WHERE "grade_category_id" = ${id})`;
+            await prisma.$executeRaw`DELETE FROM "assessment_items" WHERE "grade_category_id" = ${id}`;
+            await prisma.$executeRaw`DELETE FROM "grade_categories" WHERE "id" = ${id}`;
+            
+            return { success: true };
+        } catch (err) {
+            console.error("Raw delete for category failed:", err);
+            throw err;
+        }
+    },
+
+    // Add a new assessment item
     async addHeader(
         teaching_assignment_id: number,
-        category_name_or_title: string,
-        title_or_max: string | number,
+        category_id_or_name: number | string,
+        title_or_max?: string | number,
         max_score_arg?: number,
         indicator_ids?: number[]
     ) {
-        const isThreeArgShape = typeof title_or_max === 'number' && max_score_arg === undefined;
-        const category_name = isThreeArgShape ? 'ทั่วไป' : category_name_or_title;
-        const title = isThreeArgShape ? category_name_or_title : String(title_or_max || '');
-        const max_score = isThreeArgShape ? Number(title_or_max) : Number(max_score_arg);
+        let categoryId: number;
+        let title: string;
+        let max_score: number;
 
-        // Find or create grade category
-        let category = await prisma.grade_categories.findFirst({
-            where: { teaching_assignment_id, name: category_name }
-        });
+        if (typeof category_id_or_name === 'number') {
+            categoryId = category_id_or_name;
+            title = String(title_or_max || '');
+            max_score = Number(max_score_arg);
+        } else {
+            // Legacy signature support
+            const isThreeArgShape = typeof title_or_max === 'number' && max_score_arg === undefined;
+            const category_name = isThreeArgShape ? 'ทั่วไป' : category_id_or_name;
+            title = isThreeArgShape ? category_id_or_name : String(title_or_max || '');
+            max_score = isThreeArgShape ? Number(title_or_max) : Number(max_score_arg);
 
-        if (!category) {
-            category = await prisma.grade_categories.create({
-                data: {
-                    teaching_assignment_id,
-                    name: category_name,
-                    weight_percent: 100,
-                }
+            // Find or create category
+            let category = await prisma.grade_categories.findFirst({
+                where: { teaching_assignment_id, name: category_name }
             });
+
+            if (!category) {
+                category = await prisma.grade_categories.create({
+                    data: {
+                        teaching_assignment_id,
+                        name: category_name,
+                        weight_percent: 100,
+                    }
+                });
+            }
+            categoryId = category.id;
         }
 
         const item = await prisma.assessment_items.create({
             data: {
-                grade_category_id: category.id,
+                grade_category_id: categoryId,
                 name: title,
                 max_score: Number.isFinite(max_score) ? max_score : 0,
             }
@@ -173,10 +331,13 @@ export const TeacherScoresService = {
     },
 
     // Update assessment item
-    async updateHeader(id: number, title: string, max_score: number, indicator_ids?: number[]) {
+    async updateHeader(id: number, title: string, max_score: number, indicator_ids?: number[], category_id?: number) {
+        const data: any = { name: title, max_score };
+        if (category_id) data.grade_category_id = category_id;
+
         const item = await prisma.assessment_items.update({
             where: { id },
-            data: { name: title, max_score }
+            data
         });
 
         // Sync indicator links
@@ -200,9 +361,9 @@ export const TeacherScoresService = {
 
     // Delete assessment item and its scores
     async deleteHeader(id: number) {
-        await prisma.assessment_item_indicators.deleteMany({ where: { assessment_item_id: id } });
-        await prisma.student_scores.deleteMany({ where: { assessment_item_id: id } });
-        return prisma.assessment_items.delete({ where: { id } });
+        await prisma.$executeRaw`DELETE FROM "assessment_item_indicators" WHERE "assessment_item_id" = ${id}`;
+        await prisma.$executeRaw`DELETE FROM "student_scores" WHERE "assessment_item_id" = ${id}`;
+        return prisma.$executeRaw`DELETE FROM "assessment_items" WHERE "id" = ${id}`;
     },
 
     // Get indicators for a subject
@@ -280,31 +441,38 @@ export const TeacherScoresService = {
 
     // Get all scores for all assessment items in a section
     async getAllSectionScores(section_id: number) {
-        const categories = await prisma.grade_categories.findMany({
-            where: { teaching_assignment_id: section_id },
+        // 3. Fetch categories via raw SQL
+        const categories = await prisma.$queryRaw`
+            SELECT id, teaching_assignment_id, weight_percent, category_type_id
+            FROM "grade_categories"
+            WHERE "teaching_assignment_id" = ${section_id}
+        ` as any[];
+
+        // 4. Fetch predefined types
+        const types = await prisma.$queryRaw`SELECT id, type_name FROM "grade_category_types"` as any[];
+        if (categories.length === 0) return [];
+
+        // 5. Fetch assessment items via ORM (linked to categories)
+        const catIds = categories.map(c => c.id);
+        const assessmentItems = await prisma.assessment_items.findMany({
+            where: { grade_category_id: { in: catIds } },
             include: {
-                assessment_items: {
+                student_scores: {
                     include: {
-                        student_scores: {
-                            include: {
-                                enrollments: { select: { student_id: true } }
-                            }
-                        }
+                        enrollments: { select: { student_id: true } }
                     }
                 }
             }
         });
 
         const scoreData: any[] = [];
-        categories.forEach(cat => {
-            cat.assessment_items.forEach(item => {
-                item.student_scores.forEach(s => {
-                    scoreData.push({
-                        header_id: item.id,
-                        student_id: s.enrollments?.student_id || 0,
-                        score: Number(s.score || 0),
-                        is_passed: s.is_passed,
-                    });
+        assessmentItems.forEach(item => {
+            item.student_scores.forEach(s => {
+                scoreData.push({
+                    header_id: item.id,
+                    student_id: s.enrollments?.student_id || 0,
+                    score: Number(s.score || 0),
+                    is_passed: s.is_passed,
                 });
             });
         });
@@ -313,15 +481,16 @@ export const TeacherScoresService = {
 
     // Save scores for an assessment item
     async saveScores(assessment_item_id: number, scores: { enrollment_id?: number; student_id?: number; score: number; is_passed?: boolean | null }[]) {
-        const item = await prisma.assessment_items.findUnique({
-            where: { id: assessment_item_id },
-            select: {
-                grade_categories: {
-                    select: { teaching_assignment_id: true }
-                }
-            }
-        });
-        const teaching_assignment_id = item?.grade_categories?.teaching_assignment_id;
+        // Use raw SQL to find the teaching_assignment_id via the header's category
+        const result = await prisma.$queryRaw`
+            SELECT gc.teaching_assignment_id 
+            FROM "assessment_items" ai
+            JOIN "grade_categories" gc ON ai.grade_category_id = gc.id
+            WHERE ai.id = ${assessment_item_id}
+            LIMIT 1
+        ` as any[];
+        
+        const teaching_assignment_id = result[0]?.teaching_assignment_id;
 
         const studentIds = (scores || [])
             .map((s) => Number(s.student_id))

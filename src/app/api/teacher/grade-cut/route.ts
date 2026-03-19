@@ -34,8 +34,23 @@ export async function POST(request: Request) {
             const data = await TeacherGradeCutService.saveThresholds(section_id, body.thresholds);
             return successResponse(data);
         }
+        if (body.action === 'reset_thresholds') {
+            const data = await TeacherGradeCutService.resetThresholds(section_id);
+            return successResponse(data);
+        }
         if (body.action === 'calculate') {
             const data = await TeacherGradeCutService.calculateAndSaveGrades(section_id);
+            return successResponse(data);
+        }
+        if (body.action === 'update_manual_grade') {
+            const enrollment_id = Number(body.enrollment_id);
+            if (!enrollment_id) return errorResponse('enrollment_id required', 400);
+            const data = await TeacherGradeCutService.updateManualGrade(
+                enrollment_id, 
+                body.letter_grade, 
+                body.grade_point,
+                body.is_locked ?? true
+            );
             return successResponse(data);
         }
 

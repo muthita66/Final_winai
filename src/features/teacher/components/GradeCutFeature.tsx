@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, useCallback } from "react";
@@ -26,35 +26,6 @@ type SectionLike = {
     } | null;
 } | null | undefined;
 
-function getSubjectKey(section: SectionLike) {
-    const subjectId = txt(section?.subjects?.id);
-    if (subjectId) return `id:${subjectId}`;
-    return `${txt(section?.subjects?.subject_code)}|${txt(section?.subjects?.name)}`;
-}
-
-function formatSubjectLabel(section: SectionLike) {
-    const code = txt(section?.subjects?.subject_code);
-    const name = txt(section?.subjects?.name);
-    if (code && name) return `${code} ${name}`;
-    return code || name || "-";
-}
-
-function getRoomKey(section: SectionLike) {
-    return `${txt(section?.class_level)}|${txt(section?.classroom)}`;
-}
-
-function getAcademicYearValue(section: SectionLike) {
-    return txt(section?.semesters?.academic_years?.year_name) || txt(section?.year);
-}
-
-function getYearKey(section: SectionLike) {
-    return getAcademicYearValue(section);
-}
-
-function formatYearLabel(section: SectionLike) {
-    return getAcademicYearValue(section) || "-";
-}
-
 function formatRoomLabel(section: SectionLike) {
     const level = txt(section?.class_level);
     const room = txt(section?.classroom);
@@ -63,12 +34,10 @@ function formatRoomLabel(section: SectionLike) {
     return room || level || "-";
 }
 
-function getTermKey(section: SectionLike) {
-    return `${getAcademicYearValue(section)}|${txt(section?.semester)}`;
-}
-
 function formatTermLabel(section: SectionLike) {
-    return `ปีการศึกษา ${getAcademicYearValue(section) || "-"} ภาคเรียน ${txt(section?.semester) || "-"}`;
+    const year = txt(section?.semesters?.academic_years?.year_name) || txt(section?.year);
+    const semester = txt(section?.semester);
+    return `ปีการศึกษา ${year || "-"} ภาคเรียน ${semester || "-"}`;
 }
 
 const GRADE_ORDER = ["4", "3.5", "3", "2.5", "2", "1.5", "1", "0"] as const;
@@ -100,28 +69,6 @@ function normalizeGrade(grade: any) {
     return GRADE_ALIAS_TO_NUMERIC[raw] || raw || "0";
 }
 
-function ThresholdInput({ label, gradeLabel, value, onChange, min = 0, max = 100, color }: {
-    label: string; gradeLabel: string; value: number; onChange: (v: number) => void; min?: number; max?: number; color: string;
-}) {
-    return (
-        <div className="flex items-center justify-between py-1 px-3 rounded-xl border border-slate-50 hover:border-indigo-100 transition-colors">
-            <div className="flex items-center gap-3">
-                <span className={`inline-flex min-w-[4rem] items-center justify-center rounded-lg border px-2 py-1 text-xs font-bold ${color}`}>
-                    {gradeLabel}
-                </span>
-                <span className="text-sm font-medium text-slate-500">คะแนนสะสมตั้งแต่</span>
-            </div>
-            <div className="flex items-center gap-2">
-                <input
-                    type="number" min={min} max={max} value={value}
-                    onChange={(e) => onChange(Number(e.target.value))}
-                    className="w-16 rounded-xl border border-slate-200 px-2 py-1.5 text-center text-base font-bold text-indigo-700 outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 bg-white"
-                />
-            </div>
-        </div>
-    );
-}
-
 export function GradeCutFeature({ session }: { session: any }) {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -130,7 +77,6 @@ export function GradeCutFeature({ session }: { session: any }) {
 
     /* ─── state ─── */
     const [sections, setSections] = useState<any[]>([]);
-    const [sectionsLoading, setSectionsLoading] = useState(true);
     const [sectionInfo, setSectionInfo] = useState<any | null>(null);
     const [headerCount, setHeaderCount] = useState(0);
     const [thresholds, setThresholds] = useState<any>(DEFAULT_THRESHOLDS);
@@ -139,30 +85,47 @@ export function GradeCutFeature({ session }: { session: any }) {
     const [savingThresholds, setSavingThresholds] = useState(false);
     const [calculating, setCalculating] = useState(false);
     const [studentSearch, setStudentSearch] = useState("");
+
     const [selectedSubjectKey, setSelectedSubjectKey] = useState("");
     const [selectedRoomKey, setSelectedRoomKey] = useState("");
     const [selectedYearKey, setSelectedYearKey] = useState("");
     const [selectedTermKey, setSelectedTermKey] = useState("");
 
-    /* ─── loaders ─── */
-    const loadSections = useCallback(async () => {
-        setSectionsLoading(true);
-        try {
-            const data = await TeacherApiService.getTeacherSubjects(session.id);
-            setSections(Array.isArray(data) ? data : []);
-        } catch { setSections([]); }
-        finally { setSectionsLoading(false); }
-    }, [session.id]);
+    const getTermKey = (s: any) => `${s.year}-${s.semester}`;
 
-    useEffect(() => { loadSections(); }, [loadSections]);
+
 
     useEffect(() => {
-        if (!hasSection) { setLoading(false); setSummary([]); return; }
-        const found = sections.find((s) => s.id === sectionId) || null;
-        setSectionInfo(found);
+        (async () => {
+            try {
+                const data = await TeacherApiService.getTeacherSubjects(session.id);
+                setSections(Array.isArray(data) ? data : []);
+            } catch { setSections([]); }
+        })();
+    }, [session.id]);
+
+    useEffect(() => {
+        if (!hasSection || sections.length === 0) return;
+        const s = sections.find(x => x.id === sectionId);
+        if (s) {
+            setSelectedSubjectKey(txt(s.subjects?.id || s.subject_id));
+            setSelectedRoomKey(txt(s.classroom));
+            setSelectedYearKey(txt(s.semesters?.academic_years?.year_name || s.year));
+            setSelectedTermKey(getTermKey(s));
+        }
+    }, [hasSection, sectionId, sections]);
+
+    useEffect(() => {
+        if (!hasSection) { setLoading(false); setSummary([]); setSectionInfo(null); return; }
+
         (async () => {
             setLoading(true);
             try {
+                if (!sectionInfo) {
+                    const found = sections.find((s: any) => s.id === sectionId) || null;
+                    setSectionInfo(found);
+                }
+
                 const [headers, thresholdData, summaryRows] = await Promise.all([
                     TeacherApiService.getScoreHeaders(sectionId),
                     TeacherApiService.getGradeThresholds(sectionId),
@@ -174,41 +137,10 @@ export function GradeCutFeature({ session }: { session: any }) {
             } catch { setSummary([]); }
             finally { setLoading(false); }
         })();
-    }, [hasSection, sectionId, sections]);
+    }, [hasSection, sectionId, session.id, sections, sectionInfo]);
 
-    useEffect(() => {
-        if (!hasSection) return;
-        const found = sections.find((s) => s.id === sectionId);
-        if (!found) return;
-        setSelectedSubjectKey(getSubjectKey(found));
-        setSelectedRoomKey(getRoomKey(found));
-        setSelectedYearKey(getYearKey(found));
-        setSelectedTermKey(getTermKey(found));
-    }, [hasSection, sectionId, sections]);
-
-    useEffect(() => {
-        if (!selectedSubjectKey || !selectedRoomKey || !selectedYearKey || !selectedTermKey) return;
-        const matched = sections.find(
-            (s) =>
-                getSubjectKey(s) === selectedSubjectKey &&
-                getRoomKey(s) === selectedRoomKey &&
-                getYearKey(s) === selectedYearKey &&
-                getTermKey(s) === selectedTermKey
-        );
-        const nextId = Number(matched?.id);
-        if (!Number.isFinite(nextId) || nextId <= 0 || nextId === sectionId) return;
-        router.push(`/teacher/grade_cut?section_id=${nextId}`);
-    }, [selectedSubjectKey, selectedRoomKey, selectedYearKey, selectedTermKey, sections, sectionId, router]);
 
     /* ─── derived ─── */
-    const thresholdValid =
-        num(thresholds.a) >= num(thresholds.b_plus) &&
-        num(thresholds.b_plus) >= num(thresholds.b) &&
-        num(thresholds.b) >= num(thresholds.c_plus) &&
-        num(thresholds.c_plus) >= num(thresholds.c) &&
-        num(thresholds.c) >= num(thresholds.d_plus) &&
-        num(thresholds.d_plus) >= num(thresholds.d);
-
     const stats = useMemo(() => {
         const count = summary.length;
         const avgPct = count ? Math.round((summary.reduce((s, r) => s + num(r.percentage), 0) / count) * 100) / 100 : 0;
@@ -230,143 +162,61 @@ export function GradeCutFeature({ session }: { session: any }) {
         );
     }, [summary, studentSearch]);
 
+    /* ─── selection logic ─── */
+
     const subjectOptions = useMemo(() => {
-        const map = new Map<string, string>();
-        sections.forEach((s) => {
-            const key = getSubjectKey(s);
-            if (!key) return;
-            if (!map.has(key)) map.set(key, formatSubjectLabel(s));
+        const unique = new Map();
+        sections.forEach(s => {
+            const id = txt(s.subjects?.id || s.subject_id);
+            if (id && !unique.has(id)) unique.set(id, { value: id, label: `${s.subjects?.subject_code} ${s.subjects?.name}` });
         });
-        return Array.from(map.entries())
-            .map(([value, label]) => ({ value, label }))
-            .sort((a, b) => a.label.localeCompare(b.label, "th"));
+        return Array.from(unique.values());
     }, [sections]);
 
     const roomOptions = useMemo(() => {
         if (!selectedSubjectKey) return [];
-        const map = new Map<string, string>();
-        sections
-            .filter((s) => getSubjectKey(s) === selectedSubjectKey)
-            .forEach((s) => {
-                const key = getRoomKey(s);
-                if (!key) return;
-                if (!map.has(key)) map.set(key, formatRoomLabel(s));
-            });
-        return Array.from(map.entries())
-            .map(([value, label]) => ({ value, label }))
-            .sort((a, b) => {
-                const [aG = "999", aR = "999"] = a.label.split("/");
-                const [bG = "999", bR = "999"] = b.label.split("/");
-                const gDiff = Number(aG) - Number(bG);
-                if (gDiff !== 0) return gDiff;
-                return Number(aR) - Number(bR);
-            });
+        const unique = new Map();
+        sections.filter(s => txt(s.subjects?.id || s.subject_id) === selectedSubjectKey).forEach(s => {
+            const r = txt(s.classroom);
+            if (r && !unique.has(r)) unique.set(r, { value: r, label: `ชั้น${formatRoomLabel(s)}` });
+        });
+        return Array.from(unique.values());
     }, [sections, selectedSubjectKey]);
 
     const yearOptions = useMemo(() => {
         if (!selectedSubjectKey || !selectedRoomKey) return [];
-        const map = new Map<string, string>();
-        sections
-            .filter((s) => getSubjectKey(s) === selectedSubjectKey && getRoomKey(s) === selectedRoomKey)
-            .forEach((s) => {
-                const key = getYearKey(s);
-                if (!key) return;
-                if (!map.has(key)) map.set(key, formatYearLabel(s));
-            });
-        return Array.from(map.entries())
-            .map(([value, label]) => ({ value, label }))
-            .sort((a, b) => Number(b.value) - Number(a.value));
+        const unique = new Map();
+        sections.filter(s => txt(s.subjects?.id || s.subject_id) === selectedSubjectKey && txt(s.classroom) === selectedRoomKey).forEach(s => {
+            const y = txt(s.semesters?.academic_years?.year_name || s.year);
+            if (y && !unique.has(y)) unique.set(y, { value: y, label: `ปีการศึกษา ${y}` });
+        });
+        return Array.from(unique.values());
     }, [sections, selectedSubjectKey, selectedRoomKey]);
 
     const semesterOptions = useMemo(() => {
         if (!selectedSubjectKey || !selectedRoomKey || !selectedYearKey) return [];
-        const map = new Map<string, string>();
-        sections
-            .filter((s) => getSubjectKey(s) === selectedSubjectKey && getRoomKey(s) === selectedRoomKey && getYearKey(s) === selectedYearKey)
-            .forEach((s) => {
-                const sem = txt(s?.semester);
-                if (!sem) return;
-                if (!map.has(sem)) map.set(sem, `ภาคเรียนที่ ${sem}`);
-            });
-        return Array.from(map.entries())
-            .map(([value, label]) => ({ value, label }))
-            .sort((a, b) => Number(a.value) - Number(b.value));
+        return sections
+            .filter(s => txt(s.subjects?.id || s.subject_id) === selectedSubjectKey && txt(s.classroom) === selectedRoomKey && txt(s.semesters?.academic_years?.year_name || s.year) === selectedYearKey)
+            .map(s => ({ value: getTermKey(s), label: `ภาคเรียนที่ ${s.semester}` }));
     }, [sections, selectedSubjectKey, selectedRoomKey, selectedYearKey]);
 
-    const termOptions = useMemo(() => {
-        if (!selectedSubjectKey || !selectedRoomKey || !selectedYearKey) return [];
-        const map = new Map<string, string>();
-        sections
-            .filter((s) => getSubjectKey(s) === selectedSubjectKey && getRoomKey(s) === selectedRoomKey && getYearKey(s) === selectedYearKey)
-            .forEach((s) => {
-                const key = getTermKey(s);
-                if (!key) return;
-                if (!map.has(key)) map.set(key, formatTermLabel(s));
-            });
-        return Array.from(map.entries())
-            .map(([value, label]) => ({ value, label }))
-            .sort((a, b) => {
-                const [aYear = "0", aSem = "0"] = a.value.split("|");
-                const [bYear = "0", bSem = "0"] = b.value.split("|");
-                const yearDiff = Number(bYear) - Number(aYear);
-                if (yearDiff !== 0) return yearDiff;
-                return Number(bSem) - Number(aSem);
-            });
-    }, [sections, selectedSubjectKey, selectedRoomKey, selectedYearKey]);
+    const handleSubjectSelect = (val: string) => { setSelectedSubjectKey(val); setSelectedRoomKey(""); setSelectedYearKey(""); setSelectedTermKey(""); };
+    const handleRoomSelect = (val: string) => { setSelectedRoomKey(val); setSelectedYearKey(""); setSelectedTermKey(""); };
+    const handleYearSelect = (val: string) => {
+        setSelectedYearKey(val);
+        const auto = sections.find(s => txt(s.subjects?.id || s.subject_id) === selectedSubjectKey && txt(s.classroom) === selectedRoomKey && txt(s.semesters?.academic_years?.year_name || s.year) === val);
+        if (auto) handleSemesterSelect(getTermKey(auto));
+    };
+    const handleSemesterSelect = (val: string) => {
+        setSelectedTermKey(val);
+        const s = sections.find(x => txt(x.subjects?.id || x.subject_id) === selectedSubjectKey && txt(x.classroom) === selectedRoomKey && getTermKey(x) === val);
+        if (s) router.push(`/teacher/grade-cut?section_id=${s.id}`);
+    };
 
-    const selectedSubjectLabel = subjectOptions.find((o) => o.value === selectedSubjectKey)?.label || "-";
-    const selectedRoomLabel = roomOptions.find((o) => o.value === selectedRoomKey)?.label || "-";
-    const selectedYearLabel = yearOptions.find((o) => o.value === selectedYearKey)?.label || "-";
-    const selectedTermLabel = termOptions.find((o) => o.value === selectedTermKey)?.label || "-";
-    const selectionReady = !!(selectedSubjectKey && selectedRoomKey && selectedYearKey && selectedTermKey);
-
-    useEffect(() => {
-        if (!selectedSubjectKey || selectedRoomKey || roomOptions.length !== 1) return;
-        setSelectedRoomKey(roomOptions[0].value);
-    }, [selectedSubjectKey, selectedRoomKey, roomOptions]);
-
-    useEffect(() => {
-        if (!selectedSubjectKey || !selectedRoomKey || selectedYearKey || yearOptions.length === 0) return;
-        setSelectedYearKey(yearOptions[0].value);
-    }, [selectedSubjectKey, selectedRoomKey, selectedYearKey, yearOptions]);
-
-    useEffect(() => {
-        if (!selectedSubjectKey || !selectedRoomKey || !selectedYearKey || selectedTermKey || semesterOptions.length === 0) return;
-        const firstSem = semesterOptions[0].value;
-        const matched = sections.find(
-            (s) => getSubjectKey(s) === selectedSubjectKey && getRoomKey(s) === selectedRoomKey && getYearKey(s) === selectedYearKey && txt(s?.semester) === firstSem
-        );
-        if (matched) setSelectedTermKey(getTermKey(matched));
-    }, [selectedSubjectKey, selectedRoomKey, selectedYearKey, selectedTermKey, semesterOptions, sections]);
 
     /* ─── handlers ─── */
-    const handleSubjectSelect = (value: string) => {
-        setSelectedSubjectKey(value);
-        setSelectedRoomKey("");
-        setSelectedYearKey("");
-        setSelectedTermKey("");
-    };
-
-    const handleRoomSelect = (value: string) => {
-        setSelectedRoomKey(value);
-        setSelectedYearKey("");
-        setSelectedTermKey("");
-    };
-
-    const handleYearSelect = (value: string) => {
-        setSelectedYearKey(value);
-        setSelectedTermKey("");
-    };
-
-    const handleSemesterSelect = (value: string) => {
-        const matched = sections.find(
-            (s) => getSubjectKey(s) === selectedSubjectKey && getRoomKey(s) === selectedRoomKey && getYearKey(s) === selectedYearKey && txt(s?.semester) === value
-        );
-        setSelectedTermKey(matched ? getTermKey(matched) : "");
-    };
 
     const handleSaveAndCalculate = async () => {
-        if (!thresholdValid) return alert("ลำดับเกณฑ์ไม่ถูกต้อง (A ≥ B+ ≥ B ≥ ... ≥ D)");
         if (headerCount === 0) return alert("ยังไม่มีหัวข้อคะแนน กรุณาบันทึกคะแนนก่อน");
 
         setSavingThresholds(true);
@@ -376,9 +226,33 @@ export function GradeCutFeature({ session }: { session: any }) {
             await TeacherApiService.calculateGrades(sectionId);
             const rows = await TeacherApiService.getGradeSummary(sectionId);
             setSummary(Array.isArray(rows) ? rows : []);
+            // refresh thresholds to get is_custom flag
+            const tData = await TeacherApiService.getGradeThresholds(sectionId);
+            setThresholds(tData ? { ...DEFAULT_THRESHOLDS, ...tData } : DEFAULT_THRESHOLDS);
             alert("บันทึกเกณฑ์และคำนวณเกรดเรียบร้อย ✓");
         } catch { alert("ดำเนินการไม่สำเร็จ"); }
         finally { setSavingThresholds(false); setCalculating(false); }
+    };
+
+    const handleResetThresholds = async () => {
+        if (!confirm("ยืนยันการลบเกณฑ์คะแนนที่ตั้งไว้และกลับไปใช้ค่าเริ่มต้น?")) return;
+        setSavingThresholds(true);
+        try {
+            await TeacherApiService.saveGradeThresholds(sectionId, { action: 'reset_thresholds' } as any); // Wait, I'll update TeacherApiService too or use direct fetch
+            // Better: use the action I just added to the API
+            await fetch('/api/teacher/grade-cut', {
+                method: 'POST',
+                body: JSON.stringify({ action: 'reset_thresholds', section_id: sectionId })
+            });
+            const [tData, rows] = await Promise.all([
+                TeacherApiService.getGradeThresholds(sectionId),
+                TeacherApiService.getGradeSummary(sectionId),
+            ]);
+            setThresholds(tData ? { ...DEFAULT_THRESHOLDS, ...tData } : DEFAULT_THRESHOLDS);
+            setSummary(Array.isArray(rows) ? rows : []);
+            alert("รีเซ็ตเกณฑ์คะแนนเรียบร้อย");
+        } catch { alert("ดำเนินการไม่สำเร็จ"); }
+        finally { setSavingThresholds(false); }
     };
 
     /* ─── render ─── */
@@ -404,90 +278,118 @@ export function GradeCutFeature({ session }: { session: any }) {
                             ตัดเกรด
                         </h1>
                         {sectionInfo && (
-                            <div className="mt-2 space-y-0.5 text-sm opacity-90">
-                                <div className="font-semibold">{sectionInfo.subjects?.subject_code} {sectionInfo.subjects?.name}</div>
-                                <div className="text-indigo-100/80">
-                                    ชั้น{formatRoomLabel(sectionInfo)}
+                            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center gap-3 transition-all hover:bg-white/15">
+                                    <div className="w-10 h-10 rounded-lg bg-indigo-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                                        <svg className="w-5 h-5 text-indigo-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.168.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                        </svg>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="text-[10px] uppercase font-bold tracking-wider text-indigo-200">วิชาที่สอน</div>
+                                        <div className="text-sm font-bold leading-tight truncate">{sectionInfo.subjects?.subject_code} {sectionInfo.subjects?.name}</div>
+                                    </div>
                                 </div>
-                                <div className="text-indigo-100/70 text-xs">
-                                    {formatTermLabel(sectionInfo)}
+
+                                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center gap-3 transition-all hover:bg-white/15">
+                                    <div className="w-10 h-10 rounded-lg bg-blue-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                                        <svg className="w-5 h-5 text-blue-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                        </svg>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="text-[10px] uppercase font-bold tracking-wider text-blue-200">ห้องเรียน</div>
+                                        <div className="text-sm font-bold leading-tight">ชั้น{formatRoomLabel(sectionInfo)}</div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center gap-3 transition-all hover:bg-white/15">
+                                    <div className="w-10 h-10 rounded-lg bg-sky-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                                        <svg className="w-5 h-5 text-sky-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="text-[10px] uppercase font-bold tracking-wider text-sky-200">ปีการศึกษา/ภาคเรียน</div>
+                                        <div className="text-sm font-bold leading-tight">{formatTermLabel(sectionInfo)}</div>
+                                    </div>
                                 </div>
                             </div>
                         )}
                     </div>
-                    <div className="w-full lg:flex-1">
-                        <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur p-4 flex items-end gap-3">
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 flex-1">
-                                <label className="block">
-                                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-indigo-100/90">วิชา</span>
-                                    <select
-                                        value={selectedSubjectKey}
-                                        onChange={(e) => handleSubjectSelect(e.target.value)}
-                                        className="w-full rounded-xl bg-white/20 border border-white/30 text-white px-3 py-2 text-sm outline-none [&>option]:text-slate-800"
-                                    >
-                                        <option value="">เลือกวิชา...</option>
-                                        {subjectOptions.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
-                                <label className="block">
-                                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-indigo-100/90">ห้อง</span>
-                                    <select
-                                        value={selectedRoomKey}
-                                        onChange={(e) => handleRoomSelect(e.target.value)}
-                                        disabled={!selectedSubjectKey}
-                                        className="w-full rounded-xl bg-white/20 border border-white/30 text-white px-3 py-2 text-sm outline-none [&>option]:text-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
-                                    >
-                                        <option value="">{selectedSubjectKey ? "เลือกห้อง..." : "เลือกวิชาก่อน"}</option>
-                                        {roomOptions.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
-                                <label className="block">
-                                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-indigo-100/90">ปีการศึกษา</span>
-                                    <select
-                                        value={selectedYearKey}
-                                        onChange={(e) => handleYearSelect(e.target.value)}
-                                        disabled={!selectedSubjectKey || !selectedRoomKey}
-                                        className="w-full rounded-xl bg-white/20 border border-white/30 text-white px-3 py-2 text-sm outline-none [&>option]:text-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
-                                    >
-                                        <option value="">{selectedRoomKey ? "เลือกปีการศึกษา..." : "เลือกห้องก่อน"}</option>
-                                        {yearOptions.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
-                                <label className="block">
-                                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-indigo-100/90">ภาคเรียน</span>
-                                    <select
-                                        value={selectedTermKey ? txt(sections.find(s => getTermKey(s) === selectedTermKey)?.semester) : ""}
-                                        onChange={(e) => handleSemesterSelect(e.target.value)}
-                                        disabled={!selectedSubjectKey || !selectedRoomKey || !selectedYearKey}
-                                        className="w-full rounded-xl bg-white/20 border border-white/30 text-white px-3 py-2 text-sm outline-none [&>option]:text-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
-                                    >
-                                        <option value="">{selectedYearKey ? "เลือกภาคเรียน..." : "เลือกปีก่อน"}</option>
-                                        {semesterOptions.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
-                            </div>
-                            <Link href={`/teacher/score_input${hasSection ? `?section_id=${sectionId}` : ""}`}
-                                className="shrink-0 rounded-xl bg-white/25 border border-white/40 px-3 py-2 text-sm font-bold text-center hover:bg-white/35 transition-colors whitespace-nowrap shadow-sm">
-                                ไปหน้าบันทึกคะแนน
-                            </Link>
-                        </div>
+                    <div className="w-full lg:flex-1 flex justify-end items-end">
+                        <Link href={`/teacher/score_input${hasSection ? `?section_id=${sectionId}` : ""}`}
+                            className="rounded-xl bg-white/25 border border-white/40 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/35 transition-all shadow-sm active:scale-95">
+                            ไปหน้าบันทึกคะแนน
+                        </Link>
                     </div>
+                </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <label className="block">
+                        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">วิชาที่สอน</span>
+                        <select
+                            value={selectedSubjectKey}
+                            onChange={(e) => handleSubjectSelect(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none hover:bg-slate-100 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all text-slate-700"
+                        >
+                            <option value="">เลือกวิชา...</option>
+                            {subjectOptions.map((o) => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label className="block">
+                        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">ห้องเรียน</span>
+                        <select
+                            disabled={!selectedSubjectKey}
+                            value={selectedRoomKey}
+                            onChange={(e) => handleRoomSelect(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none hover:bg-slate-100 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all disabled:opacity-50 text-slate-700"
+                        >
+                            <option value="">เลือกห้อง...</option>
+                            {roomOptions.map((o) => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label className="block">
+                        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">ปีการศึกษา</span>
+                        <select
+                            disabled={!selectedRoomKey}
+                            value={selectedYearKey}
+                            onChange={(e) => handleYearSelect(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none hover:bg-slate-100 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all disabled:opacity-50 text-slate-700"
+                        >
+                            <option value="">เลือกปีการศึกษา...</option>
+                            {yearOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label className="block">
+                        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">ภาคเรียน</span>
+                        <select
+                            value={selectedTermKey ? txt(sections.find(s => getTermKey(s) === selectedTermKey)?.semester) : ""}
+                            onChange={(e) => handleSemesterSelect(e.target.value)}
+                            disabled={!selectedYearKey}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none hover:bg-slate-100 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all disabled:opacity-50 text-slate-700"
+                        >
+                            <option value="">{selectedYearKey ? "เลือกภาคเรียน..." : "เลือกปีก่อน"}</option>
+                            {semesterOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
                 </div>
             </section>
 
@@ -495,8 +397,7 @@ export function GradeCutFeature({ session }: { session: any }) {
                 <section className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
                     <div className="mb-4 flex justify-center">
                         <svg className="w-16 h-16 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path d="M12 14l9-5-9-5-9 5 9 5z" />
-                            <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2-2z" />
                         </svg>
                     </div>
                     <h2 className="text-xl font-bold text-slate-700">เลือกวิชา ห้อง และปีการศึกษา เพื่อเริ่มตัดเกรด</h2>
@@ -530,52 +431,48 @@ export function GradeCutFeature({ session }: { session: any }) {
 
                     {/* ── Threshold + Distribution ── */}
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                        {/* Threshold sliders */}
+                        {/* Threshold display */}
                         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="font-bold text-slate-700">กำหนดเกณฑ์คะแนน (เกรดขั้นต่ำ)</h2>
-                                <button onClick={() => setThresholds(DEFAULT_THRESHOLDS)} className="text-xs text-slate-400 hover:text-indigo-600 transition-colors">Reset</button>
+                                <h2 className="font-bold text-slate-700">เกณฑ์คะแนน (เกรดขั้นต่ำ)</h2>
+                                {thresholds.is_custom && (
+                                    <button 
+                                        onClick={handleResetThresholds}
+                                        className="text-xs font-semibold text-rose-500 hover:text-rose-700 transition-colors bg-rose-50 px-2 py-1 rounded-lg border border-rose-100"
+                                    >ลบเกณฑ์และใช้ค่าเริ่มต้น</button>
+                                )}
                             </div>
 
-                            {!thresholdValid && (
-                                <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 flex items-center gap-1.5">
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    ลำดับเกณฑ์ไม่ถูกต้อง (A ≥ B+ ≥ B ≥ ... ≥ D)
-                                </div>
-                            )}
-
-                            <div className="space-y-1.5">
-                                {([
-                                    ["a", "A (4.0)", GRADE_COLORS["4"]],
-                                    ["b_plus", "B+ (3.5)", GRADE_COLORS["3.5"]],
-                                    ["b", "B (3.0)", GRADE_COLORS["3"]],
-                                    ["c_plus", "C+ (2.5)", GRADE_COLORS["2.5"]],
-                                    ["c", "C (2.0)", GRADE_COLORS["2"]],
-                                    ["d_plus", "D+ (1.5)", GRADE_COLORS["1.5"]],
-                                    ["d", "D (1.0)", GRADE_COLORS["1"]],
-                                ] as [string, string, string][]).map(([key, label, color]) => (
-                                    <ThresholdInput
-                                        key={key}
-                                        label={key}
-                                        gradeLabel={label}
-                                        value={num(thresholds[key])}
-                                        onChange={(v) => setThresholds({ ...thresholds, [key]: v })}
-                                        color={color}
-                                    />
-                                ))}
+                            <div className="space-y-2">
+                                {(["a", "b_plus", "b", "c_plus", "c", "d_plus", "d"] as const).map((key) => {
+                                    const grade = key === 'a' ? '4' : key === 'b_plus' ? '3.5' : key === 'b' ? '3' : key === 'c_plus' ? '2.5' : key === 'c' ? '2' : key === 'd_plus' ? '1.5' : '1';
+                                    return (
+                                        <div key={key} className="flex items-center justify-between rounded-xl border border-slate-50 bg-slate-50/50 p-2.5">
+                                            <div className="flex items-center gap-3">
+                                                <span className={`flex h-7 w-12 items-center justify-center rounded-lg border text-[10px] font-bold ${GRADE_COLORS[grade]}`}>
+                                                    {GRADE_LABELS[grade]}
+                                                </span>
+                                                <span className="text-xs font-medium text-slate-500">คะแนนสะสมตั้งแต่</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-base font-bold text-slate-700">{num(thresholds[key])}</span>
+                                                <span className="text-[10px] font-bold text-slate-400">คะแนน</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
 
-                            <div className="mt-5 flex gap-2">
-                                <button
-                                    onClick={handleSaveAndCalculate}
-                                    disabled={savingThresholds || calculating || !thresholdValid || headerCount === 0}
-                                    className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-40 shadow-sm"
-                                >
-                                    {calculating || savingThresholds ? "กำลังดำเนินการ..." : "บันทึกเกณฑ์คะแนนและตัดเกรด"}
-                                </button>
-                            </div>
+                            <button
+                                onClick={handleSaveAndCalculate}
+                                disabled={savingThresholds || calculating || headerCount === 0}
+                                className="mt-5 w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-200 transition-all hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
+                            >
+                                {calculating ? "กำลังคำนวณ..." : "คำนวณและบันทึกเกรดลงฐานข้อมูล"}
+                            </button>
+
                             {headerCount === 0 && (
-                                <p className="mt-2 text-xs text-amber-600 flex items-center gap-1">
+                                <p className="mt-2 text-xs text-amber-600 flex items-center justify-center gap-1">
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                                     ยังไม่มีหัวข้อคะแนน กรุณาบันทึกคะแนนก่อน
                                 </p>

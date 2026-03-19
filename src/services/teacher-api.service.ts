@@ -115,20 +115,65 @@ export const TeacherApiService = {
     async getIndicators(subject_id: number) {
         return fetchApi<any[]>(`/api/teacher/scores?action=indicators&subject_id=${subject_id}`);
     },
-    async addScoreHeader(section_id: number, header_name: string, max_score: number, indicator_ids?: number[]) {
+    async getScoreCategories(section_id: number) {
+        return fetchApi<any[]>(`/api/teacher/scores?action=categories&section_id=${section_id}`);
+    },
+    async getGradeCategoryTypes() {
+        return fetchApi<any[]>('/api/teacher/scores?action=category_types');
+    },
+    async addGradeCategoryType(type_name: string) {
         return fetchApi<any>('/api/teacher/scores', {
             method: 'POST',
-            body: JSON.stringify({ action: 'header_add', section_id, header_name, max_score, indicator_ids })
+            body: JSON.stringify({ action: 'category_type_add', type_name })
         });
     },
-    async updateScoreHeader(id: number, title: string, max_score: number, indicator_ids?: number[]) {
+    async updateGradeCategoryType(id: number, type_name: string) {
         return fetchApi<any>('/api/teacher/scores', {
             method: 'POST',
-            body: JSON.stringify({ action: 'header_update', id, title, max_score, indicator_ids })
+            body: JSON.stringify({ action: 'category_type_update', id, type_name })
+        });
+    },
+    async deleteGradeCategoryType(id: number) {
+        return fetchApi<any>('/api/teacher/scores', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'category_type_delete', id })
+        });
+    },
+    async addScoreCategory(section_id: number, name: string, weight_percent: number, category_type_id?: number) {
+        return fetchApi<any>('/api/teacher/scores', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'category_add', section_id, name, weight_percent, category_type_id })
+        });
+    },
+    async updateScoreCategory(id: number, name: string, weight_percent: number, category_type_id?: number) {
+        return fetchApi<any>('/api/teacher/scores', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'category_update', id, name, weight_percent, category_type_id })
+        });
+    },
+    async deleteScoreCategory(id: number) {
+        return fetchApi<any>('/api/teacher/scores', { 
+            method: 'POST', 
+            body: JSON.stringify({ action: 'category_delete', id }) 
+        });
+    },
+    async addScoreHeader(section_id: number, header_name: string, max_score: number, indicator_ids?: number[], category_id?: number) {
+        return fetchApi<any>('/api/teacher/scores', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'header_add', section_id, header_name, max_score, indicator_ids, category_id })
+        });
+    },
+    async updateScoreHeader(id: number, title: string, max_score: number, indicator_ids?: number[], category_id?: number) {
+        return fetchApi<any>('/api/teacher/scores', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'header_update', id, title, max_score, indicator_ids, category_id })
         });
     },
     async deleteScoreHeader(id: number) {
-        return fetchApi<any>(`/api/teacher/scores?action=header_delete&id=${id}`, { method: 'DELETE' });
+        return fetchApi<any>('/api/teacher/scores', { 
+            method: 'POST', 
+            body: JSON.stringify({ action: 'header_delete', id }) 
+        });
     },
     async saveScores(header_id: number, scores: { student_id: number; score: number; is_passed?: boolean | null }[]) {
         return fetchApi<any>('/api/teacher/scores', {
@@ -148,6 +193,12 @@ export const TeacherApiService = {
         return fetchApi<any>('/api/teacher/grade-cut', {
             method: 'POST',
             body: JSON.stringify({ action: 'save_thresholds', section_id, thresholds })
+        });
+    },
+    async resetGradeThresholds(section_id: number) {
+        return fetchApi<any>('/api/teacher/grade-cut', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'reset_thresholds', section_id })
         });
     },
     async calculateGrades(section_id: number) {
