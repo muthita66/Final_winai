@@ -116,8 +116,9 @@ export const DirectorApiService = {
     },
 
     // --- Activities ---
-    async getActivities() {
-        return fetchApi<any[]>('/api/director/activities');
+    async getActivities(search?: string) {
+        const q = search ? `?search=${encodeURIComponent(search)}` : '';
+        return fetchApi<any[]>(`/api/director/activities${q}`);
     },
     async createActivity(data: any) {
         return fetchApi<any>('/api/director/activities', { method: 'POST', body: JSON.stringify(data) });
@@ -136,11 +137,13 @@ export const DirectorApiService = {
     },
 
     // --- Projects ---
-    async getProjects(year?: number, semester?: number) {
+    async getProjects(search?: string, year?: number, semester?: number) {
         const params = new URLSearchParams();
+        if (search) params.append('search', search);
         if (year) params.append('year', year.toString());
         if (semester) params.append('semester', semester.toString());
-        return fetchApi<any[]>(`/api/director/projects?${params.toString()}`);
+        const q = params.toString();
+        return fetchApi<any[]>(`/api/director/projects${q ? `?${q}` : ''}`);
     },
     async createProject(data: any) {
         return fetchApi<any>('/api/director/projects', { method: 'POST', body: JSON.stringify(data) });

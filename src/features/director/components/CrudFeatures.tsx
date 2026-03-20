@@ -409,7 +409,7 @@ function CrudFeature({
                 <div className="absolute top-0 right-0 w-64 h-full bg-white opacity-5 transform -skew-x-12 translate-x-20"></div>
                 <div className="relative z-10">
                     <div className="inline-block bg-white/20 px-3 py-1 rounded-full text-sm font-medium mb-4">{badgeText || title}</div>
-                    <h1 className="text-3xl font-bold">{title}</h1>
+                    <h1 className="text-3xl font-bold text-white">{title}</h1>
                     <p className="text-white/70 mt-2">{subtitle} ({filteredItems.length} รายการ)</p>
                 </div>
             </section>
@@ -995,7 +995,7 @@ export function ProjectsFeature() {
             badgeText="Projects"
             subtitle="จัดการโครงการ"
             color="from-emerald-700 to-teal-800"
-            fetchFn={() => DirectorApiService.getProjects()}
+            fetchFn={(s, f) => DirectorApiService.getProjects(s, f?.year ? Number(f.year) : undefined)}
             createFn={(data) => {
                 const pType = ptOptions.find(o => o.label === data.project_type);
                 const bType = btOptions.find(o => o.label === data.budget_type);
@@ -1368,7 +1368,7 @@ export function ActivitiesFeature() {
                     searchRightContent={switcher}
                     initialEditItem={pendingEditItem}
                     onCloseModal={() => setPendingEditItem(null)}
-                    fetchFn={() => DirectorApiService.getActivities()}
+                    fetchFn={(s) => DirectorApiService.getActivities(s)}
                     createFn={(data) => {
                         const teacherObj = teacherOptions.find(o => o.label === data.teacher_name);
                         const deptObj = departmentOptions.find(o => o.label === data.department_name);

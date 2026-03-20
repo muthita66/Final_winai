@@ -3,7 +3,10 @@ import { successResponse, errorResponse } from '@/lib/api-response';
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
-        return successResponse(await DirectorService.getProjects(Number(searchParams.get('year')) || undefined, Number(searchParams.get('semester')) || undefined));
+        const year = Number(searchParams.get('year')) || undefined;
+        const semester = Number(searchParams.get('semester')) || undefined;
+        const search = searchParams.get('search') || undefined;
+        return successResponse(await DirectorService.getProjects(year, semester, search));
     } catch (e: any) { return errorResponse('Failed', 500, e.message); }
 }
 export async function POST(req: Request) {

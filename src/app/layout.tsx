@@ -1,8 +1,11 @@
 import './globals.css';
-import { Inter } from 'next/font/google';
+import { Kanit } from 'next/font/google';
 import Providers from '@/components/Providers';
 
-const inter = Inter({ subsets: ['latin'] });
+const kanit = Kanit({ 
+    subsets: ['latin', 'thai'],
+    weight: ['300', '400', '500', '600', '700'],
+});
 
 export const metadata = {
     title: 'WinAI School',
@@ -25,8 +28,8 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="en">
-            <body className={`${inter.className} bg-slate-50 min-h-screen text-slate-800`}>
+        <html lang="th">
+            <body className={`${kanit.className} bg-slate-50 min-h-screen text-slate-800`}>
                 <Providers>
                     {children}
                 </Providers>

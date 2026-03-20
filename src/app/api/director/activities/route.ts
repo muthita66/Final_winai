@@ -1,7 +1,11 @@
 import { DirectorService } from '@/features/director/director.service';
 import { successResponse, errorResponse } from '@/lib/api-response';
-export async function GET() {
-    try { return successResponse(await DirectorService.getActivities()); }
+export async function GET(req: Request) {
+    try {
+        const { searchParams } = new URL(req.url);
+        const search = searchParams.get('search') || undefined;
+        return successResponse(await DirectorService.getActivities(search));
+    }
     catch (e: any) { return errorResponse('Failed', 500, e.message); }
 }
 export async function POST(req: Request) {

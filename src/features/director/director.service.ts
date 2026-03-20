@@ -204,11 +204,21 @@ export const DirectorService = {
     async getTeachers(search?: string) {
         const where: any = {};
         if (search) {
-            where.OR = [
-                { teacher_code: { contains: search, mode: 'insensitive' } },
-                { first_name: { contains: search, mode: 'insensitive' } },
-                { last_name: { contains: search, mode: 'insensitive' } },
-            ];
+            const parts = search.trim().split(/\s+/);
+            if (parts.length > 1) {
+                where.AND = parts.map(p => ({
+                    OR: [
+                        { first_name: { contains: p, mode: 'insensitive' } },
+                        { last_name: { contains: p, mode: 'insensitive' } },
+                    ]
+                }));
+            } else {
+                where.OR = [
+                    { teacher_code: { contains: search, mode: 'insensitive' } },
+                    { first_name: { contains: search, mode: 'insensitive' } },
+                    { last_name: { contains: search, mode: 'insensitive' } },
+                ];
+            }
         }
         const rows = await prisma.teachers.findMany({
             where,
@@ -315,11 +325,22 @@ export const DirectorService = {
     async getStudents(filters?: { search?: string; class_level?: string; room?: string }) {
         const where: any = {};
         if (filters?.search) {
-            where.OR = [
-                { student_code: { contains: filters.search, mode: 'insensitive' } },
-                { first_name: { contains: filters.search, mode: 'insensitive' } },
-                { last_name: { contains: filters.search, mode: 'insensitive' } },
-            ];
+            const s = filters.search.trim();
+            const parts = s.split(/\s+/);
+            if (parts.length > 1) {
+                where.AND = parts.map(p => ({
+                    OR: [
+                        { first_name: { contains: p, mode: 'insensitive' } },
+                        { last_name: { contains: p, mode: 'insensitive' } },
+                    ]
+                }));
+            } else {
+                where.OR = [
+                    { student_code: { contains: s, mode: 'insensitive' } },
+                    { first_name: { contains: s, mode: 'insensitive' } },
+                    { last_name: { contains: s, mode: 'insensitive' } },
+                ];
+            }
         }
         if (filters?.class_level || filters?.room) {
             where.classroom_students = { some: { classrooms: {} } };
@@ -940,18 +961,24 @@ export const DirectorService = {
     },
 
     // --- Activities (Events) ---
-    async getActivities() {
+    async getActivities(search?: string) {
         try {
-            // Using TO_CHAR in SQL to get absolute strings from DB, bypassing JS timezone shifts
-            const rows = await prisma.$queryRawUnsafe(`
+            let query = `
                 SELECT *,
                     TO_CHAR(start_datetime, 'YYYY-MM-DD') as start_date_str,
                     TO_CHAR(start_datetime, 'HH24:MI') as start_time_str,
                     TO_CHAR(end_datetime, 'YYYY-MM-DD') as end_date_str,
                     TO_CHAR(end_datetime, 'HH24:MI') as end_time_str
                 FROM events 
-                ORDER BY start_datetime DESC
-            `);
+                WHERE 1=1`;
+            const params: any[] = [];
+            if (search) {
+                query += ` AND (title ILIKE $1 OR description ILIKE $1 OR location ILIKE $1)`;
+                params.push(`%${search}%`);
+            }
+            query += ` ORDER BY start_datetime DESC`;
+
+            const rows = await prisma.$queryRawUnsafe(query, ...params);
 
             if (!rows || (rows as any).length === 0) return [];
 
@@ -1097,7 +1124,7 @@ export const DirectorService = {
     },
 
     // --- Projects ---
-    async getProjects(year?: number, semester?: number) {
+    async getProjects(year?: number, semester?: number, search?: string) {
         let query = `SELECT p.*, ay.year_name as year_label 
                      FROM projects p 
                      LEFT JOIN academic_years ay ON p.academic_year_id = ay.id 
@@ -1107,6 +1134,11 @@ export const DirectorService = {
         if (year) {
             query += ` AND p.academic_year_id = $${idx++}`;
             params.push(year);
+        }
+        if (search) {
+            query += ` AND (p.project_name ILIKE $${idx} OR p.project_code ILIKE $${idx})`;
+            params.push(`%${search}%`);
+            idx++;
         }
         query += ` ORDER BY p.id DESC`;
 
