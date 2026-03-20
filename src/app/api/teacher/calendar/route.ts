@@ -1,8 +1,18 @@
 import { TeacherCalendarService } from '@/features/teacher/calendar.service';
 import { successResponse, errorResponse } from '@/lib/api-response';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url);
+        const action = searchParams.get('action');
+
+        if (action === 'departments') {
+            return successResponse(await TeacherCalendarService.getDepartments());
+        }
+        if (action === 'event-types') {
+            return successResponse(await TeacherCalendarService.getEventTypes());
+        }
+
         const events = await TeacherCalendarService.getAll();
         return successResponse(events);
     } catch (error: any) {
@@ -12,8 +22,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const { title, description, event_date, responsible_teacher_id, location, start_time, end_time } = await request.json();
-        const event = await TeacherCalendarService.add(title, description, event_date, responsible_teacher_id, null, location, start_time, end_time);
+        const body = await request.json();
+        const event = await TeacherCalendarService.add(body);
         return successResponse(event, 'Event added');
     } catch (error: any) {
         return errorResponse('Failed to add event', 500, error.message);
@@ -22,8 +32,9 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
     try {
-        const { id, title, description, event_date, responsible_teacher_id, location, start_time, end_time } = await request.json();
-        const event = await TeacherCalendarService.update(id, title, description, event_date, responsible_teacher_id, location, start_time, end_time);
+        const { id, ...data } = await request.json();
+        if (!id) return errorResponse('id required', 400);
+        const event = await TeacherCalendarService.update(id, data);
         return successResponse(event, 'Event updated');
     } catch (error: any) {
         return errorResponse('Failed to update event', 500, error.message);

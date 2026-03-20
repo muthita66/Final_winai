@@ -822,14 +822,12 @@ model behavior_records {
 
 model behavior_types {
   id                    Int                    @id @default(autoincrement())
-  category_id           Int?
   name                  String                 @db.VarChar(200)
   is_positive           Boolean
   default_points        Int
   description           String?
   is_active             Boolean?               @default(true)
   behavior_records      behavior_records[]
-  evaluation_categories evaluation_categories? @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model evaluation_answers {
@@ -851,7 +849,6 @@ model evaluation_categories {
   description       String?
   created_at        DateTime?          @default(now()) @db.Timestamp(6)
   updated_at        DateTime?          @default(now()) @db.Timestamp(6)
-  behavior_types    behavior_types[]
   evaluation_forms  evaluation_forms[]
 }
 

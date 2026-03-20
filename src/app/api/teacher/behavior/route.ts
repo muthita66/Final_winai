@@ -45,7 +45,11 @@ export async function GET(request: Request) {
 
         if (action === 'pending') {
             const session = await getSession() as any;
-            if (!session || session.role !== 'director') return errorResponse('Unauthorized', 401);
+            const isApprover = session?.role === 'director' || 
+                session?.position?.includes('ปกครอง') || 
+                session?.department?.includes('ปกครอง') || 
+                session?.department?.includes('กิจการนักเรียน');
+            if (!session || !isApprover) return errorResponse('Unauthorized', 401);
             
             const pending = await TeacherBehaviorService.getPendingRecords();
             return successResponse(pending);
@@ -81,7 +85,11 @@ export async function POST(request: Request) {
         const { action, ...payload } = body;
 
         if (action === 'approve' || action === 'reject') {
-            if (session.role !== 'director') return errorResponse('Forbidden', 403);
+            const isApprover = session.role === 'director' || 
+                session.position?.includes('ปกครอง') || 
+                session.department?.includes('ปกครอง') || 
+                session.department?.includes('กิจการนักเรียน');
+            if (!isApprover) return errorResponse('Forbidden', 403);
             
             const result = await TeacherBehaviorService.updateRecordStatus({
                 id: payload.id,

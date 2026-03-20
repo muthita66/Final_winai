@@ -11,6 +11,10 @@ interface BehaviorFeatureProps {
 }
 
 export function BehaviorFeature({ session }: BehaviorFeatureProps) {
+    const isApprover = session.role === 'director' ||
+        session.position?.includes('ปกครอง') ||
+        session.department?.includes('ปกครอง') ||
+        session.department?.includes('กิจการนักเรียน');
     const [students, setStudents] = useState<any[]>([]);
     const [search, setSearch] = useState('');
     const [isLoading, setIsLoading] = useState(true);
@@ -123,7 +127,7 @@ export function BehaviorFeature({ session }: BehaviorFeatureProps) {
         setIsLoading(true);
         try {
             const data = await TeacherApiService.getBehaviorFilteredStudents({
-                teacher_id: session.role === 'teacher' ? session.id : undefined,
+                teacher_id: (session.role === 'teacher' && !isApprover) ? session.id : undefined,
                 year,
                 semester,
                 level_id: selectedLevel ? Number(selectedLevel) : undefined,
@@ -195,12 +199,12 @@ export function BehaviorFeature({ session }: BehaviorFeatureProps) {
             // If teacher recorded, it's pending, so score won't change yet but we can refresh anyway
             fetchStudents();
 
-            if (session.role === 'director') {
+            if (isApprover) {
                 fetchPendingRecords();
             }
 
             if (res.status === 'PENDING') {
-                toast.success('บันทึกเรียบร้อย (รอผู้อำนวยการอนุมัติ)');
+                toast.success('บันทึกเรียบร้อย (รอการอนุมัติ)');
             } else {
                 toast.success('บันทึกพฤติกรรมเรียบร้อย');
             }
@@ -279,8 +283,8 @@ export function BehaviorFeature({ session }: BehaviorFeatureProps) {
                 </div>
             </div>
 
-            {/* Tabs (Director only) */}
-            {session.role === 'director' && (
+            {/* Tabs (Approver only) */}
+            {isApprover && (
                 <div className="flex bg-slate-100 p-1.5 rounded-2xl w-fit">
                     <button
                         onClick={() => setActiveTab('students')}
@@ -419,7 +423,7 @@ export function BehaviorFeature({ session }: BehaviorFeatureProps) {
                                             <td className="px-3 py-5 text-center">
                                                 <div
                                                     className={`text-base font-black ${s.behavior_score > 100 ? 'text-emerald-600' :
-                                                            s.behavior_score < 100 ? 'text-rose-600' : 'text-slate-600'
+                                                        s.behavior_score < 100 ? 'text-rose-600' : 'text-slate-600'
                                                         }`}
                                                 >
                                                     {s.behavior_score}
@@ -458,7 +462,7 @@ export function BehaviorFeature({ session }: BehaviorFeatureProps) {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-100">
-                                    <th className="px-6 py-5 text-sm font-bold text-slate-500 uppercase tracking-widest">วันที่เกิดเหตุ</th>
+                                    <th className="px-6 py-5 text-sm font-bold text-slate-500 uppercase tracking-widest">วันที่</th>
                                     <th className="px-6 py-5 text-sm font-bold text-slate-500 uppercase tracking-widest">นักเรียน</th>
                                     <th className="px-6 py-5 text-sm font-bold text-slate-500 uppercase tracking-widest text-center">ระดับชั้น/ห้อง</th>
                                     <th className="px-6 py-5 text-sm font-bold text-slate-500 uppercase tracking-widest">พฤติกรรม</th>
@@ -476,7 +480,7 @@ export function BehaviorFeature({ session }: BehaviorFeatureProps) {
                                 ) : pendingRecords.length === 0 ? (
                                     <tr>
                                         <td colSpan={6} className="text-center py-20">
-                                            <div className="text-slate-300 font-bold text-lg italic tracking-tight uppercase">ไม่มีรายการรอนุมัติ</div>
+                                            <div className="text-slate-300 font-bold text-lg tracking-tight uppercase">ไม่มีรายการรอนุมัติ</div>
                                         </td>
                                     </tr>
                                 ) : (

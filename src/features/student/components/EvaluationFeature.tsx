@@ -794,8 +794,8 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                                                                 <td className="px-6 py-4 font-medium text-slate-700">
                                                                                     {displayNum} {topic.name.replace(/^[\d.]+\s*/, '')}
                                                                                 </td>
-                                                                                {(topic.options || []).map((s: any) => (
-                                                                                    <td key={s.value} className="px-3 py-4 text-center">
+                                                                                {(topic.options || []).map((s: any, i: number) => (
+                                                                                    <td key={`${s.value}-${i}`} className="px-3 py-4 text-center">
                                                                                         <label className="flex justify-center items-center w-full h-full cursor-pointer group">
                                                                                             <input
                                                                                                 type="radio"
@@ -1001,8 +1001,8 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                                                                     const fallbackVals = [5, 4, 3, 2, 1];
                                                                                     const vals = topic.options ? topic.options.map((o: any) => o.value) : fallbackVals;
 
-                                                                                    return vals.map((val: any) => (
-                                                                                        <td key={val} className="px-3 py-4 text-center">
+                                                                                    return vals.map((val: any, i: number) => (
+                                                                                        <td key={`${val}-${i}`} className="px-3 py-4 text-center">
                                                                                             <label className="flex justify-center items-center w-full h-full cursor-pointer group">
                                                                                                 <input
                                                                                                     type="radio"

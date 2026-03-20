@@ -9,7 +9,8 @@ export async function GET(req: Request) {
         const simpleData = data.map(t => ({
             id: t.id,
             first_name: t.first_name,
-            last_name: t.last_name
+            last_name: t.last_name,
+            department_id: t.department_id
         }));
         return successResponse(simpleData);
     } catch (e: any) {

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { TeacherApiService } from "@/services/teacher-api.service";
-import { MapPin, User, Bookmark } from "lucide-react";
+import { MapPin, User, Bookmark, ChevronDown } from "lucide-react";
 
 const TH_MONTHS = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 
@@ -12,27 +12,45 @@ export function CalendarFeature({ session }: { session: any }) {
     const [showAdd, setShowAdd] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<any>(null);
     const [teachers, setTeachers] = useState<any[]>([]);
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [eventTypes, setEventTypes] = useState<any[]>([]);
     const [filterTeacherId, setFilterTeacherId] = useState<string>("");
-    const [teacherSearch, setTeacherSearch] = useState("");
-    const [editTeacherSearch, setEditTeacherSearch] = useState("");
-    const [showTeacherResults, setShowTeacherResults] = useState(false);
-    const [showEditTeacherResults, setShowEditTeacherResults] = useState(false);
-    const [form, setForm] = useState({ title: "", description: "", event_date: "", responsible_teacher_id: "", location: "", start_time: "", end_time: "" });
-    const [editForm, setEditForm] = useState({ title: "", description: "", event_date: "", responsible_teacher_id: "", location: "", start_time: "", end_time: "" });
+    
+    // Unified form state
+    const initialForm = { 
+        title: "", 
+        description: "", 
+        event_date: "", 
+        start_time: "", 
+        end_date: "", 
+        end_time: "", 
+        responsible_teacher_id: "", 
+        location: "", 
+        visibility: "public",
+        department_id: "",
+        event_type_id: ""
+    };
+    const [form, setForm] = useState(initialForm);
+    const [editForm, setEditForm] = useState(initialForm);
 
     const loadData = async () => {
         setLoading(true);
         try {
-            const evs = await TeacherApiService.getCalendarEvents();
+            const [evs, tchs, depts, types] = await Promise.all([
+                TeacherApiService.getCalendarEvents(),
+                TeacherApiService.getAllTeachers(),
+                TeacherApiService.getDepartments(),
+                TeacherApiService.getEventTypes()
+            ]);
             setEvents(evs || []);
-        } catch (e) { console.error('Failed to load events:', e); }
-
-        try {
-            const tchs = await TeacherApiService.getAllTeachers();
             setTeachers(tchs || []);
-            console.log('Loaded teachers:', tchs);
-        } catch (e) { console.error('Failed to load teachers:', e); }
-        finally { setLoading(false); }
+            setDepartments(depts || []);
+            setEventTypes(types || []);
+        } catch (e) { 
+            console.error('Failed to load calendar data:', e); 
+        } finally { 
+            setLoading(false); 
+        }
     };
 
     useEffect(() => { loadData(); }, []);
@@ -41,10 +59,11 @@ export function CalendarFeature({ session }: { session: any }) {
         if (!form.title || !form.event_date) return;
         await TeacherApiService.addCalendarEvent({
             ...form,
-            responsible_teacher_id: form.responsible_teacher_id ? Number(form.responsible_teacher_id) : null
+            responsible_teacher_id: form.responsible_teacher_id ? Number(form.responsible_teacher_id) : null,
+            department_id: form.department_id ? Number(form.department_id) : null,
+            event_type_id: form.event_type_id ? Number(form.event_type_id) : null,
         });
-        setForm({ title: "", description: "", event_date: "", responsible_teacher_id: "", location: "", start_time: "", end_time: "" });
-        setTeacherSearch("");
+        setForm(initialForm);
         setShowAdd(false);
         loadData();
     };
@@ -53,15 +72,16 @@ export function CalendarFeature({ session }: { session: any }) {
         if (!selectedEvent || !editForm.title || !editForm.event_date) return;
         await TeacherApiService.updateCalendarEvent(selectedEvent.id, {
             ...editForm,
-            responsible_teacher_id: editForm.responsible_teacher_id ? Number(editForm.responsible_teacher_id) : null
+            responsible_teacher_id: editForm.responsible_teacher_id ? Number(editForm.responsible_teacher_id) : null,
+            department_id: editForm.department_id ? Number(editForm.department_id) : null,
+            event_type_id: editForm.event_type_id ? Number(editForm.event_type_id) : null,
         });
         setSelectedEvent(null);
         loadData();
     };
 
     const openAddForm = (dateKey: string) => {
-        setForm(prev => ({ ...prev, event_date: dateKey }));
-        setTeacherSearch("");
+        setForm({ ...initialForm, event_date: dateKey });
         setShowAdd(true);
         setSelectedEvent(null);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -72,13 +92,16 @@ export function CalendarFeature({ session }: { session: any }) {
         setEditForm({
             title: ev.title,
             description: ev.description || "",
-            event_date: new Date(ev.event_date).toISOString().slice(0, 10),
+            event_date: ev.start_date || (ev.event_date ? new Date(ev.event_date).toISOString().slice(0, 10) : ""),
+            start_time: ev.start_time || "",
+            end_date: ev.end_date || "",
+            end_time: ev.end_time || "",
             responsible_teacher_id: ev.responsible_teacher_id ? String(ev.responsible_teacher_id) : "",
             location: ev.location || "",
-            start_time: ev.start_datetime ? new Date(ev.start_datetime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false }) : "",
-            end_time: ev.end_date ? new Date(ev.end_date).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false }) : ""
+            visibility: ev.visibility || "public",
+            department_id: ev.department_id ? String(ev.department_id) : "",
+            event_type_id: ev.event_type_id ? String(ev.event_type_id) : ""
         });
-        setEditTeacherSearch(ev.responsible_teacher_name || "");
         setShowAdd(false);
     };
 
@@ -175,169 +198,186 @@ export function CalendarFeature({ session }: { session: any }) {
                 <button onClick={() => { setShowAdd(!showAdd); setSelectedEvent(null); }} className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors text-sm">+ เพิ่มกิจกรรม</button>
             </div>
 
-            {showAdd && (
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
-                    <h3 className="font-bold text-slate-800">เพิ่มกิจกรรมใหม่</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                        <div className="md:col-span-2 space-y-1">
-                            <label className="text-xs font-semibold text-slate-500 px-1">ชื่อกิจกรรม</label>
-                            <input className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="ชื่อกิจกรรม" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-semibold text-slate-500 px-1">เวลาเริ่ม</label>
-                            <input type="time" className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" value={form.start_time} onChange={e => setForm({ ...form, start_time: e.target.value })} />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-semibold text-slate-500 px-1">เวลาสิ้นสุด</label>
-                            <input type="time" className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })} />
-                        </div>
-                        <div className="md:col-span-2 space-y-1">
-                            <label className="text-xs font-semibold text-slate-500 px-1">วันที่</label>
-                            <input type="date" className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" value={form.event_date} onChange={e => setForm({ ...form, event_date: e.target.value })} />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6 items-end">
-                        <div className="md:col-span-2 space-y-1">
-                            <label className="text-xs font-semibold text-slate-500 px-1">รายละเอียด</label>
-                            <input className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="รายละเอียด" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-                        </div>
-                        <div className="md:col-span-2 space-y-1">
-                            <label className="text-xs font-semibold text-slate-500 px-1">สถานที่</label>
-                            <input className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="สถานที่" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} />
-                        </div>
-                        <div className="md:col-span-2 space-y-1">
-                            <label className="text-xs font-semibold text-slate-500 px-1">ครูผู้รับผิดชอบ</label>
-                            <div className="relative">
-                                <input
-                                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
-                                    placeholder="ค้นหาครูผู้รับผิดชอบ..."
-                                    value={teacherSearch}
-                                    onChange={e => {
-                                        setTeacherSearch(e.target.value);
-                                        setShowTeacherResults(true);
-                                    }}
-                                    onFocus={() => setShowTeacherResults(true)}
-                                />
-                                {showTeacherResults && teacherSearch.trim() && (
-                                    <div className="absolute z-[60] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto py-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                                        {(() => {
-                                            const filtered = teachers.filter(t => {
-                                                const fullName = `${t.first_name || ''} ${t.last_name || ''}`.toLowerCase();
-                                                return fullName.includes(teacherSearch.toLowerCase().trim());
-                                            });
-                                            if (filtered.length > 0) {
-                                                return filtered.map(t => (
-                                                    <div
-                                                        key={t.id}
-                                                        className="px-4 py-2 hover:bg-emerald-50 cursor-pointer text-sm text-slate-700 hover:text-emerald-700 transition-colors"
-                                                        onClick={() => {
-                                                            setForm({ ...form, responsible_teacher_id: String(t.id) });
-                                                            setTeacherSearch(`${t.first_name} ${t.last_name}`);
-                                                            setShowTeacherResults(false);
-                                                        }}
-                                                    >
-                                                        {t.first_name} {t.last_name}
-                                                    </div>
-                                                ));
-                                            }
-                                            return <div className="px-4 py-2 text-xs text-slate-400 text-center italic">ไม่พบรายชื่อครู</div>;
-                                        })()}
-                                    </div>
-                                )}
-                                {showTeacherResults && <div className="fixed inset-0 z-50" onClick={() => setShowTeacherResults(false)}></div>}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex gap-2">
-                        <button onClick={handleAdd} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition-colors">บันทึก</button>
-                        <button onClick={() => setShowAdd(false)} className="px-6 py-2 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200 transition-colors">ยกเลิก</button>
-                    </div>
-                </div>
-            )}
-
-            {/* Edit Modal */}
-            {selectedEvent && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-                    <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                        <div className="bg-emerald-600 py-4 px-6 text-white flex justify-between items-center">
-                            <h3 className="text-lg font-bold">รายละเอียดกิจกรรม</h3>
-                            <button onClick={() => setSelectedEvent(null)} className="p-1 hover:bg-white/20 rounded-lg transition-colors">
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            {/* Unified Activity Modal */}
+            {(showAdd || selectedEvent) && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[95vh]">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                            <h3 className="text-xl font-bold text-slate-800">
+                                {selectedEvent ? "แก้ไขกิจกรรม" : "เพิ่มกิจกรรม"}
+                            </h3>
+                            <button 
+                                onClick={() => { setShowAdd(false); setSelectedEvent(null); }} 
+                                className="text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
-                        <div className="p-8 space-y-6">
-                            <div className="space-y-4">
+
+                        {/* Body - Scrollable */}
+                        <div className="p-6 space-y-5 overflow-y-auto custom-scrollbar">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                {/* Row 1 */}
                                 <div className="space-y-1">
-                                    <label className="text-sm font-semibold text-slate-500 px-1">ชื่อกิจกรรม</label>
-                                    <input className="w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all" value={editForm.title} onChange={e => setEditForm(prev => ({ ...prev, title: e.target.value }))} />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <label className="text-sm font-semibold text-slate-500 px-1">เวลาเริ่ม</label>
-                                        <input type="time" className="w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all" value={editForm.start_time} onChange={e => setEditForm(prev => ({ ...prev, start_time: e.target.value }))} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-sm font-semibold text-slate-500 px-1">เวลาสิ้นสุด</label>
-                                        <input type="time" className="w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all" value={editForm.end_time} onChange={e => setEditForm(prev => ({ ...prev, end_time: e.target.value }))} />
-                                    </div>
+                                    <label className="text-sm font-medium text-slate-700">ชื่อกิจกรรม</label>
+                                    <input 
+                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-800 placeholder:text-slate-400" 
+                                        placeholder="ระบุชื่อกิจกรรม..."
+                                        value={showAdd ? form.title : editForm.title} 
+                                        onChange={e => showAdd ? setForm({...form, title: e.target.value}) : setEditForm({...editForm, title: e.target.value})} 
+                                    />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-sm font-semibold text-slate-500 px-1">วันที่</label>
-                                    <input type="date" className="w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all" value={editForm.event_date} onChange={e => setEditForm(prev => ({ ...prev, event_date: e.target.value }))} />
+                                    <label className="text-sm font-medium text-slate-700">ประเภทกิจกรรม</label>
+                                    <select 
+                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-800 cursor-pointer"
+                                        value={showAdd ? form.event_type_id : editForm.event_type_id}
+                                        onChange={e => showAdd ? setForm({...form, event_type_id: e.target.value}) : setEditForm({...editForm, event_type_id: e.target.value})}
+                                    >
+                                        <option value="">ทั้งหมด</option>
+                                        {eventTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    </select>
+                                </div>
+
+                                {/* Row 2 */}
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">ฝ่ายที่รับผิดชอบ</label>
+                                    <select 
+                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-800 cursor-pointer"
+                                        value={showAdd ? form.department_id : editForm.department_id}
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            if (showAdd) {
+                                                setForm({ ...form, department_id: val, responsible_teacher_id: "" });
+                                            } else {
+                                                setEditForm({ ...editForm, department_id: val, responsible_teacher_id: "" });
+                                            }
+                                        }}
+                                    >
+                                        <option value="">ทั้งหมด</option>
+                                        {departments.map(d => <option key={d.id} value={d.id}>{d.department_name}</option>)}
+                                    </select>
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-sm font-semibold text-slate-500 px-1">รายละเอียด</label>
-                                    <textarea className="w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all min-h-[100px]" value={editForm.description} onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))} />
+                                    <label className="text-sm font-medium text-slate-700">ครูที่รับผิดชอบ</label>
+                                    <select 
+                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-800 cursor-pointer"
+                                        value={showAdd ? form.responsible_teacher_id : editForm.responsible_teacher_id}
+                                        onChange={e => showAdd ? setForm({...form, responsible_teacher_id: e.target.value}) : setEditForm({...editForm, responsible_teacher_id: e.target.value})}
+                                    >
+                                        <option value="">ทั้งหมด</option>
+                                        {(() => {
+                                            const deptId = showAdd ? form.department_id : editForm.department_id;
+                                            return teachers
+                                                .filter(t => !deptId || String(t.department_id) === String(deptId))
+                                                .map(t => (
+                                                    <option key={t.id} value={t.id}>
+                                                        {t.first_name} {t.last_name}
+                                                    </option>
+                                                ));
+                                        })()}
+                                    </select>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                                    <div className="space-y-1">
-                                        <label className="text-sm font-semibold text-slate-500 px-1">สถานที่</label>
-                                        <input className="w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all" value={editForm.location} onChange={e => setEditForm(prev => ({ ...prev, location: e.target.value }))} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-sm font-semibold text-slate-500 px-1">ครูผู้รับผิดชอบ</label>
-                                        <div className="relative">
-                                            <input
-                                                className="w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all bg-white"
-                                                placeholder="ค้นหาครูผู้รับผิดชอบ..."
-                                                value={editTeacherSearch}
-                                                onChange={e => {
-                                                    setEditTeacherSearch(e.target.value);
-                                                    setShowEditTeacherResults(true);
-                                                }}
-                                                onFocus={() => setShowEditTeacherResults(true)}
-                                            />
-                                            {showEditTeacherResults && (
-                                                <div className="absolute z-[110] w-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-48 overflow-y-auto py-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                    {teachers.filter(t => `${t.first_name} ${t.last_name}`.toLowerCase().includes(editTeacherSearch.toLowerCase())).length > 0 ? (
-                                                        teachers.filter(t => `${t.first_name} ${t.last_name}`.toLowerCase().includes(editTeacherSearch.toLowerCase())).map(t => (
-                                                            <div
-                                                                key={t.id}
-                                                                className="px-4 py-3 hover:bg-emerald-50 cursor-pointer text-sm text-slate-700 hover:text-emerald-700 transition-colors"
-                                                                onClick={() => {
-                                                                    setEditForm({ ...editForm, responsible_teacher_id: String(t.id) });
-                                                                    setEditTeacherSearch(`${t.first_name} ${t.last_name}`);
-                                                                    setShowEditTeacherResults(false);
-                                                                }}
-                                                            >
-                                                                {t.first_name} {t.last_name}
-                                                            </div>
-                                                        ))
-                                                    ) : (
-                                                        <div className="px-4 py-3 text-xs text-slate-400 text-center italic">ไม่พบรายชื่อครู</div>
-                                                    )}
-                                                </div>
-                                            )}
-                                            {showEditTeacherResults && <div className="fixed inset-0 z-[105]" onClick={() => setShowEditTeacherResults(false)}></div>}
-                                        </div>
-                                    </div>
+
+                                {/* Row 3 */}
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">วันที่เริ่ม</label>
+                                    <input 
+                                        type="date" 
+                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-800"
+                                        value={showAdd ? form.event_date : editForm.event_date} 
+                                        onChange={e => showAdd ? setForm({...form, event_date: e.target.value}) : setEditForm({...editForm, event_date: e.target.value})} 
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">วันที่สิ้นสุด</label>
+                                    <input 
+                                        type="date" 
+                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-800"
+                                        value={showAdd ? form.end_date : editForm.end_date} 
+                                        onChange={e => showAdd ? setForm({...form, end_date: e.target.value}) : setEditForm({...editForm, end_date: e.target.value})} 
+                                    />
+                                </div>
+
+                                {/* Row 4 */}
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">เวลาเริ่ม</label>
+                                    <input 
+                                        type="time" 
+                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-800"
+                                        value={showAdd ? form.start_time : editForm.start_time} 
+                                        onChange={e => showAdd ? setForm({...form, start_time: e.target.value}) : setEditForm({...editForm, start_time: e.target.value})} 
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">เวลาสิ้นสุด</label>
+                                    <input 
+                                        type="time" 
+                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-800"
+                                        value={showAdd ? form.end_time : editForm.end_time} 
+                                        onChange={e => showAdd ? setForm({...form, end_time: e.target.value}) : setEditForm({...editForm, end_time: e.target.value})} 
+                                    />
+                                </div>
+
+                                {/* Row 5 */}
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">สถานที่</label>
+                                    <input 
+                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-800 placeholder:text-slate-400" 
+                                        placeholder="ระบุสถานที่..."
+                                        value={showAdd ? form.location : editForm.location} 
+                                        onChange={e => showAdd ? setForm({...form, location: e.target.value}) : setEditForm({...editForm, location: e.target.value})} 
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">การเข้าร่วม</label>
+                                    <select 
+                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-800 cursor-pointer"
+                                        value={showAdd ? form.visibility : editForm.visibility}
+                                        onChange={e => showAdd ? setForm({...form, visibility: e.target.value}) : setEditForm({...editForm, visibility: e.target.value})}
+                                    >
+                                        <option value="public">public</option>
+                                        <option value="internal">internal</option>
+                                        <option value="private">private</option>
+                                    </select>
+                                </div>
+
+                                {/* Row 6 */}
+                                <div className="md:col-span-2 space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">รายละเอียด</label>
+                                    <textarea 
+                                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-800 placeholder:text-slate-400 min-h-[100px] resize-none pb-20" 
+                                        placeholder="..."
+                                        value={showAdd ? form.description : editForm.description} 
+                                        onChange={e => showAdd ? setForm({...form, description: e.target.value}) : setEditForm({...editForm, description: e.target.value})} 
+                                    />
                                 </div>
                             </div>
-                            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                                <button onClick={handleUpdate} className="flex-1 px-6 py-3 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-200">บันทึกการแก้ไข</button>
-                                <button onClick={() => handleDelete(selectedEvent.id)} className="px-6 py-3 bg-red-50 text-red-600 rounded-2xl font-bold hover:bg-red-100 transition-all text-sm">ลบกิจกรรม</button>
-                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 px-6 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-3 shrink-0">
+                            <button 
+                                onClick={() => { setShowAdd(false); setSelectedEvent(null); }} 
+                                className="px-5 py-2 text-slate-600 font-bold rounded-xl border border-slate-300 hover:bg-slate-100 transition-all text-sm"
+                            >
+                                ยกเลิก
+                            </button>
+                            {selectedEvent && (
+                                <button 
+                                    onClick={() => handleDelete(selectedEvent.id)} 
+                                    className="px-5 py-2 text-rose-500 font-bold rounded-xl border border-rose-200 hover:bg-rose-50 transition-all text-sm"
+                                >
+                                    ลบ
+                                </button>
+                            )}
+                            <button 
+                                onClick={showAdd ? handleAdd : handleUpdate} 
+                                className="px-7 py-2 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md active:scale-95 text-sm"
+                            >
+                                {selectedEvent ? "บันทึก" : "เพิ่ม"}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -385,6 +425,16 @@ export function CalendarFeature({ session }: { session: any }) {
                                         )}
                                     </div>
                                     <div className="flex flex-wrap items-center gap-3">
+                                        {ev.event_type_name && (
+                                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-bold uppercase tracking-wider">
+                                                {ev.event_type_name}
+                                            </span>
+                                        )}
+                                        {ev.department_name && (
+                                            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">
+                                                {ev.department_name}
+                                            </span>
+                                        )}
                                         {ev.location && (
                                             <span className="text-slate-600 font-medium flex items-center gap-1">
                                                 <MapPin size={12} className="text-rose-500" />

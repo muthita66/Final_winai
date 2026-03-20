@@ -226,9 +226,22 @@ export const TeacherBehaviorService = {
         // Determine if auto-approved (Director role)
         const user = await prisma.users.findUnique({
             where: { id: data.reporter_user_id },
-            include: { roles: true }
+            include: { 
+                roles: true,
+                teachers: {
+                    include: { 
+                        teacher_positions: true,
+                        departments: true,
+                    }
+                }
+            }
         });
         const isDirector = user?.roles?.role_name === 'director';
+        const isDiscipline = 
+            user?.teachers?.teacher_positions?.title?.includes('ปกครอง') ||
+            (user?.teachers as any)?.departments?.department_name?.includes('ปกครอง') ||
+            (user?.teachers as any)?.departments?.department_name?.includes('กิจการนักเรียน');
+        const canAutoApprove = isDirector || isDiscipline;
 
         return prisma.behavior_records.create({
             data: {
@@ -238,10 +251,10 @@ export const TeacherBehaviorService = {
                 points_awarded: data.points,
                 note: data.note,
                 semester_id: semester_id,
-                status: isDirector ? 'APPROVED' : 'PENDING',
+                status: canAutoApprove ? 'APPROVED' : 'PENDING',
                 incident_date: new Date(),
-                approved_at: isDirector ? new Date() : null,
-                approved_by_user_id: isDirector ? data.reporter_user_id : null
+                approved_at: canAutoApprove ? new Date() : null,
+                approved_by_user_id: canAutoApprove ? data.reporter_user_id : null
             }
         });
     },

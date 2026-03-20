@@ -29,6 +29,8 @@ export const AuthService = {
                 teachers: {
                     include: {
                         name_prefixes: true,
+                        teacher_positions: true,
+                        departments: true,
                     },
                 },
             },
@@ -81,6 +83,8 @@ export const AuthService = {
                 code: t.teacher_code,
                 role: 'teacher',
                 name: fullName || t.teacher_code,
+                position: (t as any).teacher_positions?.title || '',
+                department: (t as any).departments?.department_name || '',
             };
         } else if (normalizedRole === 'director') {
             // Director has no separate profile table — use users data

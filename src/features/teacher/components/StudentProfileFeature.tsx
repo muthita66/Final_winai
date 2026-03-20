@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { TeacherApiService } from "@/services/teacher-api.service";
-import { Pencil, Trash2 } from "lucide-react";
+import {  } from "lucide-react";
 import { getCurrentAcademicYearBE } from "@/features/student/academic-term";
 
 function fmtDate(value: any) {
@@ -146,11 +146,6 @@ export function StudentProfileFeature({ session }: { session: any }) {
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [photoUploading, setPhotoUploading] = useState(false);
-    const [photoMessage, setPhotoMessage] = useState("");
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [viewerOpen, setViewerOpen] = useState(false);
-
     const [advisorEvalYear, setAdvisorEvalYear] = useState<number>(getCurrentAcademicYearBE());
     const [advisorEvalSemester, setAdvisorEvalSemester] = useState<number>(1);
     const [advisorEvalLoading, setAdvisorEvalLoading] = useState(false);
@@ -287,37 +282,6 @@ export function StudentProfileFeature({ session }: { session: any }) {
     }
 
     const advisorYearOptions = Array.from({ length: 5 }, (_, i) => getCurrentAcademicYearBE() - i);
-
-    const handlePhotoUpload = async (file?: File | null) => {
-        if (!file || !studentId || !session?.id) return;
-        setPhotoUploading(true);
-        setPhotoMessage("");
-        try {
-            const result = await TeacherApiService.uploadStudentPhoto(studentId, session.id, file);
-            const cacheBusted = `${result.photo_url}${result.photo_url.includes("?") ? "&" : "?"}t=${Date.now()}`;
-            setProfile((prev: any) => prev ? ({ ...prev, photo_url: cacheBusted }) : prev);
-            setPhotoMessage("อัปโหลดรูปเรียบร้อย");
-        } catch (e: any) {
-            setPhotoMessage(e?.message || "อัปโหลดรูปไม่สำเร็จ");
-        } finally {
-            setPhotoUploading(false);
-        }
-    };
-
-    const handlePhotoDelete = async () => {
-        if (!studentId || !session?.id || !window.confirm("ยืนยันการลบรูปภาพหรือไม่?")) return;
-        setPhotoUploading(true);
-        setPhotoMessage("");
-        try {
-            await TeacherApiService.deleteStudentPhoto(studentId, session.id);
-            setProfile((prev: any) => prev ? ({ ...prev, photo_url: null }) : prev);
-            setPhotoMessage("ลบรูปเรียบร้อย");
-        } catch (e: any) {
-            setPhotoMessage(e?.message || "ลบรูปไม่สำเร็จ");
-        } finally {
-            setPhotoUploading(false);
-        }
-    };
 
     const handleAdvisorEvaluationSave = async () => {
         if (!studentId || !session?.id) return;
@@ -475,14 +439,6 @@ export function StudentProfileFeature({ session }: { session: any }) {
 
     return (
         <div className="space-y-6">
-            {viewerOpen && profile?.photo_url && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setViewerOpen(false)}>
-                    <img src={profile.photo_url} className="max-w-full max-h-full rounded-2xl shadow-2xl object-contain cursor-zoom-out" alt="student photo large" onClick={(e) => { e.stopPropagation(); setViewerOpen(false); }} />
-                    <button className="absolute top-6 right-6 text-white hover:text-slate-300 bg-black/50 p-2 rounded-full transition-colors" onClick={(e) => { e.stopPropagation(); setViewerOpen(false); }}>
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
-            )}
             <section className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-3xl p-8 text-white shadow-lg relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-full bg-white opacity-5 transform -skew-x-12 translate-x-20"></div>
                 <div className="relative z-10 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -511,68 +467,6 @@ export function StudentProfileFeature({ session }: { session: any }) {
             <div className="space-y-6">
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                     <h3 className="text-lg font-bold text-slate-800 mb-4">ข้อมูลส่วนตัว</h3>
-                    <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50 mb-6">
-                        <div className="flex flex-col md:flex-row items-start gap-4">
-                            <div className="relative group">
-                                {profile.photo_url ? (
-                                    <img
-                                        src={profile.photo_url}
-                                        alt="student photo"
-                                        className="h-24 w-24 rounded-2xl object-cover border border-slate-200 bg-white cursor-pointer hover:opacity-80 transition-opacity"
-                                        onClick={() => setViewerOpen(true)}
-                                    />
-                                ) : (
-                                    <div className="h-24 w-24 rounded-2xl border border-dashed border-slate-300 bg-white flex items-center justify-center text-slate-400 text-xs text-center px-2">
-                                        ไม่มีรูปนักเรียน
-                                    </div>
-                                )}
-                                {profile.photo_url && (
-                                    <div className="absolute -bottom-2 -right-2 flex gap-1 items-center">
-                                        <div className="p-1.5 bg-white rounded-full shadow-md border border-slate-200 text-emerald-600">
-                                            <Pencil size={12} />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex-1">
-                                <div className="text-sm font-semibold text-slate-800">รูปนักเรียน</div>
-                                <div className="text-xs text-slate-500 mt-1">อัปโหลดจากหน้านี้ได้ (jpg/png/webp สูงสุด 5MB)</div>
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                    <label className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors">
-                                        {photoUploading ? "กำลังอัปโหลด..." : profile.photo_url ? "เปลี่ยนรูป" : "อัปโหลดรูป"}
-                                        <input
-                                            type="file"
-                                            ref={fileInputRef}
-                                            accept="image/png,image/jpeg,image/webp"
-                                            className="hidden"
-                                            disabled={photoUploading}
-                                            onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                void handlePhotoUpload(file);
-                                                e.currentTarget.value = "";
-                                            }}
-                                        />
-                                    </label>
-                                    {profile.photo_url && !photoUploading && (
-                                        <button
-                                            onClick={handlePhotoDelete}
-                                            className="inline-flex items-center justify-center rounded-xl bg-white border border-rose-200 px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors gap-2"
-                                            title="ลบรูปนักเรียน"
-                                        >
-                                            <Trash2 size={16} />
-                                            ลบรูป
-                                        </button>
-                                    )}
-                                </div>
-                                {photoMessage && (
-                                    <div className={`mt-2 text-xs font-medium ${photoMessage.includes("สำเร็จ") ? "text-emerald-700" : "text-rose-600"}`}>
-                                        {photoMessage}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {personalFields.map((f, i) => (
                             <div key={i} className="p-4 rounded-xl bg-slate-50 border border-slate-100">

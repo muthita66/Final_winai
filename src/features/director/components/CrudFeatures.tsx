@@ -1253,7 +1253,18 @@ export function ActivitiesFeature() {
         { key: "name", label: "ชื่อกิจกรรม", required: true },
         { key: "event_type_name", label: "ประเภทกิจกรรม", type: "select", options: ["", ...eventTypeOptions.map(o => o.label)] },
         { key: "department_name", label: "ฝ่ายที่รับผิดชอบ", type: "select", options: ["", ...departmentOptions.map(o => o.label)] },
-        { key: "teacher_name", label: "ครูที่รับผิดชอบ", type: "select", options: ["", ...teacherOptions.map(o => o.label)] },
+        { 
+            key: "teacher_name", 
+            label: "ครูที่รับผิดชอบ", 
+            type: "select", 
+            options: (values) => {
+                const dept = values.department_name;
+                const teachers = (teacherOptions as any[]);
+                if (!dept) return ["", ...teachers.map(o => o.label)];
+                const filtered = teachers.filter(o => o.dept === dept || o.dept === "" || !o.dept);
+                return ["", ...filtered.map(o => o.label)];
+            }
+        },
         { key: "start_date", label: "วันที่เริ่ม", type: "date", required: true },
         { key: "end_date", label: "วันที่สิ้นสุด", type: "date" },
         { key: "start_time", label: "เวลาเริ่ม", type: "time" },
@@ -1307,7 +1318,8 @@ export function ActivitiesFeature() {
         DirectorApiService.getTeachers().then(rows => {
             setTeacherOptions(rows.map(r => ({
                 id: r.id,
-                label: `${r.prefix || ''}${r.first_name} ${r.last_name}`
+                label: `${r.prefix || ''}${r.first_name} ${r.last_name}`,
+                dept: (r as any).departments?.department_name || ''
             })));
         });
         DirectorApiService.getDepartmentsLookup().then(rows => {

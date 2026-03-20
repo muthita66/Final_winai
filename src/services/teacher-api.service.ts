@@ -17,10 +17,40 @@ export const TeacherApiService = {
     async getCalendarEvents() {
         return fetchApi<any[]>('/api/teacher/calendar');
     },
-    async addCalendarEvent(data: { title: string; description: string; event_date: string; responsible_teacher_id?: number | null; location?: string | null; start_time?: string | null; end_time?: string | null }) {
+    async getDepartments() {
+        return fetchApi<any[]>('/api/teacher/calendar?action=departments');
+    },
+    async getEventTypes() {
+        return fetchApi<any[]>('/api/teacher/calendar?action=event-types');
+    },
+    async addCalendarEvent(data: { 
+        title: string; 
+        description?: string; 
+        event_date: string; 
+        start_time?: string | null; 
+        end_date?: string | null;
+        end_time?: string | null;
+        responsible_teacher_id?: number | null; 
+        location?: string | null; 
+        visibility?: string;
+        department_id?: number | null;
+        event_type_id?: number | null;
+    }) {
         return fetchApi<any>('/api/teacher/calendar', { method: 'POST', body: JSON.stringify(data) });
     },
-    async updateCalendarEvent(id: number, data: { title: string; description: string; event_date: string; responsible_teacher_id?: number | null; location?: string | null; start_time?: string | null; end_time?: string | null }) {
+    async updateCalendarEvent(id: number, data: { 
+        title?: string; 
+        description?: string; 
+        event_date?: string; 
+        start_time?: string | null; 
+        end_date?: string | null;
+        end_time?: string | null;
+        responsible_teacher_id?: number | null; 
+        location?: string | null; 
+        visibility?: string;
+        department_id?: number | null;
+        event_type_id?: number | null;
+    }) {
         return fetchApi<any>('/api/teacher/calendar', { method: 'PUT', body: JSON.stringify({ id, ...data }) });
     },
     async deleteCalendarEvent(id: number) {
