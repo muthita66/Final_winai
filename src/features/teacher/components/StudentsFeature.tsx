@@ -114,7 +114,7 @@ export function StudentsFeature({ session }: { session: any }) {
                 />
             </div>
 
-            {notice && <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl px-4 py-3 text-sm">{notice}</div>}
+            {notice && <div className="bg-emerald-50 border-emerald-200 text-emerald-800 rounded-2xl px-4 py-3 text-sm">{notice}</div>}
 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 {loading ? (

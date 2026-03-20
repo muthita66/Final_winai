@@ -73,19 +73,19 @@ export function ActivitiesCalendar({ onAddClick, onBack, onEditClick }: { onAddC
                         <div className={`text-right text-xs p-1 font-bold ${isToday ? 'text-emerald-600' : 'text-slate-400'}`}>
                             {display}
                         </div>
-                        <div className="flex flex-col gap-1 px-1 overflow-hidden">
+                        <div className="flex flex-col gap-1.5 px-1 overflow-hidden">
                             {dayEvs.slice(0, 3).map((ev: any, idx: number) => (
                                 <button
                                     key={idx}
                                     onClick={() => onEditClick?.(ev)}
-                                    className="text-left text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-md border border-emerald-200 truncate hover:bg-emerald-100 font-medium transition-colors"
+                                    className="text-left text-xs px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md border border-emerald-200 truncate hover:bg-emerald-100 font-bold transition-colors shadow-sm"
                                     title={`แก้ไข: ${ev.name}`}
                                 >
                                     {ev.name}
                                 </button>
                             ))}
                             {dayEvs.length > 3 && (
-                                <div className="text-[9px] text-slate-400 px-1 font-medium italic">
+                                <div className="text-[10px] text-slate-400 px-1 font-bold italic">
                                     + {dayEvs.length - 3} รายการ
                                 </div>
                             )}
@@ -156,7 +156,7 @@ export function ActivitiesCalendar({ onAddClick, onBack, onEditClick }: { onAddC
                         <tr className="bg-slate-50">
                             {["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."].map((d, i) => (
                                 <th key={i} className={`py-3 px-2 text-center font-bold text-xs uppercase border-b border-slate-200 ${
-                                    i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-500'
+                                    i === 0 ? 'text-red-500' : i === 6 ? 'text-teal-500' : 'text-slate-500'
                                 }`}>
                                     {d}
                                 </th>
@@ -203,7 +203,7 @@ export function ActivitiesCalendar({ onAddClick, onBack, onEditClick }: { onAddC
                                         <svg className="w-3.5 h-3.5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                         <span>{ev.date ? new Date(ev.date).toLocaleDateString("th-TH") : "-"}</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 font-medium text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                    <div className="flex items-center gap-1.5 font-medium text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded">
                                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                         <span>{ev.start_time} - {ev.end_time}</span>
                                     </div>

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, Fragment } from "react";
 import { TeacherApiService } from "@/services/teacher-api.service";
@@ -176,19 +176,19 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
 
     return (
         <div className="space-y-6">
-            {/* Header section - orange style matching TeachingEvaluationFeature */}
-            <section className="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white shadow-lg relative overflow-hidden">
+            {/* Header section - emerald style matching TeachingEvaluationFeature */}
+            <section className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 p-5 text-white shadow-lg relative overflow-hidden">
                 <div className="absolute inset-y-0 right-[-3rem] w-60 bg-white/10 skew-x-[-18deg]" />
                 <div className="relative z-10 flex flex-col gap-3 lg:flex-row lg:items-center">
                     {/* Left: Title */}
                     <div className="shrink-0 group cursor-default">
-                        <h1 className="text-xl font-bold flex items-center gap-2 whitespace-nowrap group-hover:text-orange-100 transition-colors">
+                        <h1 className="text-xl font-bold flex items-center gap-2 whitespace-nowrap group-hover:text-emerald-100 transition-colors">
                             <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             การประเมินที่ปรึกษา
                         </h1>
-                        <p className="text-orange-100/70 text-[10px] mt-0.5 ml-8 uppercase tracking-wider">Advisor and Home Room Evaluation</p>
+                        <p className="text-emerald-100/70 text-[10px] mt-0.5 ml-8 uppercase tracking-wider">Advisor and Home Room Evaluation</p>
                     </div>
 
                     {/* Right: Filter Controls (Expanded) */}
@@ -197,16 +197,16 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[2fr_1fr] gap-3 items-center">
                                 {/* ค้นหานักเรียน - Expanded to fill more space */}
                                 <div className="space-y-1">
-                                    <span className="block text-[10px] font-bold uppercase tracking-wider text-orange-100/80 ml-1">ค้นหานักเรียน</span>
+                                    <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-100/80 ml-1">ค้นหานักเรียน</span>
                                     <div className="relative">
                                         <input
                                             type="text"
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                             placeholder="ค้นหาชื่อ, นามสกุล หรือรหัสนักเรียน..."
-                                            className="w-full rounded-xl bg-white/20 border border-white/30 text-white pl-8 pr-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-white/40 placeholder:text-orange-100/40"
+                                            className="w-full rounded-xl bg-white/20 border border-white/30 text-white pl-8 pr-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-white/40 placeholder:text-emerald-100/40"
                                         />
-                                        <svg className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-orange-100/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <svg className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-100/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                         </svg>
                                     </div>
@@ -216,7 +216,7 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                                 <div className="grid grid-cols-2 gap-3">
                                     {/* ภาคเรียน */}
                                     <div className="space-y-1">
-                                        <span className="block text-[10px] font-bold uppercase tracking-wider text-orange-100/80 ml-1">ภาคเรียน</span>
+                                        <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-100/80 ml-1">ภาคเรียน</span>
                                         <select
                                             value={semester}
                                             onChange={(e) => setSemester(Number(e.target.value))}
@@ -229,7 +229,7 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
 
                                     {/* ปีการศึกษา */}
                                     <div className="space-y-1">
-                                        <span className="block text-[10px] font-bold uppercase tracking-wider text-orange-100/80 ml-1">ปีการศึกษา</span>
+                                        <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-100/80 ml-1">ปีการศึกษา</span>
                                         <select
                                             value={year}
                                             onChange={(e) => setYear(Number(e.target.value))}
@@ -246,13 +246,13 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
 
                         {/* Info Row */}
                         <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between px-1">
-                            <span className="text-sm text-orange-50 flex items-center gap-1.5 font-medium">
+                            <span className="text-sm text-emerald-50 flex items-center gap-1.5 font-medium">
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0" />
                                 </svg>
                                 {activeTab === 'advisor_to_student' ? "จำนวนนักเรียนทั้งหมด" : "จำนวนรายการผลการประเมิน"}
                             </span>
-                            <span className="text-sm font-bold text-white bg-orange-600/60 px-3 py-1 rounded-full border border-white/20 shadow-sm">
+                            <span className="text-sm font-bold text-white bg-emerald-600/60 px-3 py-1 rounded-full border border-white/20 shadow-sm">
                                 {activeTab === 'advisor_to_student' ? (filteredStudents.length || 0) : (studentFeedbackResults.length || 0)} รายการ
                             </span>
                         </div>
@@ -265,8 +265,8 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                         <button
                             onClick={() => setActiveTab('advisor_to_student')}
                             className={`flex-1 py-1.5 px-4 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 ${activeTab === 'advisor_to_student'
-                                ? 'bg-white text-orange-600 shadow-md scale-105'
-                                : 'text-orange-50 hover:bg-white/10'
+                                ? 'bg-white text-emerald-600 shadow-md scale-105'
+                                : 'text-emerald-50 hover:bg-white/10'
                                 }`}
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
@@ -275,8 +275,8 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                         <button
                             onClick={() => setActiveTab('student_to_advisor')}
                             className={`flex-1 py-1.5 px-4 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 ${activeTab === 'student_to_advisor'
-                                ? 'bg-white text-orange-600 shadow-md scale-105'
-                                : 'text-orange-50 hover:bg-white/10'
+                                ? 'bg-white text-emerald-600 shadow-md scale-105'
+                                : 'text-emerald-50 hover:bg-white/10'
                                 }`}
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
@@ -290,7 +290,7 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
             <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden min-h-[500px]">
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center p-20 text-slate-400">
-                        <div className="w-12 h-12 border-4 border-orange-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                        <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mb-4"></div>
                         <p className="font-medium">กำลังโหลดข้อมูล...</p>
                     </div>
                 ) : activeTab === 'advisor_to_student' ? (
@@ -315,7 +315,7 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                                     <tbody>
                                         {filteredStudents.map((s, idx) => (
                                             <Fragment key={s.id}>
-                                                <tr className={`border-b border-slate-100 transition-colors ${expandedStudentId === s.id ? 'bg-indigo-50/50' : 'hover:bg-slate-50'}`}>
+                                                <tr className={`border-b border-slate-100 transition-colors ${expandedStudentId === s.id ? 'bg-emerald-50/50' : 'hover:bg-slate-50'}`}>
                                                     <td className="px-5 py-4 text-sm text-slate-400 text-center">{idx + 1}</td>
                                                     <td className="px-5 py-4 font-mono text-sm text-slate-500 tracking-tight text-center">{s.student_code}</td>
                                                     <td className="px-5 py-4">
@@ -331,7 +331,7 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                                                                 ประเมินแล้ว
                                                             </span>
                                                         ) : (
-                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">
+                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold">
                                                                 รอประเมิน
                                                             </span>
                                                         )}
@@ -345,7 +345,7 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                                                             disabled={isLoadingTemplate}
                                                             className={`transition-all flex items-center justify-center ml-auto ${expandedStudentId === s.id
                                                                 ? 'p-1 rounded-full text-slate-400 hover:bg-slate-200 focus:outline-none'
-                                                                : 'px-3 py-1.5 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 gap-2 shadow-sm'
+                                                                : 'px-3 py-1.5 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 gap-2 shadow-sm'
                                                                 }`}
                                                             title={expandedStudentId === s.id ? "ปิด" : ""}
                                                         >
@@ -369,19 +369,19 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                                                 {expandedStudentId === s.id && evalTemplate && (
                                                     <tr>
                                                         <td colSpan={6} className="p-0 border-none">
-                                                            <div className="bg-indigo-50 border-b border-indigo-100 px-6 py-8 animate-in slide-in-from-top duration-300">
+                                                            <div className="bg-emerald-50 border-b border-emerald-100 px-6 py-8 animate-in slide-in-from-top duration-300">
                                                                 {/* Form header */}
                                                                 <div className="mb-6">
-                                                                    <h3 className="text-lg font-bold text-indigo-900 flex items-center gap-2">
-                                                                        <svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <h3 className="text-lg font-bold text-emerald-900 flex items-center gap-2">
+                                                                        <svg className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                                                         </svg>
                                                                         รายการประเมิน — {s.first_name} {s.last_name}
                                                                     </h3>
-                                                                    <p className="text-sm font-medium text-indigo-500 mt-1">เกณฑ์การประเมิน — 5: ดีมาก, 4: ดี, 3: ปานกลาง, 2: พอใช้, 1: ปรับปรุง</p>
+                                                                    <p className="text-sm font-medium text-emerald-500 mt-1">เกณฑ์การประเมิน — 5: ดีมาก, 4: ดี, 3: ปานกลาง, 2: พอใช้, 1: ปรับปรุง</p>
                                                                 </div>
 
-                                                                <div className="bg-white rounded-2xl border border-indigo-100 overflow-hidden shadow-sm">
+                                                                <div className="bg-white rounded-2xl border border-emerald-100 overflow-hidden shadow-sm">
                                                                     {/* Score header row */}
                                                                     <div className="grid border-b border-slate-100 bg-slate-50" style={{ gridTemplateColumns: '1fr 80px 80px 80px 80px 80px' }}>
                                                                         <div className="px-5 py-3 text-sm font-bold text-slate-500 uppercase tracking-wider">หัวข้อประเมิน</div>
@@ -404,12 +404,12 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                                                                                     <div
                                                                                         onClick={() => handleScoreChange(t.name, v)}
                                                                                         className={`w-5 h-5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${evalForm.scores[t.name] === v
-                                                                                            ? 'border-indigo-600 bg-white'
-                                                                                            : 'border-slate-200 bg-white hover:border-indigo-300'
+                                                                                            ? 'border-emerald-600 bg-white'
+                                                                                            : 'border-slate-200 bg-white hover:border-emerald-300'
                                                                                             }`}
                                                                                     >
                                                                                         {evalForm.scores[t.name] === v && (
-                                                                                            <div className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-in zoom-in duration-200"></div>
+                                                                                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-in zoom-in duration-200"></div>
                                                                                         )}
                                                                                     </div>
                                                                                 </div>
@@ -425,7 +425,7 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                                                                         value={evalForm.feedback}
                                                                         onChange={(e) => setEvalForm(prev => ({ ...prev, feedback: e.target.value }))}
                                                                         placeholder="ข้อเสนอแนะเพิ่มเติม..."
-                                                                        className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 outline-none transition-all min-h-[100px] resize-none shadow-sm"
+                                                                        className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-400 outline-none transition-all min-h-[100px] resize-none shadow-sm"
                                                                     />
                                                                     <div className="flex justify-end gap-3 pt-2">
                                                                         <button
@@ -437,7 +437,7 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                                                                         <button
                                                                             onClick={handleSubmitEval}
                                                                             disabled={isSubmitting}
-                                                                            className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 active:scale-95 transition-all flex items-center gap-2 group"
+                                                                            className="px-8 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all flex items-center gap-2 group"
                                                                         >
                                                                             {isSubmitting ? (
                                                                                 <>
@@ -481,7 +481,7 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                             <div>
                                 <h2 className="text-xl font-bold text-slate-800 mb-5 flex items-center gap-2">
-                                    <div className="w-1.5 h-6 bg-indigo-600 rounded-full"></div>
+                                    <div className="w-1.5 h-6 bg-emerald-600 rounded-full"></div>
                                     คะแนนเฉลี่ยแยกตามหัวข้อ
                                 </h2>
                                 <div className="space-y-4">
@@ -490,11 +490,11 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                                             <div key={idx} className="space-y-1.5">
                                                 <div className="flex justify-between text-sm font-semibold text-slate-600">
                                                     <span>{item.topic}</span>
-                                                    <span className="text-indigo-600">{item.average} / 5</span>
+                                                    <span className="text-emerald-600">{item.average} / 5</span>
                                                 </div>
                                                 <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
                                                     <div
-                                                        className="h-full bg-gradient-to-r from-indigo-500 to-violet-600 rounded-full transition-all duration-700"
+                                                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full transition-all duration-700"
                                                         style={{ width: `${(Number(item.average) / 5) * 100}%` }}
                                                     ></div>
                                                 </div>
@@ -508,16 +508,16 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                                 </div>
                             </div>
 
-                            <div className="bg-indigo-50 rounded-3xl p-8 border border-indigo-100 flex flex-col items-center justify-center text-center">
-                                <div className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-2">คะแนนรวมเฉลี่ย</div>
-                                <div className="text-6xl font-black text-indigo-700 mb-3 tracking-tighter">
+                            <div className="bg-emerald-50 rounded-3xl p-8 border border-emerald-100 flex flex-col items-center justify-center text-center">
+                                <div className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2">คะแนนรวมเฉลี่ย</div>
+                                <div className="text-6xl font-black text-emerald-700 mb-3 tracking-tighter">
                                     {feedbackSummary.summary.length > 0
                                         ? (feedbackSummary.summary.reduce((a, b) => a + Number(b.average), 0) / feedbackSummary.summary.length).toFixed(2)
                                         : '0.00'}
                                 </div>
                                 <div className="flex gap-1 mb-4">
                                     {[1, 2, 3, 4, 5].map(star => (
-                                        <svg key={star} className="w-6 h-6 text-amber-400 fill-current" viewBox="0 0 24 24">
+                                        <svg key={star} className="w-6 h-6 text-emerald-400 fill-current" viewBox="0 0 24 24">
                                             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                                         </svg>
                                     ))}
@@ -529,7 +529,7 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                         {/* Comments Section */}
                         <div>
                             <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <div className="w-1.5 h-6 bg-fuchsia-600 rounded-full"></div>
+                                <div className="w-1.5 h-6 bg-teal-600 rounded-full"></div>
                                 ข้อเสนอแนะ / หมายเหตุ
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -552,14 +552,14 @@ export function AdvisorEvaluationFeature({ session }: AdvisorEvaluationFeaturePr
                         </div>
 
                         {/* Info Card */}
-                        <div className="p-6 rounded-3xl bg-indigo-50/50 border border-indigo-100">
+                        <div className="p-6 rounded-3xl bg-emerald-50/50 border border-emerald-100">
                             <div className="flex items-center gap-3 mb-2">
-                                <div className="p-2 bg-indigo-600 rounded-xl text-white">
+                                <div className="p-2 bg-emerald-600 rounded-xl text-white">
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 </div>
-                                <h4 className="font-bold text-indigo-900">เกี่ยวกับผลการประเมิน</h4>
+                                <h4 className="font-bold text-emerald-900">เกี่ยวกับผลการประเมิน</h4>
                             </div>
-                            <p className="text-indigo-700/70 text-sm font-medium leading-relaxed">
+                            <p className="text-emerald-700/70 text-sm font-medium leading-relaxed">
                                 ผลสรุปนี้คำนวณจากคะแนนที่นักเรียนในที่ปรึกษาประเมินการปฏิบัติหน้าที่ครูที่ปรึกษาของคุณในภาคเรียนนี้ ข้อมูลทั้งหมดจะถูกเก็บเป็นความลับเพื่อใช้ในการวิเคราะห์และพัฒนาระบบการดูแลช่วยเหลือนักเรียน
                             </p>
                         </div>

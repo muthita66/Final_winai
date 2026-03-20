@@ -264,7 +264,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
     return (
         <div className="space-y-6">
             {/* Header section - orange style matching student page but orange */}
-            <section className="rounded-3xl bg-gradient-to-r from-amber-500 to-orange-500 p-8 text-white shadow-xl relative overflow-hidden mb-6">
+            <section className="rounded-3xl bg-gradient-to-r from-emerald-600 to-teal-600 p-8 text-white shadow-xl relative overflow-hidden mb-6">
                 <div className="absolute top-[-10%] right-[-5%] w-64 h-64 bg-white/10 rounded-full blur-3xl" />
                 <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <div className="space-y-2">
@@ -272,7 +272,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                             Evaluation
                         </div>
                         <h1 className="text-3xl font-black tracking-tight">แบบประเมินและรายงานผล</h1>
-                        <p className="text-orange-100 font-medium">จัดการการประเมินนักเรียนและดูรายงานผลการประเมินในบทบาทครู</p>
+                        <p className="text-emerald-100 font-medium">จัดการการประเมินนักเรียนและดูรายงานผลการประเมินในบทบาทครู</p>
                     </div>
                 </div>
             </section>
@@ -283,18 +283,18 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                 <button
                     onClick={() => setEvalMode('subject')}
                     className={`flex items-center gap-3 px-6 py-4 rounded-2xl text-left font-semibold transition-all duration-300 border-2 ${evalMode === 'subject'
-                        ? 'bg-amber-600 text-white border-amber-600 shadow-lg scale-[1.02]'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-amber-300 hover:bg-amber-50'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg scale-[1.02]'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:bg-emerald-50'
                         }`}
                 >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${evalMode === 'subject' ? 'bg-white/20' : 'bg-amber-50 text-amber-600'}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${evalMode === 'subject' ? 'bg-white/20' : 'bg-emerald-50 text-emerald-600'}`}>
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                         </svg>
                     </div>
                     <div>
                         <div className="text-sm font-bold">ประเมินรายวิชา</div>
-                        <div className={`text-xs mt-0.5 ${evalMode === 'subject' ? 'text-amber-100' : 'text-slate-400'}`}>ประเมินนักเรียนและพฤติกรรมในวิชาที่สอน</div>
+                        <div className={`text-xs mt-0.5 ${evalMode === 'subject' ? 'text-emerald-100' : 'text-slate-400'}`}>ประเมินนักเรียนและพฤติกรรมในวิชาที่สอน</div>
                     </div>
                 </button>
 
@@ -302,18 +302,18 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                 <button
                     onClick={() => setEvalMode('advisor')}
                     className={`flex items-center gap-3 px-6 py-4 rounded-2xl text-left font-semibold transition-all duration-300 border-2 ${evalMode === 'advisor'
-                        ? 'bg-orange-600 text-white border-orange-600 shadow-lg scale-[1.02]'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-orange-300 hover:bg-orange-50'
+                        ? 'bg-teal-600 text-white border-teal-600 shadow-lg scale-[1.02]'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300 hover:bg-teal-50'
                         }`}
                 >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${evalMode === 'advisor' ? 'bg-white/20' : 'bg-orange-50 text-orange-600'}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${evalMode === 'advisor' ? 'bg-white/20' : 'bg-teal-50 text-teal-600'}`}>
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
                     </div>
                     <div>
                         <div className="text-sm font-bold">ประเมินนักเรียนในที่ปรึกษา</div>
-                        <div className={`text-xs mt-0.5 ${evalMode === 'advisor' ? 'text-orange-100' : 'text-slate-400'}`}>คุณลักษณะอันพึงประสงค์, การอ่าน คิดวิเคราะห์ และเขียน</div>
+                        <div className={`text-xs mt-0.5 ${evalMode === 'advisor' ? 'text-teal-100' : 'text-slate-400'}`}>คุณลักษณะอันพึงประสงค์, การอ่าน คิดวิเคราะห์ และเขียน</div>
                     </div>
                 </button>
 
@@ -328,7 +328,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                             <select
                                 value={selectedAssignmentId ?? ""}
                                 onChange={(e) => setSelectedAssignmentId(e.target.value ? Number(e.target.value) : null)}
-                                className="w-full rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-sm focus:ring-2 focus:ring-amber-400 outline-none transition-all"
+                                className="w-full rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-400 outline-none transition-all"
                             >
                                 <option value="">กรุณาเลือกวิชา</option>
                                 {assignments.map((a) => (
@@ -344,7 +344,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                 <select
                                     value={year}
                                     onChange={(e) => setYear(Number(e.target.value))}
-                                    className="w-full rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-sm focus:ring-2 focus:ring-amber-400 outline-none transition-all"
+                                    className="w-full rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-400 outline-none transition-all"
                                 >
                                     {getRecentAcademicYearsBE(5).map(y => (
                                         <option key={y} value={y}>{y}</option>
@@ -356,7 +356,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                 <select
                                     value={semester}
                                     onChange={(e) => setSemester(Number(e.target.value))}
-                                    className="w-full rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-sm focus:ring-2 focus:ring-amber-400 outline-none transition-all"
+                                    className="w-full rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-400 outline-none transition-all"
                                 >
                                     <option value={1}>1</option>
                                     <option value={2}>2</option>
@@ -373,7 +373,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                 {evalMode === 'subject' ? (
                     isLoading ? (
                         <div className="flex flex-col items-center justify-center p-20 text-slate-400">
-                            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                            <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mb-4"></div>
                             <p className="font-medium">กำลังโหลดข้อมูล...</p>
                         </div>
                     ) : !selectedAssignmentId ? (
@@ -400,7 +400,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         placeholder="ค้นหาโฮสต์..."
-                                        className="w-full sm:w-64 rounded-xl border border-slate-200 pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-400 transition-all font-medium"
+                                        className="w-full sm:w-64 rounded-xl border border-slate-200 pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400 transition-all font-medium"
                                     />
                                 </div>
                             </div>
@@ -429,8 +429,8 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                                                 ประเมินแล้ว
                                                             </span>
                                                         ) : (
-                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-xs font-bold border border-amber-100 italic">
-                                                                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-50 text-teal-600 rounded-full text-xs font-bold border border-teal-100 italic">
+                                                                <div className="w-1.5 h-1.5 bg-teal-500 rounded-full" />
                                                                 รอประเมิน
                                                             </span>
                                                         )}
@@ -440,7 +440,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                                             onClick={() => handleOpenEvalModal(s)}
                                                             className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${s.evaluated
                                                                 ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
-                                                                : 'bg-amber-600 text-white hover:bg-amber-700 shadow-md shadow-amber-200'
+                                                                : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-200'
                                                                 }`}
                                                         >
                                                             {s.evaluated ? 'ประเมินแล้ว' : 'ลงบันทึกผล'}
@@ -465,7 +465,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                 <div>
                                     <h2 className="text-xl font-bold text-slate-800 mb-5 flex items-center gap-2">
-                                        <div className="w-1.5 h-6 bg-amber-500 rounded-full"></div>
+                                        <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
                                         คะแนนเฉลี่ยแยกตามหัวข้อ
                                     </h2>
                                     <div className="space-y-4">
@@ -473,11 +473,11 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                             <div key={idx} className="space-y-1.5">
                                                 <div className="flex justify-between text-base font-semibold text-slate-600">
                                                     <span>{item.topic}</span>
-                                                    <span className="text-amber-600">{item.average} / 5</span>
+                                                    <span className="text-emerald-600">{item.average} / 5</span>
                                                 </div>
                                                 <div className="h-3 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
                                                     <div
-                                                        className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-700"
+                                                        className="h-full bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full transition-all duration-700"
                                                         style={{ width: `${(item.average / 5) * 100}%` }}
                                                     ></div>
                                                 </div>
@@ -490,16 +490,16 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                     </div>
                                 </div>
 
-                                <div className="bg-amber-50 rounded-3xl p-8 border border-amber-100 flex flex-col items-center justify-center text-center shadow-inner">
-                                    <div className="text-xs font-black text-amber-600 uppercase tracking-widest mb-3">คะแนนรวมเฉลี่ย</div>
-                                    <div className="text-7xl font-black text-amber-700 mb-4 tracking-tighter">
+                                <div className="bg-emerald-50 rounded-3xl p-8 border border-emerald-100 flex flex-col items-center justify-center text-center shadow-inner">
+                                    <div className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3">คะแนนรวมเฉลี่ย</div>
+                                    <div className="text-7xl font-black text-emerald-700 mb-4 tracking-tighter">
                                         {evaluationResults?.summary?.length > 0
                                             ? (evaluationResults.summary.reduce((a: any, b: any) => a + b.average, 0) / evaluationResults.summary.length).toFixed(2)
                                             : '0.00'}
                                     </div>
                                     <div className="flex gap-1.5 mb-5">
                                         {[1, 2, 3, 4, 5].map(star => (
-                                            <svg key={star} className="w-7 h-7 text-amber-400 fill-current drop-shadow-sm" viewBox="0 0 24 24">
+                                            <svg key={star} className="w-7 h-7 text-emerald-400 fill-current drop-shadow-sm" viewBox="0 0 24 24">
                                                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                                             </svg>
                                         ))}
@@ -511,7 +511,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                             {/* Comments */}
                             <div>
                                 <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                    <div className="w-1.5 h-6 bg-orange-500 rounded-full"></div>
+                                    <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
                                     ข้อเสนอแนะเพิ่มเติม
                                 </h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -519,7 +519,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                         <div key={idx} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                                             <p className="text-slate-700 text-base leading-relaxed italic font-medium">&ldquo;{c.text}&rdquo;</p>
                                             <div className="mt-4 flex items-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-wider">
-                                                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                                                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
                                                 เมื่อ {new Date(c.submitted_at).toLocaleDateString('th-TH')}
                                             </div>
                                         </div>
@@ -548,7 +548,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                     <select
                                         value={year}
                                         onChange={(e) => setYear(Number(e.target.value))}
-                                        className="w-full bg-amber-50 px-4 py-2 rounded-2xl border border-amber-100 text-amber-700 text-sm font-bold outline-none focus:ring-2 focus:ring-amber-400 appearance-none cursor-pointer"
+                                        className="w-full bg-emerald-50 px-4 py-2 rounded-2xl border border-emerald-100 text-emerald-700 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-400 appearance-none cursor-pointer"
                                     >
                                         {getRecentAcademicYearsBE(5).map(y => (
                                             <option key={y} value={y}>{y}</option>
@@ -560,7 +560,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                     <select
                                         value={semester}
                                         onChange={(e) => setSemester(Number(e.target.value))}
-                                        className="w-full bg-orange-50 px-4 py-2 rounded-2xl border border-orange-100 text-orange-700 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-400 appearance-none cursor-pointer"
+                                        className="w-full bg-teal-50 px-4 py-2 rounded-2xl border border-teal-100 text-teal-700 text-sm font-bold outline-none focus:ring-2 focus:ring-teal-400 appearance-none cursor-pointer"
                                     >
                                         <option value={1}>1</option>
                                         <option value={2}>2</option>
@@ -571,13 +571,13 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
 
                         {/* Sub-mode selection tabs within Advisor mode */}
                         <div className="flex p-1 bg-slate-100 rounded-2xl w-full max-w-xl border border-slate-200/50">
-                            <button
+                                <button
                                 onClick={() => setAdvisorSubMode('attributes')}
                                 className={`flex-1 py-3 px-6 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 ${advisorSubMode === 'attributes'
-                                    ? 'bg-white text-orange-600 shadow-sm'
+                                    ? 'bg-white text-emerald-600 shadow-sm'
                                     : 'text-slate-500 hover:text-slate-700'
                                     }`}
-                            >
+                                >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                 </svg>
@@ -586,7 +586,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                             <button
                                 onClick={() => setAdvisorSubMode('reading_thinking')}
                                 className={`flex-1 py-3 px-6 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 ${advisorSubMode === 'reading_thinking'
-                                    ? 'bg-white text-red-600 shadow-sm'
+                                    ? 'bg-white text-teal-600 shadow-sm'
                                     : 'text-slate-500 hover:text-slate-700'
                                     }`}
                             >
@@ -608,7 +608,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                     value={advisorySearch}
                                     onChange={(e) => setAdvisorySearch(e.target.value)}
                                     placeholder="ค้นหานักเรียนในที่ปรึกษา..."
-                                    className="w-full rounded-2xl border border-slate-200 pl-11 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-amber-400 transition-all font-medium"
+                                    className="w-full rounded-2xl border border-slate-200 pl-11 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-400 transition-all font-medium"
                                 />
                             </div>
                             <button className="px-6 py-3 bg-slate-800 text-white rounded-2xl font-bold text-sm hover:bg-slate-700 transition-colors shrink-0">
@@ -619,7 +619,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                         {/* Real Student Table for Advisor Modes */}
                         {advisoryLoading ? (
                             <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                                <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4" />
+                                <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4" />
                                 <p className="font-medium">กำลังโหลดข้อมูลนักเรียน...</p>
                             </div>
                         ) : advisoryStudents.length === 0 ? (
@@ -646,8 +646,8 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                         {filteredAdvisoryStudents.length > 0 ? (
                                             filteredAdvisoryStudents.map((s, idx) => (
                                                 <tr key={s.id} className="hover:bg-white transition-colors group">
-                                                    <td className="px-6 py-5 text-sm text-slate-400 font-bold">{idx + 1}</td>
-                                                    <td className="px-6 py-5 text-sm font-black text-slate-600 group-hover:text-amber-600 transition-colors uppercase">{s.student_code}</td>
+                                                    <td className="px-6 py-5 text-sm font-bold">{idx + 1}</td>
+                                                    <td className="px-6 py-5 text-sm font-black text-slate-600 group-hover:text-emerald-600 transition-colors uppercase">{s.student_code}</td>
                                                     <td className="px-6 py-5 font-black text-lg text-slate-700">
                                                         {s.prefix && <span className="mr-1">{s.prefix}</span>}
                                                         {s.first_name} {s.last_name}
@@ -669,10 +669,10 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                                         <button
                                                             onClick={() => handleToggleAdvisorEval(s.id)}
                                                             disabled={advisorEvalLoadingTemplate}
-                                                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-black hover:bg-orange-600 shadow-sm shadow-orange-200 active:scale-95 transition-all disabled:opacity-60"
+                                                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-black hover:bg-emerald-700 shadow-sm shadow-emerald-200 active:scale-95 transition-all disabled:opacity-60"
                                                         >
                                                             {advisorEvalLoadingTemplate ? (
-                                                                <div className="w-4 h-4 border-2 border-orange-200 border-t-white rounded-full animate-spin" />
+                                                                <div className="w-4 h-4 border-2 border-emerald-200 border-t-white rounded-full animate-spin" />
                                                             ) : (
                                                                 <>{s.evaluated ? 'แก้ไข' : 'ประเมิน'}</>
                                                             )}
@@ -710,21 +710,21 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                         <div className="flex items-start justify-between px-8 pt-8 pb-6 border-b border-slate-100 shrink-0">
                             <div>
                                 <div className="flex items-center gap-3 mb-1">
-                                    <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600">
+                                    <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600">
                                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </div>
                                     <div>
                                         <h2 className="text-xl font-black text-slate-800">ประเมินนักเรียน</h2>
-                                        <p className="text-sm font-bold text-amber-600">{targetStudent?.name}</p>
+                                        <p className="text-sm font-bold text-emerald-600">{targetStudent?.name}</p>
                                     </div>
                                 </div>
                                 <p className="text-xs text-slate-400 font-medium">{selectedAssignment?.subject_code} - {selectedAssignment?.subject_name}</p>
                             </div>
                             <button
                                 onClick={() => setIsModalOpen(false)}
-                                className="w-9 h-9 rounded-full bg-slate-100 hover:bg-amber-100 hover:text-amber-600 flex items-center justify-center transition-all shrink-0"
+                                className="w-9 h-9 rounded-full bg-slate-100 hover:bg-emerald-100 hover:text-emerald-600 flex items-center justify-center transition-all shrink-0"
                             >
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -735,11 +735,11 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                         {/* Modal body (Scrollable) */}
                         <div className="overflow-y-auto flex-1 px-8 py-6 space-y-8">
                             {/* Tips */}
-                            <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex gap-3">
+                            <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 flex gap-3">
                                 <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0">
                                     <span className="text-lg">💡</span>
                                 </div>
-                                <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                                <p className="text-xs text-emerald-800 leading-relaxed font-medium">
                                     กรุณาพิจารณาผลการเรียนและพฤติกรรมของนักเรียนตามความเป็นจริง เพื่อประโยชน์ต่อการพัฒนาการเรียนการสอน
                                 </p>
                             </div>
@@ -750,7 +750,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                     evalTemplate.sections.map((section: any, idx: number) => (
                                         <div key={section.id || idx} className="space-y-4">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-1.5 h-6 bg-amber-500 rounded-full"></div>
+                                                <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
                                                 <h3 className="text-md font-bold text-slate-800">{section.name}</h3>
                                             </div>
                                             <div className="space-y-4">
@@ -763,8 +763,8 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                                                     key={score}
                                                                     onClick={() => handleScoreChange(t.name, score)}
                                                                     className={`flex-1 py-2 rounded-xl text-sm font-black transition-all border-2 ${evalForm.scores[t.name] === score
-                                                                        ? 'bg-amber-500 border-amber-500 text-white shadow-md'
-                                                                        : 'bg-white border-slate-200 text-slate-400 hover:border-amber-200 hover:text-amber-500'
+                                                                        ? 'bg-emerald-500 border-emerald-500 text-white shadow-md'
+                                                                        : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-200 hover:text-emerald-500'
                                                                         }`}
                                                                 >
                                                                     {score}
@@ -785,10 +785,10 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                                     <button
                                                         key={score}
                                                         onClick={() => handleScoreChange(t.name, score)}
-                                                        className={`flex-1 py-2 rounded-xl text-sm font-black transition-all border-2 ${evalForm.scores[t.name] === score
-                                                            ? 'bg-amber-500 border-amber-500 text-white shadow-md'
-                                                            : 'bg-white border-slate-200 text-slate-400 hover:border-amber-200 hover:text-amber-500'
-                                                            }`}
+                                                            className={`flex-1 py-2 rounded-xl text-sm font-black transition-all border-2 ${evalForm.scores[t.name] === score
+                                                                ? 'bg-emerald-500 border-emerald-500 text-white shadow-md'
+                                                                : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-200 hover:text-emerald-500'
+                                                                }`}
                                                     >
                                                         {score}
                                                     </button>
@@ -805,7 +805,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                         value={evalForm.feedback}
                                         onChange={(e) => setEvalForm(prev => ({ ...prev, feedback: e.target.value }))}
                                         placeholder="พิมพ์ข้อความที่นี่..."
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm focus:ring-4 focus:ring-amber-400/10 focus:border-amber-400 outline-none transition-all min-h-[100px] resize-none"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm focus:ring-4 focus:ring-emerald-400/10 focus:border-emerald-400 outline-none transition-all min-h-[100px] resize-none"
                                     />
                                 </div>
                             </div>
@@ -822,7 +822,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                             <button
                                 onClick={handleSubmitEvaluation}
                                 disabled={isSubmitting}
-                                className="flex-[2] py-3 bg-amber-600 text-white rounded-2xl text-sm font-bold hover:bg-amber-700 shadow-lg shadow-amber-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                className="flex-[2] py-3 bg-emerald-600 text-white rounded-2xl text-sm font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? (
                                     <>
@@ -857,7 +857,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                         <div className="flex items-start justify-between px-8 pt-8 pb-6 border-b border-slate-100 shrink-0">
                             <div>
                                 <div className="flex items-center gap-3 mb-1">
-                                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${advisorSubMode === 'attributes' ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'}`}>
+                                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${advisorSubMode === 'attributes' ? 'bg-emerald-100 text-emerald-600' : 'bg-teal-100 text-teal-600'}`}>
                                         {advisorSubMode === 'attributes' ? (
                                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -872,7 +872,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                         <h2 className="text-xl font-black text-slate-800">
                                             {advisorSubMode === 'attributes' ? 'คุณลักษณะอันพึงประสงค์' : 'การอ่าน คิดวิเคราะห์ และเขียน'}
                                         </h2>
-                                        <p className={`text-sm font-semibold mt-0.5 ${advisorSubMode === 'attributes' ? 'text-orange-500' : 'text-red-500'}`}>
+                                        <p className={`text-sm font-semibold mt-0.5 ${advisorSubMode === 'attributes' ? 'text-emerald-500' : 'text-teal-500'}`}>
                                             {(() => {
                                                 const st = advisoryStudents.find(s => s.id === expandedAdvisorStudentId);
                                                 return st ? `${st.prefix || ''}${st.first_name} ${st.last_name}` : '';
@@ -912,7 +912,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                         <div key={section.id || sidx} className="flex flex-col">
                                             {/* Section Header */}
                                             <div className="bg-slate-100/80 px-5 py-2.5 border-t border-b border-slate-200 flex items-center gap-2 relative z-10">
-                                                <div className="w-1.5 h-4 bg-orange-400 rounded-full"></div>
+                                                <div className="w-1.5 h-4 bg-emerald-400 rounded-full"></div>
                                                 <h3 className="text-sm font-bold text-slate-800">{section.name}</h3>
                                             </div>
                                             {/* Topic rows for this section */}
@@ -926,12 +926,12 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                                             <div
                                                                 onClick={() => setAdvisorEvalForm(prev => ({ ...prev, scores: { ...prev.scores, [t.name]: prev.scores[t.name] === v ? 0 : v } }))}
                                                                 className={`w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${advisorEvalForm.scores[t.name] === v
-                                                                    ? 'border-orange-500 bg-orange-50'
-                                                                    : 'border-slate-300 hover:border-orange-400 hover:bg-orange-50'
+                                                                    ? 'border-emerald-500 bg-emerald-50'
+                                                                    : 'border-slate-300 hover:border-emerald-400 hover:bg-emerald-50'
                                                                 }`}
                                                             >
                                                                 {advisorEvalForm.scores[t.name] === v && (
-                                                                    <div className="w-3 h-3 rounded-full bg-orange-500 shadow-sm" />
+                                                                    <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />
                                                                 )}
                                                             </div>
                                                         </div>
@@ -950,7 +950,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                     value={advisorEvalForm.feedback}
                                     onChange={(e) => setAdvisorEvalForm(prev => ({ ...prev, feedback: e.target.value }))}
                                     placeholder="ข้อเสนอแนะเพิ่มเติม..."
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm focus:ring-4 focus:ring-orange-100 focus:border-orange-400 outline-none transition-all min-h-[100px] resize-none"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-400 outline-none transition-all min-h-[100px] resize-none"
                                 />
                             </div>
                         </div>
@@ -967,7 +967,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                         });
                                     }
                                 }}
-                                className="px-6 py-2.5 text-sm font-bold text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all mr-auto"
+                                className="px-6 py-2.5 text-sm font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all mr-auto"
                             >
                                 ล้างข้อมูลฟอร์ม
                             </button>
@@ -980,7 +980,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                             <button
                                 onClick={handleSubmitAdvisorEval}
                                 disabled={advisorEvalSubmitting}
-                                className="px-8 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600 shadow-lg shadow-orange-500/25 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-60"
+                                className="px-8 py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-bold hover:bg-emerald-600 shadow-lg shadow-emerald-500/25 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-60"
                             >
                                 {advisorEvalSubmitting ? (
                                     <>

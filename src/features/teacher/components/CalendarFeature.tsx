@@ -388,7 +388,7 @@ export function CalendarFeature({ session }: { session: any }) {
                     <thead>
                         <tr className="bg-slate-50">
                             {["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."].map((d, i) => (
-                                <th key={i} className={`py-3 px-2 text-center font-medium border-b border-slate-200 ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-600'}`}>{d}</th>
+                                <th key={i} className={`py-3 px-2 text-center font-medium border-b border-slate-200 ${i === 0 ? 'text-emerald-500' : i === 6 ? 'text-teal-500' : 'text-slate-600'}`}>{d}</th>
                             ))}
                         </tr>
                     </thead>
@@ -437,7 +437,7 @@ export function CalendarFeature({ session }: { session: any }) {
                                         )}
                                         {ev.location && (
                                             <span className="text-slate-600 font-medium flex items-center gap-1">
-                                                <MapPin size={12} className="text-rose-500" />
+                                                <MapPin size={12} className="text-emerald-500" />
                                                 {ev.location}
                                             </span>
                                         )}
@@ -451,7 +451,7 @@ export function CalendarFeature({ session }: { session: any }) {
                                     <div className="text-slate-600 opacity-90">{ev.description || "-"}</div>
                                 </div>
                             </div>
-                            <button onClick={() => handleDelete(ev.id)} className="text-xs text-red-500 hover:text-red-700 px-3 py-1 rounded-lg hover:bg-red-50 transition-colors">ลบ</button>
+                            <button onClick={() => handleDelete(ev.id)} className="text-xs text-rose-500 hover:text-rose-700 px-3 py-1 rounded-lg hover:bg-rose-50 transition-colors">ลบ</button>
                         </div>
                     ))}
                 </div>

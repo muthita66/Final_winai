@@ -24,13 +24,13 @@ interface ScheduleSlot {
 
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 7]; // Sun=1..Sat=7 (depends on DB)
 const DAY_COLORS: Record<number, { bg: string; text: string; border: string }> = {
-    1: { bg: "bg-amber-50 shadow-[inset_0_0_0_1px_rgba(245,158,11,0.2)]", text: "text-amber-700", border: "border-amber-200" }, // Monday (Yellow/Amber)
-    2: { bg: "bg-pink-50", text: "text-pink-700", border: "border-pink-200" }, // Tuesday
-    3: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" }, // Wednesday (Green)
-    4: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" }, // Thursday
-    5: { bg: "bg-sky-50", text: "text-sky-700", border: "border-sky-200" }, // Friday (Blue/Sky)
-    6: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" }, // Saturday
-    7: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" }, // Sunday
+    1: { bg: "bg-emerald-50 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.1)]", text: "text-emerald-700", border: "border-emerald-200" }, // จันทร์
+    2: { bg: "bg-teal-50 shadow-[inset_0_0_0_1px_rgba(20,184,166,0.1)]", text: "text-teal-700", border: "border-teal-200" }, // อังคาร
+    3: { bg: "bg-emerald-100/50 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.2)]", text: "text-emerald-800", border: "border-emerald-300" }, // พุธ
+    4: { bg: "bg-teal-100/50 shadow-[inset_0_0_0_1px_rgba(20,184,166,0.2)]", text: "text-teal-800", border: "border-teal-300" }, // พฤหัสบดี
+    5: { bg: "bg-emerald-200/30", text: "text-emerald-900", border: "border-emerald-400/30" }, // ศุกร์
+    6: { bg: "bg-teal-200/30", text: "text-teal-900", border: "border-teal-400/30" }, // เสาร์
+    7: { bg: "bg-emerald-500/10", text: "text-emerald-950", border: "border-emerald-500/20" }, // อาทิตย์
 };
 
 export function TeachingScheduleFeature({ session }: { session: any }) {
@@ -216,18 +216,18 @@ export function TeachingScheduleFeature({ session }: { session: any }) {
     return (
         <div className="space-y-6">
             {/* Hero Banner */}
-            <section className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-8 text-white shadow-lg relative overflow-hidden">
+            <section className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-3xl p-8 text-white shadow-lg relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-full bg-white opacity-5 transform -skew-x-12 translate-x-20" />
-                <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-indigo-500 rounded-full blur-2xl opacity-50" />
+                <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-teal-500 rounded-full blur-2xl opacity-50" />
                 <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div>
                         <div className="inline-block bg-white/20 px-3 py-1 rounded-full text-sm font-medium mb-4">Teaching Schedule</div>
                         <h1 className="text-3xl font-bold">ตารางสอน</h1>
-                        <p className="text-blue-100 mt-2">ตารางการสอนประจำภาคเรียนของคุณ</p>
+                        <p className="text-emerald-100 mt-2">ตารางการสอนประจำภาคเรียนของคุณ</p>
                     </div>
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 text-center min-w-[120px]">
                         <div className="text-3xl font-bold">{slots.length}</div>
-                        <div className="text-blue-100 text-sm mt-1">คาบสอนทั้งหมด</div>
+                        <div className="text-emerald-100 text-sm mt-1">คาบสอนทั้งหมด</div>
                     </div>
                 </div>
             </section>
@@ -237,14 +237,14 @@ export function TeachingScheduleFeature({ session }: { session: any }) {
                 <div className="flex items-center justify-end gap-2">
                     <button
                         onClick={() => setViewMode("list")}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all flex items-center gap-2 ${viewMode === "list" ? "bg-blue-600 text-white border-blue-600 shadow-sm" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all flex items-center gap-2 ${viewMode === "list" ? "bg-emerald-600 text-white border-emerald-600 shadow-sm" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
                         รายวัน
                     </button>
                     <button
                         onClick={() => setViewMode("grid")}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all flex items-center gap-2 ${viewMode === "grid" ? "bg-blue-600 text-white border-blue-600 shadow-sm" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all flex items-center gap-2 ${viewMode === "grid" ? "bg-emerald-600 text-white border-emerald-600 shadow-sm" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
                         ตาราง
@@ -255,14 +255,14 @@ export function TeachingScheduleFeature({ session }: { session: any }) {
             {/* Content */}
             {loading ? (
                 <div className="bg-white rounded-2xl p-16 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-slate-500">
-                    <svg className="w-8 h-8 animate-spin text-blue-600 mb-4" fill="none" viewBox="0 0 24 24">
+                    <svg className="w-8 h-8 animate-spin text-emerald-600 mb-4" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
                     <p>กำลังโหลดตารางสอน...</p>
                 </div>
             ) : error ? (
-                <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-8 text-center">{error}</div>
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl p-8 text-center">{error}</div>
             ) : slots.length === 0 ? (
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200">{renderEmpty()}</div>
             ) : viewMode === "list" ? renderListView() : renderGridView()}

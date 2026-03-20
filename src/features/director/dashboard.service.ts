@@ -110,7 +110,10 @@ export const DirectorDashboardService = {
             studentsByRoom,
             upcomingEventRows,
             registrationStats,
-            financeSummary
+            financeSummary,
+            allTeachers,
+            allEmploymentTypes,
+            projectSummary
         ] = await Promise.all([
             (prisma.students as any).count({ where: studentWhere }),
             (prisma.teachers as any).count({ where: teacherWhere }),
@@ -151,7 +154,18 @@ export const DirectorDashboardService = {
             }),
             getRegistrationStats(studentWhere),
             getFinanceSummary(),
-        ]) as unknown as [number, number, number, number, any[], any[], any[], any[], any, any, any[], any, any[], any[], any[], any];
+            (prisma.teachers as any).findMany({
+                where: teacherWhere,
+                include: {
+                    name_prefixes: true,
+                    departments: true,
+                    teacher_positions: true,
+                    learning_subject_groups: true,
+                }
+            }),
+            prisma.employment_types.findMany(),
+            getProjectsSummary()
+        ]) as unknown as [number, number, number, number, any[], any[], any[], any[], any, any, any[], any, any[], any[], any[], any, any[], any[], any];
 
         // --- Process Distributions in Memory ---
         const genderDistribution = genderRaw.map(gr => ({
@@ -213,12 +227,7 @@ export const DirectorDashboardService = {
         }));
 
         const alerts: any[] = [];
-        if (atRiskStudents.length > 0) {
-            alerts.push({
-                type: atRiskStudents.length >= 5 ? 'danger' : 'warning',
-                message: `พบกลุ่มนักเรียนเสี่ยง ${atRiskStudents.length} คน`,
-            });
-        }
+
         if (attendanceSummary.total > 0 && attendanceRate < 85) {
             alerts.push({
                 type: 'warning',
@@ -245,11 +254,100 @@ export const DirectorDashboardService = {
 
         let evalAvg = 0;
         if (evalResponses > 0) {
-            const avgResult: any[] = await prisma.$queryRaw`SELECT AVG(score) as avg FROM evaluation_answers`;
+            const avgResult: any[] = await prisma.$queryRaw`SELECT AVG(score_value) as avg FROM evaluation_answers`;
             evalAvg = Number(avgResult[0]?.avg || 0);
         } else {
             evalAvg = 4.2; // Sample score for demo if no real responses
         }
+
+        // --- Process HR Stats ---
+        let teacherMale = 0;
+        let teacherFemale = 0;
+        const deptMap = new Map<string, number>();
+        const groupMap = new Map<string, number>();
+        const empMap = new Map<string, number>();
+        const rankMap = new Map<string, number>();
+        const currentYear = new Date().getFullYear();
+
+        const ageGroupMap = {
+            '<= 30': 0,
+            '31-40': 0,
+            '41-50': 0,
+            '51-55': 0,
+            '56-60': 0,
+            '> 60': 0,
+        };
+
+        const allTeachersWithAge = allTeachers.map((t: any) => {
+            let age = 0;
+            if (t.birth_date != null) {
+                const birthYear = new Date(t.birth_date).getFullYear();
+                age = currentYear - birthYear;
+            }
+            return { t, age };
+        });
+
+        const nearRetirementList = allTeachersWithAge
+            .filter((x: any) => x.age >= 55 && x.age <= 60)
+            .map((x: any) => {
+                const { t, age } = x;
+                const yearsLeft = 60 - age;
+                const retireYear = new Date(t.birth_date).getFullYear() + 60 + 543;
+                return {
+                    id: t.id,
+                    code: t.teacher_code || '-',
+                    prefix: t.name_prefixes?.prefix_name || '',
+                    firstName: t.first_name,
+                    lastName: t.last_name,
+                    age,
+                    yearsLeft,
+                    retireYear,
+                    learningSubjectGroup: t.learning_subject_groups?.group_name || '-',
+                    department: t.departments?.department_name || '-',
+                    position: t.teacher_positions?.title || '-',
+                };
+            })
+            .sort((a: any, b: any) => a.yearsLeft - b.yearsLeft);
+
+        allTeachers.forEach((t: any) => {
+            const pre = t.name_prefixes?.prefix_name || '';
+            if (pre.includes('นาย') || pre.includes('Mr.')) teacherMale++;
+            else if (pre.includes('นาง') || pre.includes('นางสาว') || pre.includes('Mrs.') || pre.includes('Ms.')) teacherFemale++;
+            else teacherMale++;
+
+            const dept = t.departments?.department_name || 'ไม่ระบุ';
+            deptMap.set(dept, (deptMap.get(dept) || 0) + 1);
+
+            const group = t.learning_subject_groups?.group_name || 'ไม่ระบุ';
+            groupMap.set(group, (groupMap.get(group) || 0) + 1);
+
+            const typeObj = allEmploymentTypes.find((e: any) => e.id === t.employment_type_id);
+            const typeName = typeObj ? typeObj.type_name : 'ไม่ระบุ';
+            empMap.set(typeName, (empMap.get(typeName) || 0) + 1);
+
+            const rank = t.teacher_positions?.title || 'ไม่ระบุ';
+            rankMap.set(rank, (rankMap.get(rank) || 0) + 1);
+        });
+
+        allTeachersWithAge.forEach((x: any) => {
+            if (x.age > 0) {
+                if (x.age <= 30) ageGroupMap['<= 30']++;
+                else if (x.age <= 40) ageGroupMap['31-40']++;
+                else if (x.age <= 50) ageGroupMap['41-50']++;
+                else if (x.age <= 55) ageGroupMap['51-55']++;
+                else if (x.age <= 60) ageGroupMap['56-60']++;
+                else ageGroupMap['> 60']++;
+            }
+        });
+        const ageGroups = Object.entries(ageGroupMap).map(([group, count]) => ({ group, count }));
+
+        const byGender = [
+            { gender: 'ชาย', count: teacherMale },
+            { gender: 'หญิง', count: teacherFemale }
+        ].filter(g => g.count > 0);
+        const teachersByDept = Array.from(deptMap.entries()).map(([dept, count]) => ({ dept, count })).sort((a, b) => b.count - a.count);
+        const byEmpType = Array.from(empMap.entries()).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
+        const byAcademicRank = Array.from(rankMap.entries()).map(([rank, count]) => ({ rank, count })).sort((a, b) => b.count - a.count);
 
         const summary = {
             totalStudents: studentCount,
@@ -296,7 +394,15 @@ export const DirectorDashboardService = {
             hr: {
                 ratio: studentCount > 0 && teacherCount > 0 ? Math.round((studentCount / teacherCount) * 10) / 10 : 2.5,
                 evalAvg,
-                nearRetirement: 3,
+                nearRetirement: nearRetirementList.length,
+                nearRetirementList,
+                byGender,
+                teachersByDept,
+                teachersByGroup: Array.from(groupMap.entries()).map(([grp, count]) => ({ grp, count })).sort((a, b) => b.count - a.count),
+                byEmpType,
+                byAcademicRank,
+                ageGroups,
+                avgSections: teacherCount > 0 ? Math.round((subjectCount / teacherCount) * 10) / 10 : 0,
                 advisorStats: [
                     { name: 'มาครบ', count: Math.ceil(teacherCount * 0.9) },
                     { name: 'สาย/ลา', count: Math.floor(teacherCount * 0.1) },
@@ -304,11 +410,11 @@ export const DirectorDashboardService = {
             },
             health: {
                 totalStudents: studentCount,
-                healthIssues: [],
+                healthIssues: [], // TODO: Implementation later if needed
             },
-            curriculum: {},
+            curriculum: await getCurriculumSummary(subjectWhere, classroomWhere),
             evaluation: {},
-            projects: {},
+            projects: projectSummary,
             comparisons: {},
             advanced: {},
             activeYear: activeYear ? {
@@ -580,6 +686,66 @@ async function getRegistrationStats(studentWhere: any) {
     return Array.from(map.values()).sort((a, b) => b.reg_count - a.reg_count);
 }
 
+// --- Helper: Curriculum Summary ---
+async function getCurriculumSummary(subjectWhere: any, classroomWhere: any) {
+    const [
+        totalSections,
+        creditsAgg,
+        subjectsByGroupRaw,
+        subjectTypesRaw,
+        sectionsNoTeacherCount
+    ] = await Promise.all([
+        prisma.teaching_assignments.count({ 
+            where: Object.keys(classroomWhere).length > 0 ? { classrooms: classroomWhere } : {} 
+        }),
+        prisma.subjects.aggregate({
+            where: subjectWhere,
+            _sum: { credit: true }
+        }),
+        prisma.subjects.groupBy({
+            by: ['learning_subject_group_id'],
+            where: subjectWhere,
+            _count: { id: true }
+        }),
+        prisma.subjects.groupBy({
+            by: ['subject_categories_id'],
+            where: subjectWhere,
+            _count: { id: true }
+        }),
+        // Assuming "Section ไม่มีครู" means teaching assignments with a placeholder teacher if possible
+        // But since teacher_id is required, we'll check for subjects with NO teaching assignments as a proxy 
+        // OR assignments with a specific code if we knew it. Let's stick to subjects with none for now.
+        prisma.subjects.count({
+            where: {
+                ...subjectWhere,
+                teaching_assignments: { none: {} }
+            }
+        })
+    ]);
+
+    const [groups, categories] = await Promise.all([
+        prisma.learning_subject_groups.findMany(),
+        prisma.subject_categories.findMany()
+    ]);
+
+    const groupMap = new Map(groups.map(g => [g.id, g.group_name]));
+    const catMap = new Map(categories.map(c => [c.id, c.category_name]));
+
+    return {
+        totalSections,
+        totalCredits: Number(creditsAgg._sum.credit || 0),
+        sectionsNoTeacher: sectionsNoTeacherCount,
+        subjectsByGroup: subjectsByGroupRaw.map(g => ({
+            grp: groupMap.get(g.learning_subject_group_id!) || 'ไม่ระบุ',
+            count: g._count.id
+        })).sort((a, b) => b.count - a.count),
+        subjectTypes: subjectTypesRaw.map(t => ({
+            type: catMap.get(t.subject_categories_id!) || 'ไม่ระบุ',
+            count: t._count.id
+        })).sort((a, b) => b.count - a.count)
+    };
+}
+
 // --- Helper: Finance Summary ---
 async function getFinanceSummary() {
     const [budgetAgg, expenseAgg, expensesByCategory, monthlyExpensesRaw, categories] = await Promise.all([
@@ -633,5 +799,67 @@ async function getFinanceSummary() {
             category: categoryMap.get(ec.expense_category_id!) || `หมวด ${ec.expense_category_id}`,
             amount: Number(ec._sum.amount || 0)
         }))
+    };
+}
+
+// --- Helper: Projects Summary ---
+async function getProjectsSummary() {
+    const [projects, projectStats, expenseAgg, depts] = await Promise.all([
+        prisma.projects.findMany({
+            include: {
+                departments: { select: { department_name: true } },
+                _count: { select: { project_expenses: true } }
+            },
+            orderBy: { created_at: 'desc' }
+        }),
+        prisma.projects.aggregate({
+            _sum: { allocated_budget: true },
+            _count: { id: true }
+        }),
+        prisma.project_expenses.aggregate({
+            _sum: { amount: true }
+        }),
+        prisma.departments.findMany()
+    ]);
+
+    const total = projectStats._count.id;
+    const budgetTotal = Number(projectStats._sum.allocated_budget || 0);
+    const budgetUsed = Number(expenseAgg._sum.amount || 0);
+
+    // Get project expenses by project_id
+    const projectExpenses = await prisma.project_expenses.groupBy({
+        by: ['project_id'],
+        _sum: { amount: true }
+    });
+
+    const expenseMap = new Map(projectExpenses.map(e => [e.project_id, Number(e._sum.amount || 0)]));
+
+    // Process items
+    const items = projects.map(p => ({
+        id: p.id,
+        name: p.project_name,
+        budget_total: Number(p.allocated_budget || 0),
+        budget_used: expenseMap.get(p.id) || 0,
+        department: p.departments?.department_name || 'ไม่ระบุ'
+    })).slice(0, 10); // Limit to top 10 recent
+
+    // Process by department
+    const deptBudgets = new Map<string, number>();
+    projects.forEach(p => {
+        const d = p.departments?.department_name || 'ไม่ระบุ';
+        deptBudgets.set(d, (deptBudgets.get(d) || 0) + Number(p.allocated_budget || 0));
+    });
+
+    const byDept = Array.from(deptBudgets.entries()).map(([department, total_budget]) => ({
+        department,
+        total_budget
+    })).sort((a, b) => b.total_budget - a.total_budget);
+
+    return {
+        total,
+        budgetTotal,
+        budgetUsed,
+        items,
+        byDept
     };
 }

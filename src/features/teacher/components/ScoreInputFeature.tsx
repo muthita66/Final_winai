@@ -709,11 +709,11 @@ export function ScoreInputFeature({ session }: { session: any }) {
     return (
         <div className="space-y-4 pb-24">
             {/* ── Top Bar: Section selector + info ── */}
-            <section className="rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white shadow-lg relative overflow-hidden">
+            <section className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 p-5 text-white shadow-lg relative overflow-hidden">
                 <div className="absolute inset-y-0 right-[-3rem] w-60 bg-white/10 skew-x-[-18deg]" />
                 <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex-1 min-w-0">
-                        <Link href="/teacher/scores" className="inline-flex items-center gap-1.5 text-orange-100 hover:text-white mb-2 transition-colors text-sm font-medium">
+                        <Link href="/teacher/scores" className="inline-flex items-center gap-1.5 text-emerald-100 hover:text-white mb-2 transition-colors text-sm font-medium">
                             <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                             </svg>
@@ -729,37 +729,37 @@ export function ScoreInputFeature({ session }: { session: any }) {
                             {sectionInfo && (
                                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                     <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center gap-3 transition-all hover:bg-white/15">
-                                        <div className="w-10 h-10 rounded-lg bg-orange-500/30 flex items-center justify-center shrink-0 shadow-inner">
-                                            <svg className="w-5 h-5 text-orange-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <div className="w-10 h-10 rounded-lg bg-emerald-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                                            <svg className="w-5 h-5 text-emerald-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.168.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                                             </svg>
                                         </div>
                                         <div className="min-w-0">
-                                            <div className="text-[10px] uppercase font-bold tracking-wider text-orange-200">วิชาที่สอน</div>
+                                            <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-200">วิชาที่สอน</div>
                                             <div className="text-sm font-bold leading-tight truncate">{sectionInfo.subjects?.subject_code} {sectionInfo.subjects?.name}</div>
                                         </div>
                                     </div>
 
                                     <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center gap-3 transition-all hover:bg-white/15">
-                                        <div className="w-10 h-10 rounded-lg bg-amber-500/30 flex items-center justify-center shrink-0 shadow-inner">
-                                            <svg className="w-5 h-5 text-amber-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <div className="w-10 h-10 rounded-lg bg-teal-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                                            <svg className="w-5 h-5 text-teal-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                             </svg>
                                         </div>
                                         <div className="min-w-0">
-                                            <div className="text-[10px] uppercase font-bold tracking-wider text-amber-100">ห้องเรียน</div>
+                                            <div className="text-[10px] uppercase font-bold tracking-wider text-teal-100">ห้องเรียน</div>
                                             <div className="text-sm font-bold leading-tight">ชั้น{formatRoomLabel(sectionInfo)}</div>
                                         </div>
                                     </div>
 
                                     <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center gap-3 transition-all hover:bg-white/15">
-                                        <div className="w-10 h-10 rounded-lg bg-yellow-500/30 flex items-center justify-center shrink-0 shadow-inner">
-                                            <svg className="w-5 h-5 text-yellow-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <div className="w-10 h-10 rounded-lg bg-emerald-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                                            <svg className="w-5 h-5 text-emerald-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                             </svg>
                                         </div>
                                         <div className="min-w-0">
-                                            <div className="text-[10px] uppercase font-bold tracking-wider text-yellow-100">ปีการศึกษา/ภาคเรียน</div>
+                                            <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-100">ปีการศึกษา/ภาคเรียน</div>
                                             <div className="text-sm font-bold leading-tight">{formatTermLabel(sectionInfo)}</div>
                                         </div>
                                     </div>
@@ -769,7 +769,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                     </div>
                     <div className="shrink-0 flex justify-end">
                         <Link href={`/teacher/grade_cut${hasSection ? `?section_id=${sectionId}` : ""}`}
-                            className="inline-flex items-center gap-1.5 text-orange-100 hover:text-white transition-colors text-sm font-medium">
+                            className="inline-flex items-center gap-1.5 text-emerald-100 hover:text-white transition-colors text-sm font-medium">
                             ไปหน้าตัดเกรด
                             <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -781,11 +781,11 @@ export function ScoreInputFeature({ session }: { session: any }) {
 
             {/* ── Selection Box (Premium Design) ── */}
             <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50 transition-all mb-6">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-amber-400 to-orange-600" />
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-emerald-400 to-teal-600" />
                 <div className="p-6">
                     <div className="mb-5 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 shadow-sm border border-amber-100">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 shadow-sm border border-emerald-100">
                                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                                 </svg>
@@ -796,9 +796,9 @@ export function ScoreInputFeature({ session }: { session: any }) {
                             </div>
                         </div>
                         {!hasSection && (
-                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-100 animate-pulse">
-                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600">กรุณาเลือกข้อมูลให้ครบ</span>
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 animate-pulse">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">กรุณาเลือกข้อมูลให้ครบ</span>
                             </div>
                         )}
                     </div>
@@ -807,21 +807,21 @@ export function ScoreInputFeature({ session }: { session: any }) {
                         {/* Subject */}
                         <div className="space-y-2">
                             <label className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                                <svg className="h-4 w-4 text-amber-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                                <svg className="h-4 w-4 text-emerald-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
                                 วิชาที่สอน
                             </label>
                             <div className="relative group">
                                 <select
                                     value={selectedSubjectKey}
                                     onChange={(e) => handleSubjectSelect(e.target.value)}
-                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-amber-400 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 cursor-pointer appearance-none"
+                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-emerald-400 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 cursor-pointer appearance-none"
                                 >
                                     <option value="">เลือกวิชา...</option>
                                     {subjectOptions.map((o) => (
                                         <option key={o.value} value={o.value}>{o.label}</option>
                                     ))}
                                 </select>
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-amber-500 transition-colors">
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-emerald-500 transition-colors">
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                 </div>
                             </div>
@@ -830,7 +830,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                         {/* Room */}
                         <div className="space-y-2">
                             <label className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                                <svg className="h-4 w-4 text-amber-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                                <svg className="h-4 w-4 text-teal-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                                 ห้องเรียน
                             </label>
                             <div className="relative group">
@@ -838,14 +838,14 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                     disabled={!selectedSubjectKey}
                                     value={selectedRoomKey}
                                     onChange={(e) => handleRoomSelect(e.target.value)}
-                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-amber-400 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 disabled:opacity-40 cursor-pointer appearance-none"
+                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-teal-400 focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 disabled:opacity-40 cursor-pointer appearance-none"
                                 >
                                     <option value="">เลือกห้อง...</option>
                                     {roomOptions.map((o) => (
                                         <option key={o.value} value={o.value}>{o.label}</option>
                                     ))}
                                 </select>
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-amber-500 transition-colors">
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-teal-500 transition-colors">
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                 </div>
                             </div>
@@ -854,7 +854,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                         {/* Academic Year */}
                         <div className="space-y-2">
                             <label className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                                <svg className="h-4 w-4 text-amber-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                <svg className="h-4 w-4 text-emerald-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                 ปีการศึกษา
                             </label>
                             <div className="relative group">
@@ -862,7 +862,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                     disabled={!selectedRoomKey}
                                     value={selectedYearKey}
                                     onChange={(e) => handleYearSelect(e.target.value)}
-                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-amber-400 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 disabled:opacity-40 cursor-pointer appearance-none"
+                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-emerald-400 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 disabled:opacity-40 cursor-pointer appearance-none"
                                 >
                                     <option value="">เลือกปีการศึกษา...</option>
                                     {yearOptions.map((option) => (
@@ -871,7 +871,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                         </option>
                                     ))}
                                 </select>
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-amber-500 transition-colors">
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-emerald-500 transition-colors">
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                 </div>
                             </div>
@@ -880,7 +880,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                         {/* Semester */}
                         <div className="space-y-2">
                             <label className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                                <svg className="h-4 w-4 text-amber-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                                <svg className="h-4 w-4 text-teal-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
                                 ภาคเรียน
                             </label>
                             <div className="relative group">
@@ -888,7 +888,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                     value={selectedTermKey ? txt(sections.find(s => getTermKey(s) === selectedTermKey)?.semester) : ""}
                                     onChange={(e) => handleSemesterSelect(e.target.value)}
                                     disabled={!selectedYearKey}
-                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-amber-400 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 disabled:opacity-40 cursor-pointer appearance-none"
+                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-teal-400 focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 disabled:opacity-40 cursor-pointer appearance-none"
                                 >
                                     <option value="">{selectedYearKey ? "เลือกภาคเรียน..." : "เลือกปีก่อน"}</option>
                                     {semesterOptions.map((option) => (
@@ -897,7 +897,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                         </option>
                                     ))}
                                 </select>
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-amber-500 transition-colors">
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-teal-500 transition-colors">
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                 </div>
                             </div>
@@ -919,7 +919,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                 </section>
             ) : loading ? (
                 <div className="flex items-center justify-center py-16">
-                    <div className="w-10 h-10 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin" />
+                    <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
                 </div>
             ) : (
                 <>
@@ -936,13 +936,13 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                     กรอกแล้ว <span className="font-semibold text-emerald-700">{filledCount}</span>/{students.length}
                                 </span>
                                 {changedCount > 0 && (
-                                    <span className="text-sm text-amber-700 font-medium flex items-center gap-1">
+                                    <span className="text-sm text-teal-700 font-medium flex items-center gap-1">
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                                         แก้ไข {changedCount} รายการ
                                     </span>
                                 )}
                                 {invalidCount > 0 && (
-                                    <span className="text-sm text-red-600 font-medium flex items-center gap-1">
+                                    <span className="text-sm text-rose-600 font-medium flex items-center gap-1">
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                         ผิด {invalidCount} จุด
                                     </span>
@@ -955,7 +955,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                         value={studentSearch}
                                         onChange={(e) => setStudentSearch(e.target.value)}
                                         placeholder="ค้นหานักเรียน..."
-                                        className="w-48 rounded-lg border border-slate-200 pl-9 pr-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-amber-400"
+                                        className="w-48 rounded-lg border border-slate-200 pl-9 pr-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400"
                                     />
                                 </div>
                                 <button
@@ -978,7 +978,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                 </button>
                                 <button
                                     onClick={() => setShowCategoryManageModal(true)}
-                                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition-colors"
+                                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition-colors"
                                 >
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                                     จัดการหมวดหมู่
@@ -989,7 +989,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                         {/* Table */}
                         {scoreLoading ? (
                             <div className="p-16 text-center text-slate-400">
-                                <div className="w-10 h-10 border-4 border-amber-200 border-t-amber-500 rounded-full animate-spin mx-auto" />
+                                <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-500 rounded-full animate-spin mx-auto" />
                                 <p className="mt-4 text-sm font-medium">กำลังโหลดข้อมูลคะแนน...</p>
                             </div>
                         ) : students.length === 0 ? (
@@ -1005,7 +1005,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                     const catHeaders = headers.filter(h => h.category_id === cat.id);
                                                     if (catHeaders.length === 0) return null;
                                                     return (
-                                                        <th key={cat.id} colSpan={catHeaders.length} className="px-4 py-2 text-center text-[10px] font-black uppercase text-indigo-500 border-r border-slate-100 bg-indigo-50/30">
+                                                        <th key={cat.id} colSpan={catHeaders.length} className="px-4 py-2 text-center text-[10px] font-black uppercase text-emerald-500 border-r border-slate-100 bg-emerald-50/30">
                                                             {cat.name} ({cat.weight_percent}%)
                                                         </th>
                                                     );
@@ -1015,7 +1015,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                         อื่นๆ
                                                     </th>
                                                 )}
-                                                {!isPassFail && <th className="bg-amber-50/10"></th>}
+                                                {!isPassFail && <th className="bg-emerald-50/10"></th>}
                                             </tr>
                                         )}
                                         <tr className="bg-slate-50/80 border-b border-slate-200">
@@ -1027,13 +1027,13 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                             {[...categories.map(c => headers.filter(h => h.category_id === c.id)).flat(), ...headers.filter(h => !h.category_id)].map(h => (
                                                 <th key={h.id}
                                                     onClick={() => setSelectedHeaderId(h.id)}
-                                                    className={`px-4 py-3 text-center text-xs font-bold uppercase tracking-wider border-r border-slate-100 min-w-[100px] cursor-pointer transition-colors ${selectedHeaderId === h.id ? "bg-amber-50 text-amber-700" : "text-slate-500 hover:bg-slate-100"}`}>
+                                                    className={`px-4 py-3 text-center text-xs font-bold uppercase tracking-wider border-r border-slate-100 min-w-[100px] cursor-pointer transition-colors ${selectedHeaderId === h.id ? "bg-emerald-50 text-emerald-700" : "text-slate-500 hover:bg-slate-100"}`}>
                                                     <div className="line-clamp-1" title={h.title}>{h.title}</div>
                                                     {!isPassFail && <div className="mt-0.5 text-[10px] font-normal opacity-60">เต็ม {toNum(h.max_score)}</div>}
                                                 </th>
                                             ))}
 
-                                            {!isPassFail && <th className="px-4 py-3 text-center text-xs font-bold text-amber-600 uppercase tracking-wider bg-amber-50/30 min-w-[100px]">คะแนนรวม</th>}
+                                            {!isPassFail && <th className="px-4 py-3 text-center text-xs font-bold text-teal-600 uppercase tracking-wider bg-teal-50/30 min-w-[100px]">คะแนนรวม</th>}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
@@ -1062,12 +1062,12 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                         const changed = isPassFail ? passRaw !== originalPassRaw : raw !== originalRaw;
 
                                                         return (
-                                                            <td key={h.id} className={`px-2 py-1.5 text-center border-r border-slate-50 ${selectedHeaderId === h.id ? "bg-amber-50/20" : ""}`}>
+                                                            <td key={h.id} className={`px-2 py-1.5 text-center border-r border-slate-50 ${selectedHeaderId === h.id ? "bg-emerald-50/20" : ""}`}>
                                                                 {isPassFail ? (
                                                                     <label className="inline-flex items-center justify-center cursor-pointer w-full h-full">
                                                                         <input
                                                                             type="checkbox"
-                                                                            className={`w-5 h-5 rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer ${changed ? "ring-2 ring-amber-400" : ""}`}
+                                                                            className={`w-5 h-5 rounded border-slate-300 text-teal-500 focus:ring-teal-500 cursor-pointer ${changed ? "ring-2 ring-teal-400" : ""}`}
                                                                             checked={passRaw === true}
                                                                             onChange={(e) => setIsPassedMap(prev => ({
                                                                                 ...prev,
@@ -1091,9 +1091,9 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                                         [s.id]: { ...(prev[s.id] || {}), [h.id]: e.target.value }
                                                                     }))}
                                                                     onKeyDown={(e) => handleScoreInputEnter(e, i, h.id)}
-                                                                    className={`w-16 rounded-lg border px-2 py-1.5 text-center text-sm outline-none transition-all focus:ring-2 ${invalid ? "border-red-300 bg-red-50 text-red-700 focus:ring-red-400 cursor-help"
-                                                                        : changed ? "border-amber-300 bg-amber-50 text-amber-800 focus:ring-amber-400"
-                                                                            : "border-slate-200 focus:border-amber-400 focus:ring-amber-400/20"
+                                                                    className={`w-16 rounded-lg border px-2 py-1.5 text-center text-sm outline-none transition-all focus:ring-2 ${invalid ? "border-rose-300 bg-rose-50 text-rose-700 focus:ring-rose-400 cursor-help"
+                                                                        : changed ? "border-teal-300 bg-teal-50 text-teal-800 focus:ring-teal-400"
+                                                                            : "border-slate-200 focus:border-emerald-400 focus:ring-emerald-400/20"
                                                                         }`}
                                                                     />
                                                                 )}
@@ -1102,8 +1102,8 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                     })}
 
                                                     {!isPassFail && (
-                                                        <td className="px-4 py-2 text-center bg-amber-50/10">
-                                                            <span className={`text-sm font-bold ${total > 0 ? "text-amber-600" : "text-slate-300"}`}>
+                                                        <td className="px-4 py-2 text-center bg-emerald-50/10">
+                                                            <span className={`text-sm font-bold ${total > 0 ? "text-teal-600" : "text-slate-300"}`}>
                                                                 {total.toLocaleString()}
                                                             </span>
                                                         </td>
@@ -1124,7 +1124,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                 <div className="mt-6 flex justify-end px-4 overflow-visible">
                     <div className="flex items-center gap-6">
                         <div className="flex items-center gap-3 text-sm text-slate-500">
-                            <div className={`w-2.5 h-2.5 rounded-full ${changedCount > 0 ? "bg-amber-500 animate-pulse" : "bg-emerald-500"}`} />
+                            <div className={`w-2.5 h-2.5 rounded-full ${changedCount > 0 ? "bg-teal-500 animate-pulse" : "bg-emerald-500"}`} />
                             <span className="font-medium">{changedCount > 0 ? `มีการเปลี่ยนแปลง ${changedCount} รายการ` : "ข้อมูลเป็นปัจจุบันแล้ว"}</span>
                         </div>
                         <div className="flex gap-3">
@@ -1138,7 +1138,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                             <button
                                 onClick={handleSaveScores}
                                 disabled={saving || invalidCount > 0 || changedCount === 0}
-                                className="px-8 py-2.5 rounded-2xl bg-amber-500 text-sm font-black text-white hover:bg-amber-600 shadow-md shadow-amber-200 transition-all active:scale-95 disabled:opacity-40 flex items-center gap-2"
+                                className="px-8 py-2.5 rounded-2xl bg-emerald-600 text-sm font-black text-white hover:bg-emerald-700 shadow-md shadow-emerald-200 transition-all active:scale-95 disabled:opacity-40 flex items-center gap-2"
                             >
                                 {saving ? (
                                     <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -1185,12 +1185,12 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                     const isEditing = editingHeaderId === h.id;
                                     if (isEditing) {
                                         return (
-                                            <div key={h.id} className="flex items-center gap-3 p-3 rounded-2xl border-2 border-amber-400 bg-amber-50 animate-in slide-in-from-top-2">
+                                            <div key={h.id} className="flex items-center gap-3 p-3 rounded-2xl border-2 border-teal-400 bg-teal-50 animate-in slide-in-from-top-2">
                                                 <div className="flex-1 space-y-2">
                                                     <input
                                                         value={editTitle}
                                                         onChange={(e) => setEditTitle(e.target.value)}
-                                                        className="w-full rounded-xl border border-amber-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-400"
+                                                        className="w-full rounded-xl border border-teal-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-400"
                                                         placeholder="ชื่อหัวข้อ"
                                                     />
                                                     {!isPassFail && (
@@ -1201,7 +1201,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                                     type="number"
                                                                     value={editMax}
                                                                     onChange={(e) => setEditMax(Number(e.target.value))}
-                                                                    className="w-20 rounded-xl border border-amber-200 px-3 py-1.5 text-sm text-center outline-none focus:ring-2 focus:ring-amber-400"
+                                                                    className="w-20 rounded-xl border border-teal-200 px-3 py-1.5 text-sm text-center outline-none focus:ring-2 focus:ring-teal-400"
                                                                 />
                                                             </div>
                                                             <div className="flex items-center gap-2 flex-1">
@@ -1209,7 +1209,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                                 <select
                                                                     value={editCategoryId || ""}
                                                                     onChange={(e) => setEditCategoryId(e.target.value ? Number(e.target.value) : null)}
-                                                                    className="flex-1 rounded-xl border border-amber-200 px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                                                                    className="flex-1 rounded-xl border border-teal-200 px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-400 bg-white"
                                                                 >
                                                                     <option value="">(ไม่ระบุ)</option>
                                                                     {categories.map(cat => (
@@ -1224,7 +1224,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                             <span className="text-xs text-slate-500 font-medium block mb-1.5">ตัวชี้วัด:</span>
                                                             <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                                                                 {indicators.map((ind) => (
-                                                                    <label key={ind.id} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all border ${editIndicatorIds.includes(ind.id) ? "bg-amber-100 border-amber-400 text-amber-800" : "bg-white border-slate-200 text-slate-500 hover:border-amber-300"}`}>
+                                                                    <label key={ind.id} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all border ${editIndicatorIds.includes(ind.id) ? "bg-teal-100 border-teal-400 text-teal-800" : "bg-white border-slate-200 text-slate-500 hover:border-teal-300"}`}>
                                                                         <input
                                                                             type="checkbox"
                                                                             checked={editIndicatorIds.includes(ind.id)}
@@ -1232,7 +1232,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                                                 if (e.target.checked) setEditIndicatorIds((prev) => [...prev, ind.id]);
                                                                                 else setEditIndicatorIds((prev) => prev.filter((id) => id !== ind.id));
                                                                             }}
-                                                                            className="accent-amber-500 w-3.5 h-3.5"
+                                                                            className="accent-teal-500 w-3.5 h-3.5"
                                                                         />
                                                                         <span className="font-semibold">{ind.code}</span>
                                                                         <span className="hidden sm:inline truncate max-w-[180px]">{ind.description}</span>
@@ -1243,21 +1243,21 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                     )}
                                                 </div>
                                                 <div className="flex flex-col gap-2">
-                                                    <button onClick={handleUpdateHeader} disabled={updatingHeader} className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 disabled:opacity-50">บันทึก</button>
+                                                    <button onClick={handleUpdateHeader} disabled={updatingHeader} className="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-bold hover:bg-teal-600 disabled:opacity-50">บันทึก</button>
                                                     <button onClick={() => setEditingHeaderId(null)} className="px-4 py-2 rounded-xl bg-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-300">ยกเลิก</button>
                                                 </div>
                                             </div>
                                         );
                                     }
                                     return (
-                                        <div key={h.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 bg-white hover:border-amber-200 hover:shadow-md transition-all group">
+                                        <div key={h.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 bg-white hover:border-emerald-200 hover:shadow-md transition-all group">
                                             <div>
                                                 <div className="font-bold text-slate-700">{h.title}</div>
                                                 {!isPassFail && <div className="text-xs text-slate-400 font-medium mt-1">เต็ม {toNum(h.max_score)} คะแนน</div>}
                                                 {h.indicators && h.indicators.length > 0 && (
                                                     <div className="flex flex-wrap gap-1 mt-1.5">
                                                         {h.indicators.map((ind: any) => (
-                                                            <span key={ind.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-semibold border border-blue-100" title={ind.description}>
+                                                            <span key={ind.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-100" title={ind.description}>
                                                                 {ind.code}
                                                             </span>
                                                         ))}
@@ -1269,7 +1269,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                     <div className="flex items-center gap-1.5 animate-in slide-in-from-right-2 duration-200">
                                                         <button 
                                                             onClick={() => handleDeleteHeader(h.id)}
-                                                            className="bg-red-600 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-red-700 shadow-sm"
+                                                            className="bg-rose-600 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-rose-700 shadow-sm"
                                                         >ยืนยัน</button>
                                                         <button 
                                                             onClick={() => setDeletingHeaderId(null)}
@@ -1283,14 +1283,14 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                                 handleStartEdit(h);
                                                                 setDeletingHeaderId(null);
                                                             }} 
-                                                            className="p-2 rounded-lg text-slate-400 hover:bg-amber-100 hover:text-amber-600 transition-colors" 
+                                                            className="p-2 rounded-lg text-slate-400 hover:bg-emerald-100 hover:text-emerald-600 transition-colors" 
                                                             title="แก้ไข"
                                                         >
                                                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                                         </button>
                                                         <button 
                                                             onClick={() => setDeletingHeaderId(h.id)} 
-                                                            className="p-2 rounded-lg text-slate-400 hover:bg-red-100 hover:text-red-600 transition-colors" 
+                                                            className="p-2 rounded-lg text-slate-400 hover:bg-rose-100 hover:text-rose-600 transition-colors" 
                                                             title="ลบ"
                                                         >
                                                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -1395,30 +1395,30 @@ export function ScoreInputFeature({ session }: { session: any }) {
             {showCategoryManageModal && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-indigo-50/50">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-emerald-50/50">
                             <div>
-                                <h3 className="text-lg font-bold text-indigo-900">จัดการสัดส่วนคะแนน</h3>
-                                <p className="text-xs text-indigo-600 mt-0.5">กำหนดหมวดหมู่และน้ำหนักคะแนน (รวมควรเป็น 100%)</p>
+                                <h3 className="text-lg font-bold text-emerald-900">จัดการสัดส่วนคะแนน</h3>
+                                <p className="text-xs text-emerald-600 mt-0.5">กำหนดหมวดหมู่และน้ำหนักคะแนน (รวมควรเป็น 100%)</p>
                             </div>
-                            <button onClick={() => setShowCategoryManageModal(false)} className="p-2 rounded-xl text-indigo-400 hover:bg-indigo-100 hover:text-indigo-600 transition-colors">
+                            <button onClick={() => setShowCategoryManageModal(false)} className="p-2 rounded-xl text-emerald-400 hover:bg-emerald-100 hover:text-emerald-600 transition-colors">
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
                         <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-                            <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl space-y-4">
+                            <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl space-y-4">
                                 <div>
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-700 mb-2">1. จัดการรายการประเภทคะแนน</h4>
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700 mb-2">1. จัดการรายการประเภทคะแนน</h4>
                                     <div className="flex gap-2 mb-4">
                                         <input 
                                             value={newCategoryTypeName}
                                             onChange={(e) => setNewCategoryTypeName(e.target.value)}
                                             placeholder="ชื่อประเภทเช่น จิตพิสัย, พฤติกรรม"
-                                            className="flex-1 rounded-xl border border-indigo-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-400"
+                                            className="flex-1 rounded-xl border border-emerald-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400"
                                         />
                                         <button 
                                             onClick={handleAddCategoryType}
                                             disabled={addingCategoryType || !newCategoryTypeName.trim()}
-                                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                                            className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 shadow-sm"
                                         >
                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                                             {addingCategoryType ? "..." : "เพิ่มใหม่"}
@@ -1428,14 +1428,14 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                     {/* Scrollable list of existing types */}
                                     <div className="max-h-40 overflow-y-auto pr-1 space-y-2 mb-4 custom-scrollbar">
                                         {categoryTypes.map(t => (
-                                            <div key={t.id} className="flex items-center gap-2 bg-white border border-indigo-100 p-2 rounded-xl group transition-all hover:border-indigo-300">
+                                            <div key={t.id} className="flex items-center gap-2 bg-white border border-emerald-100 p-2 rounded-xl group transition-all hover:border-emerald-300">
                                                 {editingCategoryTypeId === t.id ? (
                                                     <div className="flex-1 flex gap-2">
                                                         <input 
                                                             autoFocus
                                                             value={editCategoryTypeName}
                                                             onChange={(e) => setEditCategoryTypeName(e.target.value)}
-                                                            className="flex-1 text-sm border-b-2 border-indigo-400 outline-none px-1"
+                                                            className="flex-1 text-sm border-b-2 border-emerald-400 outline-none px-1"
                                                         />
                                                         <button 
                                                             onClick={() => handleUpdateCategoryType(t.id, editCategoryTypeName)}
@@ -1454,7 +1454,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                                 <div className="flex items-center gap-1.5 animate-in slide-in-from-right-2 duration-200">
                                                                     <button 
                                                                         onClick={() => handleDeleteCategoryType(t.id)}
-                                                                        className="bg-red-600 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-red-700 shadow-sm"
+                                                                        className="bg-rose-600 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-rose-700 shadow-sm"
                                                                     >ยืนยัน</button>
                                                                     <button 
                                                                         onClick={() => setDeletingCategoryTypeId(null)}
@@ -1469,14 +1469,14 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                                             setEditCategoryTypeName(t.type_name);
                                                                             setDeletingCategoryTypeId(null);
                                                                         }}
-                                                                        className="p-1.5 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-all"
+                                                                        className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
                                                                         title="แก้ไขชื่อนี้"
                                                                     >
                                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                                                     </button>
                                                                     <button 
                                                                         onClick={() => setDeletingCategoryTypeId(t.id)}
-                                                                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                                        className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
                                                                         title="ลบประเภทนี้"
                                                                     >
                                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v2m3 4h.01" /></svg>
@@ -1490,16 +1490,16 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                         ))}
                                     </div>
                                 </div>
-                                <div className="pt-3 border-t border-indigo-100">
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-700 mb-2">2. เพิ่มหมวดหมู่คะแนนลงในตาราง</h4>
+                                <div className="pt-3 border-t border-emerald-100">
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700 mb-2">2. เพิ่มหมวดหมู่คะแนนลงในตาราง</h4>
                                     <div className="flex gap-2">
-                                        <select id="newCatTypeId" className="flex-1 rounded-xl border border-indigo-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-400">
+                                        <select id="newCatTypeId" className="flex-1 rounded-xl border border-emerald-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400">
                                             <option value="">เลือกประเภทคะแนน...</option>
                                             {categoryTypes.map(t => (
                                                 <option key={t.id} value={t.id}>{t.type_name}</option>
                                             ))}
                                         </select>
-                                        <input id="newCatWeight" type="number" placeholder="%" className="w-20 rounded-xl border border-indigo-200 px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-indigo-400" defaultValue="0" />
+                                        <input id="newCatWeight" type="number" placeholder="%" className="w-20 rounded-xl border border-emerald-200 px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-emerald-400" defaultValue="0" />
                                         <button
                                             onClick={() => {
                                                 const tid = (document.getElementById("newCatTypeId") as HTMLSelectElement).value;
@@ -1509,7 +1509,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                 (document.getElementById("newCatTypeId") as HTMLSelectElement).value = "";
                                                 (document.getElementById("newCatWeight") as HTMLInputElement).value = "0";
                                             }}
-                                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700"
+                                            className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-emerald-700"
                                         >เพิ่มลงตาราง</button>
                                     </div>
                                 </div>
@@ -1528,17 +1528,17 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                 type="number" 
                                                 value={cat.weight_percent} 
                                                 onChange={(e) => handleUpdateCategory(cat.id, "", Number(e.target.value), cat.category_type_id)}
-                                                className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm text-center outline-none focus:ring-2 focus:ring-indigo-400"
+                                                className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm text-center outline-none focus:ring-2 focus:ring-emerald-400"
                                             />
                                             <span className="text-xs text-slate-400">%</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {deletingId === cat.id ? (
-                                                <div className="flex items-center gap-2 bg-red-50 px-2 py-1 rounded-lg border border-red-100">
-                                                    <span className="text-[10px] font-bold text-red-600 uppercase">ลบ?</span>
+                                                <div className="flex items-center gap-2 bg-rose-50 px-2 py-1 rounded-lg border border-rose-100">
+                                                    <span className="text-[10px] font-bold text-rose-600 uppercase">ลบ?</span>
                                                     <button 
                                                         onClick={() => handleDeleteCategory(cat.id)}
-                                                        className="text-[10px] bg-red-600 text-white px-2 py-1 rounded font-bold hover:bg-red-700"
+                                                        className="text-[10px] bg-rose-600 text-white px-2 py-1 rounded font-bold hover:bg-rose-700"
                                                     >ยืนยัน</button>
                                                     <button 
                                                         onClick={() => setDeletingId(null)}
@@ -1548,7 +1548,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                             ) : (
                                                 <button 
                                                     onClick={() => setDeletingId(cat.id)} 
-                                                    className="p-2 text-slate-400 hover:text-red-500 transition-all flex-shrink-0"
+                                                    className="p-2 text-slate-400 hover:text-rose-500 transition-all flex-shrink-0"
                                                     title="ลบหมวดหมู่นี้"
                                                 >
                                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1563,7 +1563,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                             {categories.length > 0 && (
                                 <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
                                     <span className="text-sm font-bold text-slate-500">รวมทั้งหมด:</span>
-                                    <span className={`text-lg font-black ${categories.reduce((a, b) => a + Number(b.weight_percent || 0), 0) === 100 ? "text-emerald-600" : "text-amber-500"}`}>
+                                    <span className={`text-lg font-black ${categories.reduce((a, b) => a + Number(b.weight_percent || 0), 0) === 100 ? "text-emerald-600" : "text-teal-500"}`}>
                                         {categories.reduce((a, b) => a + Number(b.weight_percent || 0), 0)}%
                                     </span>
                                 </div>
@@ -1574,7 +1574,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                             <button 
                                 onClick={handleSaveCategories} 
                                 disabled={categorySaving}
-                                className="px-8 py-2 rounded-xl bg-indigo-600 text-white text-sm font-black hover:bg-indigo-700 shadow-lg shadow-indigo-100 flex items-center gap-2"
+                                className="px-8 py-2 rounded-xl bg-emerald-600 text-white text-sm font-black hover:bg-emerald-700 shadow-lg shadow-emerald-100 flex items-center gap-2"
                             >
                                 {categorySaving && <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />}
                                 บันทึกทั้งหมด

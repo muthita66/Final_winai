@@ -14,9 +14,11 @@ export const TeacherBehaviorService = {
         });
     },
 
-    async getClassrooms(level_id?: number) {
+    async getClassrooms(level_id?: number | string) {
+        const id = level_id ? Number(level_id) : undefined;
         return prisma.classrooms.findMany({
-            where: level_id ? { grade_level_id: level_id } : undefined,
+            where: id && !isNaN(id) ? { grade_level_id: id } : undefined,
+            include: { levels: { select: { name: true } } },
             orderBy: { room_name: 'asc' }
         });
     },

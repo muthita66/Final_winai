@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useEffect, useState } from "react";
 import { TeacherApiService } from "@/services/teacher-api.service";
 
@@ -39,7 +39,7 @@ export function ExamCalendarFeature({ session }: { session: any }) {
             </section>
 
             {isFallbackAll && (
-                <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl px-4 py-3 text-sm">
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl px-4 py-3 text-sm">
                     ไม่พบตารางสอบที่ผูกกับวิชาที่คุณสอน จึงแสดงตารางสอบทั้งหมดของโรงเรียนให้แทน
                 </div>
             )}
@@ -48,7 +48,7 @@ export function ExamCalendarFeature({ session }: { session: any }) {
                 {loading ? (
                     <div className="p-8 text-center text-slate-500">กำลังโหลด...</div>
                 ) : error ? (
-                    <div className="p-8 text-center text-red-600">{error}</div>
+                    <div className="p-8 text-center text-rose-600">{error}</div>
                 ) : exams.length === 0 ? (
                     <div className="p-8 text-center text-slate-500">ยังไม่มีตารางสอบ</div>
                 ) : (
@@ -74,7 +74,7 @@ export function ExamCalendarFeature({ session }: { session: any }) {
                                     <td className="px-6 py-4 text-sm text-slate-600">{(ex.class_level || "-")}/{(ex.classroom || "-")}</td>
                                     <td className="px-6 py-4 text-sm text-slate-600">{ex.teacher_name || "-"}</td>
                                     <td className="px-6 py-4 text-sm">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${ex.exam_type === "midterm" ? "bg-blue-50 text-blue-700 border border-blue-200" : ex.exam_type === "final" ? "bg-purple-50 text-purple-700 border border-purple-200" : "bg-slate-50 text-slate-700 border border-slate-200"}`}>
+                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${ex.exam_type === "midterm" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : ex.exam_type === "final" ? "bg-teal-50 text-teal-700 border border-teal-200" : "bg-slate-50 text-slate-700 border border-slate-200"}`}>
                                             {ex.exam_type === "midterm" ? "กลางภาค" : ex.exam_type === "final" ? "ปลายภาค" : (ex.exam_type || "-")}
                                         </span>
                                     </td>

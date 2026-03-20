@@ -86,10 +86,10 @@ export function AttendanceFeature({ session }: { session: any }) {
     };
 
     const statusOptions = [
-        { value: "present", label: "มา", color: "bg-green-100 text-green-700 border-green-300" },
-        { value: "absent", label: "ขาด", color: "bg-red-100 text-red-700 border-red-300" },
-        { value: "late", label: "สาย", color: "bg-yellow-100 text-yellow-700 border-yellow-300" },
-        { value: "leave", label: "ลา", color: "bg-blue-100 text-blue-700 border-blue-300" },
+        { value: "present", label: "มา", color: "bg-emerald-100 text-emerald-700 border-emerald-300" },
+        { value: "absent", label: "ขาด", color: "bg-rose-100 text-rose-700 border-rose-300" },
+        { value: "late", label: "สาย", color: "bg-teal-100 text-teal-700 border-teal-300" },
+        { value: "leave", label: "ลา", color: "bg-emerald-50 text-emerald-600 border-emerald-200" },
     ];
 
     return (

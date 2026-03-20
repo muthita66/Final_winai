@@ -15,7 +15,7 @@ export default function UserMenu({ session }: { session: any }) {
         return (
             <button
                 onClick={() => router.push('/login')}
-                className="h-9 px-4 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 text-sm font-semibold transition-colors shadow-sm"
+                className="h-9 px-4 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-sm font-semibold transition-colors shadow-sm"
             >
                 เข้าสู่ระบบ
             </button>
@@ -35,7 +35,7 @@ export default function UserMenu({ session }: { session: any }) {
 
                 <button
                     onClick={handleLogout}
-                    className="h-10 px-4 rounded-full bg-red-50 text-red-600 hover:bg-red-100 hover:shadow-sm text-sm font-medium transition-all flex items-center gap-2"
+                    className="h-10 px-4 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 hover:shadow-sm text-sm font-medium transition-all flex items-center gap-2"
                 >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

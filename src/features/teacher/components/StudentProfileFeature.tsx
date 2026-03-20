@@ -269,7 +269,7 @@ export function StudentProfileFeature({ session }: { session: any }) {
     if (error || !profile) {
         return (
             <div className="space-y-4">
-                <div className="bg-white rounded-2xl p-8 shadow-sm border border-red-200 text-center text-red-600">
+                <div className="bg-white rounded-2xl p-8 shadow-sm border border-rose-200 text-center text-rose-600">
                     {error || "ไม่พบข้อมูลนักเรียน"}
                 </div>
                 <div className="text-center">
@@ -431,10 +431,10 @@ export function StudentProfileFeature({ session }: { session: any }) {
     ].filter((f) => hasMeaningfulValue(f.value));
 
     const riskBadges = [
-        alerts.length > 0 ? { label: `แจ้งเตือน ${alerts.length}`, tone: "red" } : null,
-        attendance?.attendance_rate != null ? { label: `มาเรียน ${fmtPct(attendance.attendance_rate)}`, tone: "blue" } : null,
-        grades?.average_grade_point != null ? { label: `เกรดเฉลี่ย ${fmtNum(grades.average_grade_point, 2)}`, tone: "indigo" } : null,
-        health?.has_allergy_or_chronic ? { label: "มีข้อมูลสุขภาพต้องระวัง", tone: "amber" } : null,
+        alerts.length > 0 ? { label: `แจ้งเตือน ${alerts.length}`, tone: "rose" } : null,
+        attendance?.attendance_rate != null ? { label: `มาเรียน ${fmtPct(attendance.attendance_rate)}`, tone: "teal" } : null,
+        grades?.average_grade_point != null ? { label: `เกรดเฉลี่ย ${fmtNum(grades.average_grade_point, 2)}`, tone: "emerald" } : null,
+        health?.has_allergy_or_chronic ? { label: "มีข้อมูลสุขภาพต้องระวัง", tone: "teal" } : null,
     ].filter(Boolean) as { label: string; tone: string }[];
 
     return (
@@ -511,7 +511,7 @@ export function StudentProfileFeature({ session }: { session: any }) {
                         </div>
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
                             <div className="text-sm text-slate-500">พฤติกรรมสะสม</div>
-                            <div className={`mt-2 text-3xl font-bold ${Number(conduct?.total_points ?? 0) < 0 ? "text-red-600" : "text-slate-900"}`}>
+                                <div className={`mt-2 text-3xl font-bold ${Number(conduct?.total_points ?? 0) < 0 ? "text-rose-600" : "text-slate-900"}`}>
                                 {conduct ? fmtNum(conduct.total_points, 0) : "-"}
                             </div>
                             <div className="mt-1 text-xs text-slate-500">
@@ -540,9 +540,9 @@ export function StudentProfileFeature({ session }: { session: any }) {
                                 <p className="text-sm text-slate-500">สรุปการเช็คชื่อและรายการล่าสุดของนักเรียนคนนี้</p>
                             </div>
                             <div className="flex flex-wrap gap-2 text-xs">
-                                <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-blue-700">มา {attendance.present ?? 0}</span>
-                                <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-red-700">ขาด {attendance.absent ?? 0}</span>
-                                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">สาย {attendance.late ?? 0}</span>
+                                <span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-teal-700">มา {attendance.present ?? 0}</span>
+                                <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-rose-700">ขาด {attendance.absent ?? 0}</span>
+                                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">สาย {attendance.late ?? 0}</span>
                                 <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-700">ลา {attendance.leave ?? 0}</span>
                             </div>
                         </div>
@@ -561,7 +561,7 @@ export function StudentProfileFeature({ session }: { session: any }) {
                                                         <span className="text-slate-500">{rate}%</span>
                                                     </div>
                                                     <div className="mt-2 h-2 rounded-full bg-white overflow-hidden">
-                                                        <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500" style={{ width: `${Math.max(0, Math.min(100, rate))}%` }} />
+                                                        <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500" style={{ width: `${Math.max(0, Math.min(100, rate))}%` }} />
                                                     </div>
                                                     <div className="mt-2 text-xs text-slate-500">
                                                         มา {m.present || 0} • ขาด {m.absent || 0} • สาย {m.late || 0} • ลา {m.leave || 0}
@@ -584,9 +584,9 @@ export function StudentProfileFeature({ session }: { session: any }) {
                                             <div key={`${a.id}-${idx}`} className="px-4 py-3">
                                                 <div className="flex items-center justify-between gap-2">
                                                     <div className="text-sm font-medium text-slate-800">{fmtDate(a.date)}</div>
-                                                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold border ${a.normalized_status === "present" ? "border-blue-200 bg-blue-50 text-blue-700" :
-                                                        a.normalized_status === "absent" ? "border-red-200 bg-red-50 text-red-700" :
-                                                            a.normalized_status === "late" ? "border-amber-200 bg-amber-50 text-amber-700" :
+                                                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold border ${a.normalized_status === "present" ? "border-teal-200 bg-teal-50 text-teal-700" :
+                                                        a.normalized_status === "absent" ? "border-rose-200 bg-rose-50 text-rose-700" :
+                                                            a.normalized_status === "late" ? "border-emerald-200 bg-emerald-50 text-emerald-700" :
                                                                 a.normalized_status === "leave" ? "border-slate-300 bg-slate-50 text-slate-700" :
                                                                     "border-slate-200 bg-white text-slate-700"
                                                         }`}>
@@ -627,8 +627,8 @@ export function StudentProfileFeature({ session }: { session: any }) {
                                             </div>
                                         ))}
                                         {hasMeaningfulValue(health?.latest?.allergies) && (
-                                            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 md:col-span-2">
-                                                <div className="text-xs text-amber-700 font-semibold">การแพ้ยา / แพ้อาหาร</div>
+                                            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 md:col-span-2">
+                                                <div className="text-xs text-emerald-700 font-semibold">การแพ้ยา / แพ้อาหาร</div>
                                                 <div className="mt-1 text-sm text-slate-800 break-words">{health.latest.allergies}</div>
                                             </div>
                                         )}
@@ -759,7 +759,7 @@ export function StudentProfileFeature({ session }: { session: any }) {
                                             <div key={`${r.id}-${idx}`} className="px-4 py-3">
                                                 <div className="flex items-center justify-between gap-2">
                                                     <div className="text-sm font-medium text-slate-800">{r.topic || "-"}</div>
-                                                    <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">{r.score ?? "-"}</span>
+                                                    <span className="rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700">{r.score ?? "-"}</span>
                                                 </div>
                                                 <div className="mt-1 text-xs text-slate-500">{r.subject_code || "-"} • {r.subject_name || "-"}</div>
                                                 <div className="mt-1 text-xs text-slate-500">ปี {r.year || "-"} ภาค {r.semester || "-"} • {fmtDateTime(r.created_at)}</div>
@@ -779,13 +779,13 @@ export function StudentProfileFeature({ session }: { session: any }) {
                                             <div key={`${r.id}-${idx}`} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                                                 <div className="flex items-center justify-between gap-2">
                                                     <div className="text-sm font-medium text-slate-800">{r.name || "-"}</div>
-                                                    <span className="rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700">{r.score ?? "-"}</span>
+                                                    <span className="rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700">{r.score ?? "-"}</span>
                                                 </div>
                                             </div>
                                         ))}
                                         {(evaluations.competency?.latest_term_feedback || []).slice(0, 3).map((f: any, idx: number) => (
-                                            <div key={`${f.id}-${idx}`} className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                                                <div className="text-xs font-semibold text-amber-700">ข้อเสนอแนะ</div>
+                                            <div key={`${f.id}-${idx}`} className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                                                <div className="text-xs font-semibold text-emerald-700">ข้อเสนอแนะ</div>
                                                 <div className="mt-1 text-sm text-slate-800 whitespace-pre-wrap break-words">{f.feedback || "-"}</div>
                                             </div>
                                         ))}
@@ -811,7 +811,7 @@ export function StudentProfileFeature({ session }: { session: any }) {
                                 <div className="mt-4 grid grid-cols-3 gap-3">
                                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                                         <div className="text-xs text-slate-500">สะสม</div>
-                                        <div className={`mt-1 text-lg font-bold ${Number(conduct.total_points) < 0 ? "text-red-600" : "text-slate-900"}`}>{fmtNum(conduct.total_points, 0)}</div>
+                                        <div className={`mt-1 text-lg font-bold ${Number(conduct.total_points) < 0 ? "text-rose-600" : "text-slate-900"}`}>{fmtNum(conduct.total_points, 0)}</div>
                                     </div>
                                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                                         <div className="text-xs text-emerald-700">บวก</div>

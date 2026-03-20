@@ -295,6 +295,13 @@ function CrudFeature({
         load();
     }, []);
 
+    // Auto-refresh when search is cleared
+    useEffect(() => {
+        if (search === "") {
+            load();
+        }
+    }, [search]);
+
     const handleDelete = async (id: number) => {
         if (!confirm("ลบรายการนี้?")) return;
         try {
@@ -663,7 +670,7 @@ export function TeachersFeature() {
                 // 0. Priority: Advisor vs Non-Advisor
                 const isAdvisorA = !!a.advisor_level;
                 const isAdvisorB = !!b.advisor_level;
-                
+
                 if (isAdvisorA !== isAdvisorB) {
                     return isAdvisorA ? -1 : 1; // Advisor comes first
                 }
@@ -679,7 +686,7 @@ export function TeachersFeature() {
                 const roomA = parseInt(a.advisor_room || "0");
                 const roomB = parseInt(b.advisor_room || "0");
                 if (roomA !== roomB) return roomA - roomB;
-                
+
                 // 3. Fallback to teacher code
                 return String(a.teacher_code || "").localeCompare(String(b.teacher_code || ""));
             }}
@@ -991,7 +998,7 @@ export function ProjectsFeature() {
 
     return (
         <CrudFeature
-            title="โครงการ"
+            title="โครงการและงบประมาณนักเรียน"
             badgeText="Projects"
             subtitle="จัดการโครงการ"
             color="from-emerald-700 to-teal-800"
@@ -1188,7 +1195,7 @@ export function FinanceFeature() {
         <CrudFeature
             title="งบประมาณ"
             subtitle="บันทึกรายรับ-รายจ่ายโครงการ"
-            color="from-blue-600 to-indigo-700"
+            color="from-emerald-600 to-teal-700"
             fetchFn={() => DirectorApiService.getFinanceRecords()}
             createFn={(data) => {
                 const project = projectOptions.find(o => o.label === data.project_id);
@@ -1253,10 +1260,10 @@ export function ActivitiesFeature() {
         { key: "name", label: "ชื่อกิจกรรม", required: true },
         { key: "event_type_name", label: "ประเภทกิจกรรม", type: "select", options: ["", ...eventTypeOptions.map(o => o.label)] },
         { key: "department_name", label: "ฝ่ายที่รับผิดชอบ", type: "select", options: ["", ...departmentOptions.map(o => o.label)] },
-        { 
-            key: "teacher_name", 
-            label: "ครูที่รับผิดชอบ", 
-            type: "select", 
+        {
+            key: "teacher_name",
+            label: "ครูที่รับผิดชอบ",
+            type: "select",
             options: (values) => {
                 const dept = values.department_name;
                 const teachers = (teacherOptions as any[]);
@@ -1336,8 +1343,8 @@ export function ActivitiesFeature() {
                 <button
                     onClick={() => setViewMode('list')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'list'
-                            ? 'bg-white text-indigo-600 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
+                        ? 'bg-white text-emerald-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
                         }`}
                 >
                     <ListIcon size={16} />
@@ -1346,8 +1353,8 @@ export function ActivitiesFeature() {
                 <button
                     onClick={() => setViewMode('calendar')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'calendar'
-                            ? 'bg-white text-indigo-600 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
+                        ? 'bg-white text-emerald-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
                         }`}
                 >
                     <CalendarIcon size={16} />
@@ -1364,7 +1371,7 @@ export function ActivitiesFeature() {
                     title="กิจกรรม"
                     badgeText="Activities"
                     subtitle="จัดการปฏิทินกิจกรรมโรงเรียน"
-                    color="from-purple-600 to-indigo-700"
+                    color="from-emerald-600 to-teal-700"
                     searchRightContent={switcher}
                     initialEditItem={pendingEditItem}
                     onCloseModal={() => setPendingEditItem(null)}
@@ -1396,43 +1403,43 @@ export function ActivitiesFeature() {
                     editFields={() => activityFields}
                     renderDetail={(item) => (
                         <div className="p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            <div className="space-y-2">
-                                <p className="text-xs font-semibold text-slate-500">วันที่เริ่มกิจกรรม</p>
-                                <p className="text-base font-bold text-slate-800">
+                            <div className="space-y-1">
+                                <p className="text-sm font-semibold text-slate-500">วันที่เริ่มกิจกรรม</p>
+                                <p className="text-base font-normal text-slate-800">
                                     {item.date ? new Date(item.date).toLocaleDateString("th-TH") : "-"}
-                                    {item.start_time && <span className="ml-2 text-indigo-600">({item.start_time})</span>}
+                                    {item.start_time && <span className="ml-2 text-emerald-600">({item.start_time})</span>}
                                 </p>
                             </div>
-                            <div className="space-y-2">
-                                <p className="text-xs font-semibold text-slate-500">วันที่สิ้นสุดกิจกรรม</p>
-                                <p className="text-base font-bold text-slate-800">
+                            <div className="space-y-1">
+                                <p className="text-sm font-semibold text-slate-500">วันที่สิ้นสุดกิจกรรม</p>
+                                <p className="text-base font-normal text-slate-800">
                                     {item.end_date ? new Date(item.end_date).toLocaleDateString("th-TH") : "-"}
-                                    {item.end_time && <span className="ml-2 text-indigo-600">({item.end_time})</span>}
+                                    {item.end_time && <span className="ml-2 text-emerald-600">({item.end_time})</span>}
                                 </p>
                             </div>
-                            <div className="space-y-2">
-                                <p className="text-xs font-semibold text-slate-500">ฝ่ายที่รับผิดชอบ</p>
-                                <p className="text-base font-bold text-slate-800">{item.department_name || "-"}</p>
+                            <div className="space-y-1">
+                                <p className="text-sm font-semibold text-slate-500">ฝ่ายที่รับผิดชอบ</p>
+                                <p className="text-base font-normal text-slate-800">{item.department_name || "-"}</p>
                             </div>
-                            <div className="space-y-2">
-                                <p className="text-xs font-semibold text-slate-500">สถานที่</p>
-                                <p className="text-base font-bold text-slate-800">{item.location || "-"}</p>
+                            <div className="space-y-1">
+                                <p className="text-sm font-semibold text-slate-500">สถานที่</p>
+                                <p className="text-base font-normal text-slate-800">{item.location || "-"}</p>
                             </div>
-                            <div className="space-y-2">
-                                <p className="text-xs font-semibold text-slate-500">การเข้าร่วม</p>
+                            <div className="space-y-1">
+                                <p className="text-sm font-semibold text-slate-500">การเข้าร่วม</p>
                                 <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${item.visibility === 'public' ? 'bg-emerald-100 text-emerald-700' :
-                                        item.visibility === 'internal' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                                    calendarDetailItem.visibility === 'internal' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
                                     }`}>
                                     {item.visibility || "public"}
                                 </span>
                             </div>
 
-                            <div className="md:col-span-2 lg:col-span-3 space-y-3 pt-5 border-t border-slate-100 mt-2">
+                            <div className="md:col-span-2 lg:col-span-3 space-y-2 pt-5 border-t border-slate-100 mt-2">
                                 <div className="flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-                                    <p className="text-xs font-semibold text-slate-500">รายละเอียดกิจกรรม</p>
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                    <p className="text-sm font-semibold text-slate-500">รายละเอียดกิจกรรม</p>
                                 </div>
-                                <p className="text-[15px] text-slate-700 leading-relaxed whitespace-pre-wrap pl-4 border-l-2 border-indigo-100 font-medium">
+                                <p className="text-base font-normal text-slate-700 leading-snug whitespace-pre-wrap pl-4 border-l-2 border-emerald-100">
                                     {item.note || "— ไม่ระบุรายละเอียดเพิ่มเติม —"}
                                 </p>
                             </div>
@@ -1445,9 +1452,9 @@ export function ActivitiesFeature() {
                             render: (v, _, { toggleExpand, isExpanded }) => (
                                 <button
                                     onClick={toggleExpand}
-                                    className="text-left font-semibold text-slate-800 hover:text-indigo-700 flex items-center gap-2 group transition-colors"
+                                    className="text-left font-semibold text-slate-800 hover:text-emerald-700 flex items-center gap-2 group transition-colors"
                                 >
-                                    <span className={`w-5 h-5 flex items-center justify-center rounded-full bg-indigo-50 text-indigo-600 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>
+                                    <span className={`w-5 h-5 flex items-center justify-center rounded-full bg-emerald-50 text-emerald-600 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>
                                         ▾
                                     </span>
                                     <span className="group-hover:underline">{v}</span>
@@ -1493,14 +1500,14 @@ export function ActivitiesFeature() {
                                 <div className="space-y-1">
                                     <p className="text-xs font-bold text-slate-400 uppercase">วันที่เริ่ม</p>
                                     <p className="text-sm font-bold text-slate-800">
-                                        {calendarDetailItem.date ? new Date(calendarDetailItem.date).toLocaleDateString('th-TH', {day:'numeric',month:'long',year:'numeric'}) : '-'}
+                                        {calendarDetailItem.date ? new Date(calendarDetailItem.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
                                         {calendarDetailItem.start_time && <span className="ml-1 text-emerald-600">({calendarDetailItem.start_time})</span>}
                                     </p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs font-bold text-slate-400 uppercase">วันที่สิ้นสุด</p>
                                     <p className="text-sm font-bold text-slate-800">
-                                        {calendarDetailItem.end_date ? new Date(calendarDetailItem.end_date).toLocaleDateString('th-TH', {day:'numeric',month:'long',year:'numeric'}) : '-'}
+                                        {calendarDetailItem.end_date ? new Date(calendarDetailItem.end_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
                                         {calendarDetailItem.end_time && <span className="ml-1 text-emerald-600">({calendarDetailItem.end_time})</span>}
                                     </p>
                                 </div>
@@ -1524,10 +1531,9 @@ export function ActivitiesFeature() {
                                 )}
                                 <div className="space-y-1">
                                     <p className="text-xs font-bold text-slate-400 uppercase">การเข้าร่วม</p>
-                                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
-                                        calendarDetailItem.visibility === 'public' ? 'bg-emerald-100 text-emerald-700' :
-                                        calendarDetailItem.visibility === 'internal' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
-                                    }`}>{calendarDetailItem.visibility || 'public'}</span>
+                                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${calendarDetailItem.visibility === 'public' ? 'bg-emerald-100 text-emerald-700' :
+                                            calendarDetailItem.visibility === 'internal' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                                        }`}>{calendarDetailItem.visibility || 'public'}</span>
                                 </div>
                             </div>
                             {calendarDetailItem.note && (

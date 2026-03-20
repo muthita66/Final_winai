@@ -116,7 +116,7 @@ function ExamModal({
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
             <div className="relative w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-violet-600 to-purple-700 px-6 py-5 text-white">
+                <div className="bg-gradient-to-r from-emerald-600 to-teal-700 px-6 py-5 text-white">
                     <button onClick={onClose} className="absolute top-4 right-5 text-white/70 hover:text-white transition-colors">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -126,17 +126,17 @@ function ExamModal({
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        <span className="text-sm font-medium text-purple-200">กำหนดวันสอบ</span>
+                        <span className="text-sm font-medium text-emerald-100">กำหนดวันสอบ</span>
                     </div>
                     <h2 className="text-xl font-bold">{section?.subjects?.name || "-"}</h2>
-                    <p className="text-purple-200 text-sm">{section?.subjects?.subject_code} · {section?.class_level}/{section?.classroom?.split("/").pop() || section?.classroom}</p>
+                    <p className="text-emerald-100 text-sm">{section?.subjects?.subject_code} · {section?.class_level}/{section?.classroom?.split("/").pop() || section?.classroom}</p>
                 </div>
 
                 {/* Existing exams summary */}
                 {existingList.length > 0 && (
                     <div className="px-6 pt-4 flex flex-wrap gap-2">
                         {existingList.map((item: any) => (
-                            <div key={item.id} className="rounded-xl bg-violet-50 border border-violet-200 px-3 py-1.5 text-xs text-violet-800">
+                            <div key={item.id} className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs text-emerald-800">
                                 <span className="font-bold">{EXAM_TYPE_LABELS[item.exam_type] || item.exam_type}</span>
                                 {" · "}
                                 {formatThaiDate(item.exam_date)}
@@ -160,8 +160,8 @@ function ExamModal({
                                         key={t}
                                         onClick={() => setExamType(t)}
                                         className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${examType === t
-                                            ? "border-violet-500 bg-violet-600 text-white shadow-sm"
-                                            : "border-slate-200 text-slate-600 hover:border-violet-300 hover:bg-violet-50"
+                                            ? "border-emerald-500 bg-emerald-600 text-white shadow-sm"
+                                            : "border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50"
                                             }`}
                                     >
                                         {EXAM_TYPE_LABELS[t]}
@@ -176,7 +176,7 @@ function ExamModal({
                                 type="date"
                                 value={examDate}
                                 onChange={(e) => setExamDate(e.target.value)}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400"
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
                             />
                         </div>
 
@@ -187,7 +187,7 @@ function ExamModal({
                                     type="time"
                                     value={startTime}
                                     onChange={(e) => setStartTime(e.target.value)}
-                                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400"
+                                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
                                 />
                             </div>
                             <div>
@@ -196,7 +196,7 @@ function ExamModal({
                                     type="time"
                                     value={endTime}
                                     onChange={(e) => setEndTime(e.target.value)}
-                                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400"
+                                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
                                 />
                             </div>
                         </div>
@@ -204,7 +204,7 @@ function ExamModal({
                         <button
                             onClick={handleSave}
                             disabled={saving}
-                            className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                            className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
                         >
                             {saving ? (
                                 <>
@@ -294,7 +294,7 @@ export function ScoresFeature({ session }: { session: any }) {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <section className="rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 p-8 text-white shadow-lg relative overflow-hidden">
+            <section className="rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 p-8 text-white shadow-lg relative overflow-hidden">
                 <div className="absolute inset-y-0 right-[-4rem] w-72 bg-white/10 skew-x-[-18deg]" />
                 <div className="relative z-10">
                     <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-sm font-medium mb-4">
@@ -363,7 +363,7 @@ export function ScoresFeature({ session }: { session: any }) {
             </section>
 
             {error && (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">{error}</div>
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">{error}</div>
             )}
 
             {/* Cards */}
@@ -441,13 +441,13 @@ export function ScoresFeature({ session }: { session: any }) {
                                         </Link>
                                         <Link
                                             href={`/teacher/grade_cut?section_id=${s.id}`}
-                                            className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
+                                            className="flex-1 rounded-xl bg-teal-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-teal-700 transition-colors"
                                         >
                                             ตัดเกรด
                                         </Link>
                                         <button
                                             onClick={() => setExamModalSection(s)}
-                                            className="flex-1 rounded-xl bg-violet-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-violet-700 transition-colors flex items-center justify-center gap-1.5"
+                                            className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5"
                                         >
                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
