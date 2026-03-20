@@ -23,33 +23,36 @@ export const TeacherApiService = {
     async getEventTypes() {
         return fetchApi<any[]>('/api/teacher/calendar?action=event-types');
     },
-    async addCalendarEvent(data: { 
-        title: string; 
-        description?: string; 
-        event_date: string; 
-        start_time?: string | null; 
-        end_date?: string | null;
-        end_time?: string | null;
-        responsible_teacher_id?: number | null; 
-        location?: string | null; 
+    async addCalendarEvent(data: {
+        title: string;
+        description?: string;
+        event_date: string;
+        start_time?: string;
+        end_date?: string;
+        end_time?: string;
+        responsible_teacher_id?: number | null;
+        location?: string | null;
         visibility?: string;
+        userId?: number | null;
         department_id?: number | null;
         event_type_id?: number | null;
+        targets?: { target_type: string; target_value?: string | null }[];
     }) {
         return fetchApi<any>('/api/teacher/calendar', { method: 'POST', body: JSON.stringify(data) });
     },
-    async updateCalendarEvent(id: number, data: { 
-        title?: string; 
-        description?: string; 
-        event_date?: string; 
-        start_time?: string | null; 
-        end_date?: string | null;
-        end_time?: string | null;
-        responsible_teacher_id?: number | null; 
-        location?: string | null; 
+    async updateCalendarEvent(id: number, data: {
+        title?: string;
+        description?: string;
+        event_date?: string;
+        start_time?: string;
+        end_date?: string;
+        end_time?: string;
+        responsible_teacher_id?: number | null;
+        location?: string | null;
         visibility?: string;
         department_id?: number | null;
         event_type_id?: number | null;
+        targets?: { target_type: string; target_value?: string | null }[];
     }) {
         return fetchApi<any>('/api/teacher/calendar', { method: 'PUT', body: JSON.stringify({ id, ...data }) });
     },
@@ -133,7 +136,7 @@ export const TeacherApiService = {
         return fetchApi<any[]>(`/api/teacher/scores?action=subjects&teacher_id=${teacher_id}`);
     },
     async getScoreHeaders(section_id: number) {
-        return fetchApi<any[]>(`/api/teacher/scores?action=headers&section_id=${section_id}`);
+        return fetchApi<any[]>(`/api/teacher/scores?action=headers&section_id=${section_id}`, { cache: 'no-store' });
     },
     async getSectionStudents(section_id: number) {
         return fetchApi<any[]>(`/api/teacher/scores?action=students&section_id=${section_id}`);
@@ -216,10 +219,10 @@ export const TeacherApiService = {
 
     // --- Grade Cut ---
     async getGradeThresholds(section_id: number) {
-        return fetchApi<any>(`/api/teacher/grade-cut?action=thresholds&section_id=${section_id}`);
+        return fetchApi<any>(`/api/teacher/grade-cut?action=thresholds&section_id=${section_id}`, { cache: 'no-store' });
     },
     async getGradeSummary(section_id: number) {
-        return fetchApi<any[]>(`/api/teacher/grade-cut?action=summary&section_id=${section_id}`);
+        return fetchApi<any[]>(`/api/teacher/grade-cut?action=summary&section_id=${section_id}`, { cache: 'no-store' });
     },
     async saveGradeThresholds(section_id: number, thresholds: any) {
         return fetchApi<any>('/api/teacher/grade-cut', {
@@ -237,6 +240,15 @@ export const TeacherApiService = {
         return fetchApi<any>('/api/teacher/grade-cut', {
             method: 'POST',
             body: JSON.stringify({ action: 'calculate', section_id })
+        });
+    },
+    async getGradeScaleGroups() {
+        return fetchApi<any[]>('/api/teacher/grade-cut?action=scale_groups&section_id=1'); // section_id is just a placeholder to pass validation if any, but service doesn't use it for this action
+    },
+    async selectGradeScaleGroup(section_id: number, group_id: number | null) {
+        return fetchApi<any>('/api/teacher/grade-cut', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'select_scale_group', section_id, group_id })
         });
     },
 

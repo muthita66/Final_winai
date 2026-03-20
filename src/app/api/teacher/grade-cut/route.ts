@@ -17,6 +17,10 @@ export async function GET(request: Request) {
             const data = await TeacherGradeCutService.getGradeSummary(section_id);
             return successResponse(data);
         }
+        if (action === 'scale_groups') {
+            const data = await TeacherGradeCutService.getGradeScaleGroups();
+            return successResponse(data);
+        }
 
         return errorResponse('Unknown action', 400);
     } catch (error: any) {
@@ -51,6 +55,10 @@ export async function POST(request: Request) {
                 body.grade_point,
                 body.is_locked ?? true
             );
+            return successResponse(data);
+        }
+        if (body.action === 'select_scale_group') {
+            const data = await TeacherGradeCutService.setGradeScaleGroup(section_id, body.group_id);
             return successResponse(data);
         }
 

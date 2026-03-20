@@ -5,13 +5,16 @@ export const TeacherCalendarService = {
         try {
             // Using queryRawUnsafe for robust date/time strings (matches DirectorService logic)
             const rows = await prisma.$queryRawUnsafe(`
-                SELECT *,
-                    TO_CHAR(start_datetime, 'YYYY-MM-DD') as start_date_str,
-                    TO_CHAR(start_datetime, 'HH24:MI') as start_time_str,
-                    TO_CHAR(end_datetime, 'YYYY-MM-DD') as end_date_str,
-                    TO_CHAR(end_datetime, 'HH24:MI') as end_time_str
-                FROM events 
-                ORDER BY start_datetime ASC
+                SELECT e.*,
+                    TO_CHAR(e.start_datetime, 'YYYY-MM-DD') as start_date_str,
+                    TO_CHAR(e.start_datetime, 'HH24:MI') as start_time_str,
+                    TO_CHAR(e.end_datetime, 'YYYY-MM-DD') as end_date_str,
+                    TO_CHAR(e.end_datetime, 'HH24:MI') as end_time_str,
+                    json_agg(et.*) FILTER (WHERE et.id IS NOT NULL) as targets
+                FROM events e
+                LEFT JOIN event_targets et ON e.id = et.event_id
+                GROUP BY e.id
+                ORDER BY e.start_datetime ASC
             `);
 
             if (!rows || (rows as any).length === 0) return [];
@@ -70,6 +73,7 @@ export const TeacherCalendarService = {
                     event_type_id: r.event_type_id,
                     event_type_name: typeName,
                     created_by: creatorName,
+                    targets: r.targets || []
                 };
             });
         } catch (error: any) {
@@ -86,11 +90,12 @@ export const TeacherCalendarService = {
         end_date?: string;
         end_time?: string;
         responsible_teacher_id?: number | null;
-        userId?: number | null;
         location?: string | null;
         visibility?: string;
+        userId?: number | null;
         department_id?: number | null;
         event_type_id?: number | null;
+        targets?: { target_type: string; target_value?: string | null }[];
     }) {
         const startStr = `${data.event_date} ${data.start_time || '00:00'}:00`;
         const endStr = `${data.end_date || data.event_date} ${data.end_time || (data.start_time ? data.start_time : '23:59')}:00`;
@@ -118,6 +123,19 @@ export const TeacherCalendarService = {
             data.event_type_id || null,
             !data.start_time && !data.end_time
         );
+        
+        const eventId = (res as any)[0].id;
+        
+        // Handle targets (participation scope)
+        if (data.targets && Array.isArray(data.targets)) {
+            for (const t of data.targets) {
+                await prisma.$executeRawUnsafe(
+                    `INSERT INTO event_targets (event_id, target_type, target_value) VALUES ($1, $2, $3)`,
+                    eventId, t.target_type, t.target_value || null
+                );
+            }
+        }
+
         return (res as any)[0];
     },
 
@@ -133,6 +151,7 @@ export const TeacherCalendarService = {
         visibility?: string;
         department_id?: number | null;
         event_type_id?: number | null;
+        targets?: { target_type: string; target_value?: string | null }[];
     }) {
         const current = await (prisma.events as any).findUnique({ where: { id } });
         if (!current) throw new Error('Event not found');
@@ -145,7 +164,7 @@ export const TeacherCalendarService = {
         const endTime = data.end_time || new Date(current.end_datetime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' });
         const endStr = `${endDate} ${endTime}:00`;
 
-        return (prisma.events as any).update({
+        await (prisma.events as any).update({
             where: { id },
             data: {
                 title: data.title !== undefined ? data.title : current.title,
@@ -160,6 +179,19 @@ export const TeacherCalendarService = {
                 event_type_id: data.event_type_id !== undefined ? data.event_type_id : current.event_type_id,
             }
         });
+
+        // Update targets
+        if (data.targets !== undefined && Array.isArray(data.targets)) {
+            await prisma.$executeRawUnsafe(`DELETE FROM event_targets WHERE event_id = $1`, id);
+            for (const t of data.targets) {
+                await prisma.$executeRawUnsafe(
+                    `INSERT INTO event_targets (event_id, target_type, target_value) VALUES ($1, $2, $3)`,
+                    id, t.target_type, t.target_value || null
+                );
+            }
+        }
+
+        return { id, ...data };
     },
 
     async remove(id: number) {

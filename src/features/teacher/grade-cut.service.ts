@@ -159,7 +159,16 @@ export const TeacherGradeCutService = {
             if (key) thresholds[key] = Number(s.min_score);
         });
 
-        return thresholds;
+        const activeGroup = groupId ? await prisma.grade_scale_groups.findUnique({
+            where: { id: groupId },
+            select: { id: true, name: true }
+        }) : null;
+
+        return { 
+            ...thresholds, 
+            active_group_id: activeGroup?.id || null,
+            active_group_name: activeGroup?.name || "เกณฑ์มาตรฐาน (Default)"
+        };
     },
 
     // Delete custom scale group for a teaching assignment
@@ -179,17 +188,35 @@ export const TeacherGradeCutService = {
             data: { grade_scale_group_id: null }
         });
 
-        // Check if other assignments use this group
+        // Check if other assignments use this group 
+        // AND if it's NOT a system/default group (though we normally only delete groups created for sections)
         const count = await prisma.teaching_assignments.count({
             where: { grade_scale_group_id: groupId }
         });
 
         if (count === 0) {
-            // Safe to delete group and its scales
-            await prisma.grade_scales.deleteMany({ where: { grade_scale_group_id: groupId } });
-            await prisma.grade_scale_groups.delete({ where: { id: groupId } });
+            const group = await prisma.grade_scale_groups.findUnique({ where: { id: groupId } });
+            // Only delete if it looks like a private group created for an assignment
+            if (group?.name?.startsWith("Grade Scale for Teaching Assignment")) {
+                await prisma.grade_scales.deleteMany({ where: { grade_scale_group_id: groupId } });
+                await prisma.grade_scale_groups.delete({ where: { id: groupId } });
+            }
         }
 
+        return { success: true };
+    },
+
+    async getGradeScaleGroups() {
+        return prisma.grade_scale_groups.findMany({
+            orderBy: { name: 'asc' }
+        });
+    },
+
+    async setGradeScaleGroup(teaching_assignment_id: number, group_id: number | null) {
+        await prisma.teaching_assignments.update({
+            where: { id: teaching_assignment_id },
+            data: { grade_scale_group_id: group_id }
+        });
         return { success: true };
     },
 
@@ -301,6 +328,23 @@ export const TeacherGradeCutService = {
 
     // Grade summary for all students in a teaching assignment
     async getGradeSummary(teaching_assignment_id: number) {
+        const assignment = await prisma.teaching_assignments.findUnique({
+            where: { id: teaching_assignment_id },
+            include: {
+                subjects: {
+                    include: { subject_categories: true }
+                },
+                grade_categories: {
+                    include: { assessment_items: true }
+                }
+            }
+        });
+
+        if (!assignment) return [];
+
+        const isPF = assignment.subjects?.subject_categories_id === 3 || assignment.subjects?.evaluation_type_id === 2;
+        const totalItemsInAssignment = assignment.grade_categories.reduce((acc, cat) => acc + cat.assessment_items.length, 0);
+
         const enrollments = await prisma.enrollments.findMany({
             where: { teaching_assignment_id },
             include: {
@@ -315,12 +359,7 @@ export const TeacherGradeCutService = {
             distinct: ['student_id']
         });
 
-        const assignment = await prisma.teaching_assignments.findUnique({
-            where: { id: teaching_assignment_id },
-            select: { grade_scale_group_id: true }
-        });
         const groupId = assignment?.grade_scale_group_id;
-
         let rawScales = await prisma.grade_scales.findMany({
             where: { grade_scale_group_id: groupId || null },
             orderBy: [{ min_score: 'desc' }, { id: 'asc' }]
@@ -337,15 +376,68 @@ export const TeacherGradeCutService = {
             const student = e.students;
             if (!student) return null;
 
-            let totalScore = 0;
-            let maxPossible = 0;
+            let finalPct = 0;
+            let totalRawScore = 0;
+            let totalMaxPossible = 0;
+            let itemsSubmitted = 0;
 
-            e.student_scores.forEach(sc => {
-                totalScore += Number(sc.score || 0);
-                maxPossible += Number(sc.assessment_items?.max_score || 0);
-            });
+            if (isPF) {
+                // Pass/Fail: "ต้องส่งให้ครบถึงจะผ่าน"
+                itemsSubmitted = e.student_scores.filter(sc => sc.is_passed === true).length;
+                const isPassed = itemsSubmitted >= totalItemsInAssignment;
+                const displayGrade = isPassed ? "ผ" : "มผ";
+                
+                return {
+                    student_id: student.id,
+                    enrollment_id: e.id,
+                    student_code: student.student_code,
+                    prefix: student.name_prefixes?.prefix_name || '',
+                    first_name: student.first_name,
+                    last_name: student.last_name,
+                    total_score: itemsSubmitted,
+                    max_possible: totalItemsInAssignment,
+                    percentage: totalItemsInAssignment > 0 ? Math.round((itemsSubmitted / totalItemsInAssignment) * 100 * 100) / 100 : 0,
+                    grade: displayGrade,
+                    calculated_grade: displayGrade,
+                    stored_grade: e.final_grades?.letter_grade || null,
+                    is_locked: Boolean(e.final_grades?.is_locked),
+                    is_pf: true
+                };
+            }
 
-            const pct = maxPossible > 0 ? (totalScore / maxPossible) * 100 : 0;
+            // Weighted Grade Calculation
+            const totalWeightPercent = assignment.grade_categories.reduce((acc, cat) => acc + Number(cat.weight_percent || 0), 0);
+
+            if (assignment.grade_categories.length > 0 && totalWeightPercent > 0) {
+                assignment.grade_categories.forEach(cat => {
+                    const catItems = cat.assessment_items;
+                    const catMax = catItems.reduce((acc, item) => acc + Number(item.max_score || 0), 0);
+                    
+                    const catScores = e.student_scores.filter(sc => sc.assessment_items?.grade_category_id === cat.id);
+                    const catRaw = catScores.reduce((acc, sc) => acc + Number(sc.score || 0), 0);
+                    
+                    totalRawScore += catRaw;
+                    totalMaxPossible += catMax;
+
+                    if (catMax > 0) {
+                        const catPct = (catRaw / catMax) * 100;
+                        const weightedContrib = (catPct / 100) * Number(cat.weight_percent);
+                        finalPct += weightedContrib;
+                    }
+                });
+            } else {
+                // Fallback: If no categories exist or the total category weight is 0, use the raw sum
+                totalMaxPossible = assignment.grade_categories.reduce((acc, cat) => 
+                    acc + cat.assessment_items.reduce((sum, item) => sum + Number(item.max_score || 0), 0), 0
+                );
+                totalRawScore = e.student_scores.reduce((acc, sc) => acc + Number(sc.score || 0), 0);
+                
+                if (totalMaxPossible > 0) {
+                    finalPct = (totalRawScore / totalMaxPossible) * 100;
+                }
+            }
+
+            const pct = Math.round(finalPct * 100) / 100;
             const calculatedGrade = calculateGradeFromScales(pct, scales);
             const normalizedStoredGrade = normalizeGradeLabel(e.final_grades?.letter_grade);
             const rawStoredGrade = String(e.final_grades?.letter_grade ?? '').trim();
@@ -360,13 +452,14 @@ export const TeacherGradeCutService = {
                 prefix: student.name_prefixes?.prefix_name || '',
                 first_name: student.first_name,
                 last_name: student.last_name,
-                total_score: totalScore,
-                max_possible: maxPossible,
-                percentage: Math.round(pct * 100) / 100,
+                total_score: totalRawScore,
+                max_possible: totalMaxPossible,
+                percentage: pct,
                 grade: displayGrade,
                 calculated_grade: calculatedGrade,
                 stored_grade: storedGrade,
                 is_locked: isLocked,
+                is_pf: false
             };
         }).filter(Boolean);
     },
@@ -376,10 +469,15 @@ export const TeacherGradeCutService = {
         const summary = await this.getGradeSummary(teaching_assignment_id);
         const assignment = await prisma.teaching_assignments.findUnique({
             where: { id: teaching_assignment_id },
-            select: { grade_scale_group_id: true }
+            include: {
+                subjects: { select: { subject_categories_id: true, evaluation_type_id: true } }
+            }
         });
-        const groupId = assignment?.grade_scale_group_id;
+        
+        if (!assignment) return { success: false, message: "Assignment not found" };
+        const isPF = assignment.subjects?.subject_categories_id === 3 || assignment.subjects?.evaluation_type_id === 2;
 
+        const groupId = assignment?.grade_scale_group_id;
         let rawScales = await prisma.grade_scales.findMany({
             where: { grade_scale_group_id: groupId || null },
             orderBy: [{ min_score: 'desc' }, { id: 'asc' }]
@@ -392,16 +490,26 @@ export const TeacherGradeCutService = {
         }
         const scales = normalizeGradeScales(rawScales);
 
-        console.log(`[GradeCut] Processing ${summary.length} students for assignment ${teaching_assignment_id}`);
+        console.log(`[GradeCut] Processing ${summary.length} students for assignment ${teaching_assignment_id} (P/F: ${isPF})`);
 
         let savedCount = 0;
         for (const s of summary) {
             if (!s) continue;
 
-            const gradeScale = findGradeScale(s.percentage, scales);
-            const fallbackGrade = normalizeGradeLabel(s.grade) || String(s.grade ?? '0');
-            const finalGrade = gradeScale?.letter_grade || fallbackGrade;
-            const finalGradePoint = gradeScale?.grade_point != null ? Number(gradeScale.grade_point) : gradePointFromLabel(finalGrade);
+            let finalGrade: string;
+            let finalGradePoint: number | null;
+            let gradeScaleId: number | null = null;
+
+            if (isPF) {
+                finalGrade = String(s.grade); // "ผ" or "มผ"
+                finalGradePoint = finalGrade === "ผ" ? 1 : 0;
+            } else {
+                const gradeScale = findGradeScale(s.percentage, scales);
+                const fallbackGrade = normalizeGradeLabel(s.grade) || String(s.grade ?? '0');
+                finalGrade = gradeScale?.letter_grade || fallbackGrade;
+                finalGradePoint = gradeScale?.grade_point != null ? Number(gradeScale.grade_point) : gradePointFromLabel(finalGrade);
+                gradeScaleId = gradeScale?.id || null;
+            }
 
             try {
                 const existing = await prisma.final_grades.findUnique({
@@ -416,7 +524,7 @@ export const TeacherGradeCutService = {
                                 total_score: s.total_score,
                                 letter_grade: finalGrade,
                                 grade_point: finalGradePoint,
-                                grade_scale_id: gradeScale?.id || null,
+                                grade_scale_id: gradeScaleId,
                             }
                         });
                     }
@@ -427,7 +535,7 @@ export const TeacherGradeCutService = {
                             total_score: s.total_score,
                             letter_grade: finalGrade,
                             grade_point: finalGradePoint,
-                            grade_scale_id: gradeScale?.id || null,
+                            grade_scale_id: gradeScaleId,
                         }
                     });
                 }

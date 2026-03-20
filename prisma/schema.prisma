@@ -223,10 +223,12 @@ model event_participants {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model event_targets {
-  id          Int    @id @default(autoincrement())
-  event_id    Int
-  target_type String @db.VarChar(30)
-  events      events @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id           Int          @id @default(autoincrement())
+  event_id     Int
+  target_type  String       @db.VarChar(30)
+  target_value String?      @db.VarChar(255)
+  events       events       @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  target_types target_types @relation(fields: [target_type], references: [code], onDelete: NoAction, map: "fk_target_type_code")
 }
 
 model event_types {
@@ -239,26 +241,29 @@ model event_types {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model events {
-  id                 Int                  @id @default(autoincrement())
-  title              String               @db.VarChar(200)
-  description        String?
-  start_datetime     DateTime             @db.Timestamp(6)
-  end_datetime       DateTime             @db.Timestamp(6)
-  is_all_day         Boolean?             @default(false)
-  location           String?              @db.VarChar(200)
-  created_by         Int?
-  visibility         String               @db.VarChar(20)
-  created_at         DateTime?            @default(now()) @db.Timestamp(6)
-  teacher_id         Int?
-  event_type_id      Int?
-  department_id      Int?
-  event_participants event_participants[]
-  event_targets      event_targets[]
-  users              users?               @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  departments        departments?         @relation(fields: [department_id], references: [id], onUpdate: NoAction)
-  event_types        event_types?         @relation(fields: [event_type_id], references: [id], onUpdate: NoAction)
-  teachers           teachers?            @relation(fields: [teacher_id], references: [id], onUpdate: NoAction)
-  activity_evaluation_link activity_evaluation_link[]
+  id                   Int                    @id @default(autoincrement())
+  title                String                 @db.VarChar(200)
+  description          String?
+  start_datetime       DateTime               @db.Timestamp(6)
+  end_datetime         DateTime               @db.Timestamp(6)
+  is_all_day           Boolean?               @default(false)
+  location             String?                @db.VarChar(200)
+  created_by           Int?
+  visibility           String                 @db.VarChar(20)
+  created_at           DateTime?              @default(now()) @db.Timestamp(6)
+  teacher_id           Int?
+  event_type_id        Int?
+  department_id        Int?
+  evaluation_form_id   Int?
+  evaluation_responses evaluation_responses[]
+  event_evaluations    event_evaluations[]
+  event_participants   event_participants[]
+  event_targets        event_targets[]
+  users                users?                 @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  departments          departments?           @relation(fields: [department_id], references: [id], onUpdate: NoAction)
+  evaluation_forms     evaluation_forms?      @relation(fields: [evaluation_form_id], references: [id], onUpdate: NoAction)
+  event_types          event_types?           @relation(fields: [event_type_id], references: [id], onUpdate: NoAction)
+  teachers             teachers?              @relation(fields: [teacher_id], references: [id], onUpdate: NoAction)
 }
 
 model exam_proctors {
@@ -497,11 +502,12 @@ model projects {
 }
 
 model roles {
-  id          Int       @id @default(autoincrement())
-  role_name   String    @unique(map: "roles_name_key") @db.VarChar(50)
-  description String?
-  created_at  DateTime? @default(now()) @db.Timestamp(6)
-  users       users[]
+  id                    Int                     @id @default(autoincrement())
+  role_name             String                  @unique(map: "roles_name_key") @db.VarChar(50)
+  description           String?
+  created_at            DateTime?               @default(now()) @db.Timestamp(6)
+  evaluation_categories evaluation_categories[]
+  users                 users[]
 }
 
 model rooms {
@@ -713,6 +719,7 @@ model teachers {
   salary                    Decimal?                 @db.Decimal(10, 2)
   blood_type                String?                  @db.VarChar(5)
   teacher_national_id       String?                  @unique(map: "teachers_national_id_unique") @db.VarChar(13)
+  behavior_records          behavior_records[]
   classroom_advisors        classroom_advisors[]
   events                    events[]
   exam_proctors             exam_proctors[]
@@ -811,9 +818,11 @@ model behavior_records {
   approved_at         DateTime?       @db.Timestamp(6)
   reject_reason       String?
   semester_id         Int?
+  recorded_by         Int?
   behavior_types      behavior_types? @relation(fields: [behavior_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   semesters           semesters?      @relation(fields: [semester_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
   students            students?       @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  teachers            teachers?       @relation(fields: [recorded_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "behavior_records_teacher_id_fkey")
 
   @@index([semester_id], map: "idx_behav_rec_semester")
   @@index([status], map: "idx_behav_rec_status")
@@ -821,13 +830,13 @@ model behavior_records {
 }
 
 model behavior_types {
-  id                    Int                    @id @default(autoincrement())
-  name                  String                 @db.VarChar(200)
-  is_positive           Boolean
-  default_points        Int
-  description           String?
-  is_active             Boolean?               @default(true)
-  behavior_records      behavior_records[]
+  id               Int                @id @default(autoincrement())
+  name             String             @db.VarChar(200)
+  is_positive      Boolean
+  default_points   Int
+  description      String?
+  is_active        Boolean?           @default(true)
+  behavior_records behavior_records[]
 }
 
 model evaluation_answers {
@@ -845,10 +854,12 @@ model evaluation_answers {
 
 model evaluation_categories {
   id                Int                @id @default(autoincrement())
-  category_name     String             @db.VarChar(100)
+  name              String             @db.VarChar(150)
   description       String?
   created_at        DateTime?          @default(now()) @db.Timestamp(6)
-  updated_at        DateTime?          @default(now()) @db.Timestamp(6)
+  evaluator_role_id Int?
+  target_type       String?            @db.VarChar(50)
+  roles             roles?             @relation(fields: [evaluator_role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   evaluation_forms  evaluation_forms[]
 }
 
@@ -863,25 +874,24 @@ model evaluation_forms {
   evaluation_responses  evaluation_responses[]
   evaluation_schedules  evaluation_schedules[]
   evaluation_sections   evaluation_sections[]
-  activity_evaluation_link activity_evaluation_link[]
+  event_evaluations     event_evaluations[]
+  events                events[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model evaluation_questions {
-  id                        Int                       @id @default(autoincrement())
+  id                        Int                        @id @default(autoincrement())
   section_id                Int?
-  question_text             String?                   @db.Text
+  question_text             String
   scale_type_id             Int?
-  is_required               Boolean?                  @default(true)
+  is_required               Boolean?                   @default(true)
   order_number              Int
-  question_type_id          Int
-  created_at                DateTime?                 @default(now()) @db.Timestamp(6)
-  updated_at                DateTime?                 @default(now()) @db.Timestamp(6)
+  question_type_id          Int?
   evaluation_answers        evaluation_answers[]
   evaluation_choices        evaluation_choices[]
-  evaluation_sections       evaluation_sections?      @relation(fields: [section_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  evaluation_question_types evaluation_question_types @relation(fields: [question_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  evaluation_scale_types    evaluation_scale_types?   @relation(fields: [scale_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  evaluation_question_types evaluation_question_types? @relation(fields: [question_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  evaluation_scale_types    evaluation_scale_types?    @relation(fields: [scale_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  evaluation_sections       evaluation_sections?       @relation(fields: [section_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -899,6 +909,7 @@ model evaluation_responses {
   users              users?            @relation(fields: [evaluator_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "evaluation_responses_evaluation_users_id_fkey")
   evaluation_forms   evaluation_forms? @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   semesters          semesters?        @relation(fields: [semester_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  events             events?           @relation(fields: [target_activity_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_target_activity_event")
 
   @@index([evaluator_user_id], map: "idx_eval_resp_evaluator")
   @@index([semester_id], map: "idx_eval_resp_semester")
@@ -971,19 +982,32 @@ model evaluation_question_types {
   evaluation_questions evaluation_questions[]
 }
 
+model event_evaluations {
+  id                  Int              @id @default(autoincrement())
+  event_id            Int
+  form_id             Int
+  start_eval_datetime DateTime?        @db.Timestamp(6)
+  end_eval_datetime   DateTime?        @db.Timestamp(6)
+  is_required         Boolean?         @default(false)
+  created_at          DateTime?        @default(now()) @db.Timestamp(6)
+  events              events           @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  evaluation_forms    evaluation_forms @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([event_id, form_id])
+}
+
+model target_types {
+  code            String          @id @db.VarChar(30)
+  display_name    String          @db.VarChar(100)
+  description     String?
+  is_active       Boolean?        @default(true)
+  input_type      String?         @default("none") @db.VarChar(50)
+  data_source_api String?         @db.VarChar(255)
+  event_targets   event_targets[]
+}
+
 enum exam_type {
   MIDTERM
   FINAL
   QUIZ
 }
-
-model activity_evaluation_link {
-  id               Int              @id @default(autoincrement())
-  event_id         Int
-  form_id          Int
-  events           events           @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  evaluation_forms evaluation_forms @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([event_id, form_id])
-}
-

@@ -1,7 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import { TeacherApiService } from "@/services/teacher-api.service";
-import { MapPin, User, Bookmark, ChevronDown } from "lucide-react";
+import { fetchApi } from "@/services/api-client";
+import { MapPin, User, Bookmark, ChevronDown, Building2, DoorOpen, Users } from "lucide-react";
+import { DynamicTargetSelect, type Target } from "./DynamicTargetSelect";
 
 const TH_MONTHS = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 
@@ -14,6 +16,8 @@ export function CalendarFeature({ session }: { session: any }) {
     const [teachers, setTeachers] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
     const [eventTypes, setEventTypes] = useState<any[]>([]);
+    const [buildings, setBuildings] = useState<any[]>([]);
+    const [rooms, setRooms] = useState<any[]>([]);
     const [filterTeacherId, setFilterTeacherId] = useState<string>("");
     
     // Unified form state
@@ -26,9 +30,12 @@ export function CalendarFeature({ session }: { session: any }) {
         end_time: "", 
         responsible_teacher_id: "", 
         location: "", 
+        building_id: "",
+        room_id: "",
         visibility: "public",
         department_id: "",
-        event_type_id: ""
+        event_type_id: "",
+        targets: [] as Target[]
     };
     const [form, setForm] = useState(initialForm);
     const [editForm, setEditForm] = useState(initialForm);
@@ -36,16 +43,18 @@ export function CalendarFeature({ session }: { session: any }) {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [evs, tchs, depts, types] = await Promise.all([
+            const [evs, tchs, depts, types, bldgs] = await Promise.all([
                 TeacherApiService.getCalendarEvents(),
                 TeacherApiService.getAllTeachers(),
                 TeacherApiService.getDepartments(),
-                TeacherApiService.getEventTypes()
+                TeacherApiService.getEventTypes(),
+                fetchApi<any[]>("/api/options/buildings")
             ]);
             setEvents(evs || []);
             setTeachers(tchs || []);
             setDepartments(depts || []);
             setEventTypes(types || []);
+            setBuildings(bldgs || []);
         } catch (e) { 
             console.error('Failed to load calendar data:', e); 
         } finally { 
@@ -62,6 +71,7 @@ export function CalendarFeature({ session }: { session: any }) {
             responsible_teacher_id: form.responsible_teacher_id ? Number(form.responsible_teacher_id) : null,
             department_id: form.department_id ? Number(form.department_id) : null,
             event_type_id: form.event_type_id ? Number(form.event_type_id) : null,
+            location: form.location || (rooms.find(r => String(r.id) === String(form.room_id))?.label) || "",
         });
         setForm(initialForm);
         setShowAdd(false);
@@ -75,6 +85,7 @@ export function CalendarFeature({ session }: { session: any }) {
             responsible_teacher_id: editForm.responsible_teacher_id ? Number(editForm.responsible_teacher_id) : null,
             department_id: editForm.department_id ? Number(editForm.department_id) : null,
             event_type_id: editForm.event_type_id ? Number(editForm.event_type_id) : null,
+            location: editForm.location || (rooms.find(r => String(r.id) === String(editForm.room_id))?.label) || "",
         });
         setSelectedEvent(null);
         loadData();
@@ -98,9 +109,12 @@ export function CalendarFeature({ session }: { session: any }) {
             end_time: ev.end_time || "",
             responsible_teacher_id: ev.responsible_teacher_id ? String(ev.responsible_teacher_id) : "",
             location: ev.location || "",
+            building_id: "", // Reset on edit until manually selected
+            room_id: "",     // Reset on edit
             visibility: ev.visibility || "public",
             department_id: ev.department_id ? String(ev.department_id) : "",
-            event_type_id: ev.event_type_id ? String(ev.event_type_id) : ""
+            event_type_id: ev.event_type_id ? String(ev.event_type_id) : "",
+            targets: ev.targets || []
         });
         setShowAdd(false);
     };
@@ -320,27 +334,55 @@ export function CalendarFeature({ session }: { session: any }) {
                                     />
                                 </div>
 
-                                {/* Row 5 */}
+                                {/* Location Selection */}
                                 <div className="space-y-1">
-                                    <label className="text-sm font-medium text-slate-700">สถานที่</label>
-                                    <input 
-                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-800 placeholder:text-slate-400" 
-                                        placeholder="ระบุสถานที่..."
-                                        value={showAdd ? form.location : editForm.location} 
-                                        onChange={e => showAdd ? setForm({...form, location: e.target.value}) : setEditForm({...editForm, location: e.target.value})} 
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium text-slate-700">การเข้าร่วม</label>
+                                    <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
+                                        <Building2 size={14} className="text-emerald-500" /> อาคาร
+                                    </label>
                                     <select 
                                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-800 cursor-pointer"
-                                        value={showAdd ? form.visibility : editForm.visibility}
-                                        onChange={e => showAdd ? setForm({...form, visibility: e.target.value}) : setEditForm({...editForm, visibility: e.target.value})}
+                                        value={showAdd ? form.building_id : editForm.building_id}
+                                        onChange={async (e) => {
+                                            const bId = e.target.value;
+                                            if (showAdd) setForm({...form, building_id: bId, room_id: ""});
+                                            else setEditForm({...editForm, building_id: bId, room_id: ""});
+                                            
+                                            if (bId) {
+                                                const roomList = await fetchApi<any[]>(`/api/options/rooms?buildingId=${bId}`);
+                                                setRooms(roomList || []);
+                                            } else {
+                                                setRooms([]);
+                                            }
+                                        }}
                                     >
-                                        <option value="public">public</option>
-                                        <option value="internal">internal</option>
-                                        <option value="private">private</option>
+                                        <option value="">เลือกอาคาร</option>
+                                        {buildings.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}
                                     </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
+                                        <DoorOpen size={14} className="text-emerald-500" /> ห้อง
+                                    </label>
+                                    <select 
+                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-800 cursor-pointer"
+                                        value={showAdd ? form.room_id : editForm.room_id}
+                                        onChange={e => showAdd ? setForm({...form, room_id: e.target.value}) : setEditForm({...editForm, room_id: e.target.value})}
+                                        disabled={!(showAdd ? form.building_id : editForm.building_id)}
+                                    >
+                                        <option value="">สมาคม / อื่นๆ</option>
+                                        {rooms.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+                                    </select>
+                                </div>
+
+                                {/* Dynamic Participation Scope */}
+                                <div className="md:col-span-2 space-y-2 border-t border-slate-100 pt-4">
+                                    <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                        <Users size={16} className="text-emerald-600" /> กลุ่มเป้าหมายผู้เข้าร่วม
+                                    </label>
+                                    <DynamicTargetSelect 
+                                        value={showAdd ? form.targets : editForm.targets}
+                                        onChange={(targets) => showAdd ? setForm({...form, targets}) : setEditForm({...editForm, targets})}
+                                    />
                                 </div>
 
                                 {/* Row 6 */}
@@ -408,19 +450,22 @@ export function CalendarFeature({ session }: { session: any }) {
                 </div>
                 <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {events.map((ev, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-emerald-200 transition-colors">
+                        <div 
+                            key={i} 
+                            onClick={() => openEditModal(ev)}
+                            className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-emerald-200 transition-all cursor-pointer hover:bg-white hover:shadow-sm active:scale-[0.99] group"
+                        >
                             <div>
-                                <div className="text-sm font-bold text-emerald-700 flex items-center gap-2 mb-1">
-                                    <Bookmark size={14} className="opacity-70" />
+                                <div className="text-sm font-bold text-emerald-700 flex items-center gap-2 mb-1 group-hover:text-emerald-800 transition-colors">
+                                    <Bookmark size={14} className="opacity-70 text-emerald-500" />
                                     {ev.title}
                                 </div>
                                 <div className="text-xs text-slate-500 mt-0.5 space-y-1">
-                                    <div className="flex items-center gap-2">
-                                        <span>{ev.event_date ? new Date(ev.event_date).toLocaleDateString("th-TH") : "-"}</span>
-                                        {ev.start_datetime && (
-                                            <span className="bg-slate-200 px-1.5 py-0.5 rounded text-slate-700">
-                                                {new Date(ev.start_datetime).toLocaleTimeString("th-TH", { hour: '2-digit', minute: '2-digit' })}
-                                                {ev.end_date && ` - ${new Date(ev.end_date).toLocaleTimeString("th-TH", { hour: '2-digit', minute: '2-digit' })}`}
+                                    <div className="flex items-center gap-2 font-medium">
+                                        <span className="text-slate-700">{ev.event_date ? new Date(ev.event_date).toLocaleDateString("th-TH") : "-"}</span>
+                                        {ev.start_time && (
+                                            <span className="bg-white px-2 py-0.5 rounded-lg border border-slate-200 text-slate-800 shadow-sm text-[10px]">
+                                                {ev.start_time} - {ev.end_time || '?'}
                                             </span>
                                         )}
                                     </div>
@@ -444,14 +489,19 @@ export function CalendarFeature({ session }: { session: any }) {
                                         {ev.responsible_teacher_name && (
                                             <span className="text-emerald-600 font-medium flex items-center gap-1">
                                                 <User size={12} className="text-emerald-500" />
-                                                ครู{ev.responsible_teacher_name}
+                                                {ev.responsible_teacher_name}
                                             </span>
                                         )}
                                     </div>
                                     <div className="text-slate-600 opacity-90">{ev.description || "-"}</div>
                                 </div>
                             </div>
-                            <button onClick={() => handleDelete(ev.id)} className="text-xs text-rose-500 hover:text-rose-700 px-3 py-1 rounded-lg hover:bg-rose-50 transition-colors">ลบ</button>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); handleDelete(ev.id); }} 
+                                className="text-xs text-rose-500 hover:text-rose-700 px-3 py-1 rounded-lg hover:bg-rose-50 transition-colors font-bold"
+                            >
+                                ลบ
+                            </button>
                         </div>
                     ))}
                 </div>

@@ -113,7 +113,6 @@ export function ScoreInputFeature({ session }: { session: any }) {
     const [newTitle, setNewTitle] = useState("");
     const [newMax, setNewMax] = useState(100);
     const [addingHeader, setAddingHeader] = useState(false);
-    const [newIndicatorIds, setNewIndicatorIds] = useState<number[]>([]);
     const [newCategoryId, setNewCategoryId] = useState<number | null>(null);
     const [newCategoryTypeName, setNewCategoryTypeName] = useState("");
     const [addingCategoryType, setAddingCategoryType] = useState(false);
@@ -126,15 +125,12 @@ export function ScoreInputFeature({ session }: { session: any }) {
     const [editTitle, setEditTitle] = useState("");
     const [editMax, setEditMax] = useState(100);
     const [updatingHeader, setUpdatingHeader] = useState(false);
-    const [editIndicatorIds, setEditIndicatorIds] = useState<number[]>([]);
     const [editCategoryId, setEditCategoryId] = useState<number | null>(null);
     const [deletingHeaderId, setDeletingHeaderId] = useState<number | null>(null);
     const activeHeader = headers.find((h) => h.id === selectedHeaderId) || null;
     const activeMax = toNum(activeHeader?.max_score);
 
-    // indicators
-    const [indicators, setIndicators] = useState<any[]>([]);
-    const [indicatorsLoading, setIndicatorsLoading] = useState(false);
+    // categories
 
     const scoreInputRefs = useRef<Record<string, HTMLInputElement | null>>({}); // key: studentId-headerId
 
@@ -154,7 +150,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                Object.values(passScores).some(v => v !== null && v !== undefined);
     }).length;
 
-    const isPassFail = sectionInfo?.subjects?.evaluation_type_id === 2;
+    const isPassFail = sectionInfo?.subjects?.evaluation_type_id === 2 || sectionInfo?.subjects?.subject_categories_id === 3;
 
     const invalidCount = students.reduce((acc, s) => {
         if (isPassFail) return acc;
@@ -187,16 +183,53 @@ export function ScoreInputFeature({ session }: { session: any }) {
     const studentTotals = useMemo(() => {
         const totals: Record<number, number> = {};
         students.forEach(s => {
+            if (isPassFail) {
+                // For PF subjects, return completion count or %? 
+                // Let's return raw count for now as it's the "Work count"
+                const studentScores = scoreMap[s.id] || {};
+                const passScores = isPassedMap[s.id] || {};
+                let count = 0;
+                headers.forEach(h => {
+                    if ((studentScores[h.id] !== "" && studentScores[h.id] != null) || passScores[h.id] === true) {
+                        count++;
+                    }
+                });
+                totals[s.id] = count;
+                return;
+            }
+
+            // Weighted Grade Calculation
             const studentScores = scoreMap[s.id] || {};
-            let sum = 0;
-            headers.forEach(h => {
-                const val = toNum(studentScores[h.id]);
-                sum += val;
-            });
-            totals[s.id] = sum;
+            let finalPct = 0;
+            
+            const totalWeightPercent = categories.reduce((acc, cat) => acc + toNum(cat.weight_percent), 0);
+
+            if (categories.length > 0 && totalWeightPercent > 0) {
+                // Weighted Grade Calculation
+                categories.forEach(cat => {
+                    const catHeaders = headers.filter(h => h.category_id === cat.id);
+                    const catMax = catHeaders.reduce((acc, h) => acc + toNum(h.max_score), 0);
+                    const catRaw = catHeaders.reduce((acc, h) => acc + toNum(studentScores[h.id]), 0);
+                    
+                    if (catMax > 0) {
+                        const catPct = (catRaw / catMax) * 100;
+                        const weightedContrib = (catPct / 100) * toNum(cat.weight_percent);
+                        finalPct += weightedContrib;
+                    }
+                });
+            } else {
+                // Basic raw percentage calculation (Fallback when no categories or total weight is 0)
+                const totalMax = headers.reduce((acc, h) => acc + toNum(h.max_score), 0);
+                const totalRaw = headers.reduce((acc, h) => acc + toNum(studentScores[h.id]), 0);
+                if (totalMax > 0) {
+                    finalPct = (totalRaw / totalMax) * 100;
+                }
+            }
+
+            totals[s.id] = Math.round(finalPct * 100) / 100;
         });
         return totals;
-    }, [students, headers, scoreMap]);
+    }, [students, headers, scoreMap, isPassFail, categories, isPassedMap]);
 
     const subjectOptions = useMemo(() => {
         const map = new Map<string, string>();
@@ -559,12 +592,11 @@ export function ScoreInputFeature({ session }: { session: any }) {
                 sectionId, 
                 title, 
                 isPassFail ? 0 : toNum(newMax), 
-                newIndicatorIds,
+                [],
                 newCategoryId || undefined
             );
             setNewTitle(""); 
             setNewMax(100); 
-            setNewIndicatorIds([]); 
             setNewCategoryId(null);
             setShowAddHeader(false);
             await loadSectionData();
@@ -577,7 +609,6 @@ export function ScoreInputFeature({ session }: { session: any }) {
         setEditingHeaderId(h.id);
         setEditTitle(String(h.title || ""));
         setEditMax(toNum(h.max_score) || 100);
-        setEditIndicatorIds((h.indicators || []).map((ind: any) => ind.id));
         setEditCategoryId(h.category_id || null);
     };
 
@@ -592,7 +623,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                 editingHeaderId, 
                 title, 
                 isPassFail ? 0 : toNum(editMax), 
-                editIndicatorIds,
+                [],
                 editCategoryId || undefined
             );
             setEditingHeaderId(null);
@@ -961,15 +992,6 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                 <button
                                     onClick={async () => {
                                         setShowManageModal(true);
-                                        const subjectId = sectionInfo?.subjects?.id || sectionInfo?.subject_id;
-                                        if (subjectId) {
-                                            setIndicatorsLoading(true);
-                                            try {
-                                                const data = await TeacherApiService.getIndicators(Number(subjectId));
-                                                setIndicators(Array.isArray(data) ? data : []);
-                                            } catch { setIndicators([]); }
-                                            finally { setIndicatorsLoading(false); }
-                                        }
                                     }}
                                     className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition-colors"
                                 >
@@ -1006,7 +1028,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                     if (catHeaders.length === 0) return null;
                                                     return (
                                                         <th key={cat.id} colSpan={catHeaders.length} className="px-4 py-2 text-center text-[10px] font-black uppercase text-emerald-500 border-r border-slate-100 bg-emerald-50/30">
-                                                            {cat.name} ({cat.weight_percent}%)
+                                                            {cat.grade_category_types?.type_name || cat.name} ({cat.weight_percent}%)
                                                         </th>
                                                     );
                                                 })}
@@ -1033,7 +1055,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                 </th>
                                             ))}
 
-                                            {!isPassFail && <th className="px-4 py-3 text-center text-xs font-bold text-teal-600 uppercase tracking-wider bg-teal-50/30 min-w-[100px]">คะแนนรวม</th>}
+                                            {!isPassFail && <th className="px-4 py-3 text-center text-xs font-bold text-teal-600 uppercase tracking-wider bg-teal-50/50 min-w-[100px]">คะแนนรวม (%)</th>}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
@@ -1102,9 +1124,9 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                     })}
 
                                                     {!isPassFail && (
-                                                        <td className="px-4 py-2 text-center bg-emerald-50/10">
-                                                            <span className={`text-sm font-bold ${total > 0 ? "text-teal-600" : "text-slate-300"}`}>
-                                                                {total.toLocaleString()}
+                                                        <td className="px-4 py-2 text-center bg-emerald-50/20 shadow-[inset_0_0_10px_rgba(16,185,129,0.05)]">
+                                                            <span className={`text-sm font-black ${total > 0 ? "text-emerald-700" : "text-slate-300"}`}>
+                                                                {total.toLocaleString()}%
                                                             </span>
                                                         </td>
                                                     )}
@@ -1173,13 +1195,6 @@ export function ScoreInputFeature({ session }: { session: any }) {
                         </div>
 
                         <div className="p-6 max-h-[60vh] overflow-y-auto">
-                            {/* Loading indicators */}
-                            {indicatorsLoading && (
-                                <div className="flex items-center justify-center py-4 text-slate-400 text-sm">
-                                    <div className="w-4 h-4 border-2 border-slate-200 border-t-slate-500 rounded-full animate-spin mr-2" />
-                                    กำลังโหลดตัวชี้วัด...
-                                </div>
-                            )}
                             <div className="space-y-3">
                                 {headers.map((h) => {
                                     const isEditing = editingHeaderId === h.id;
@@ -1219,28 +1234,6 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                             </div>
                                                         </div>
                                                     )}
-                                                    {indicators.length > 0 && (
-                                                        <div className="mt-2">
-                                                            <span className="text-xs text-slate-500 font-medium block mb-1.5">ตัวชี้วัด:</span>
-                                                            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                                                                {indicators.map((ind) => (
-                                                                    <label key={ind.id} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all border ${editIndicatorIds.includes(ind.id) ? "bg-teal-100 border-teal-400 text-teal-800" : "bg-white border-slate-200 text-slate-500 hover:border-teal-300"}`}>
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={editIndicatorIds.includes(ind.id)}
-                                                                            onChange={(e) => {
-                                                                                if (e.target.checked) setEditIndicatorIds((prev) => [...prev, ind.id]);
-                                                                                else setEditIndicatorIds((prev) => prev.filter((id) => id !== ind.id));
-                                                                            }}
-                                                                            className="accent-teal-500 w-3.5 h-3.5"
-                                                                        />
-                                                                        <span className="font-semibold">{ind.code}</span>
-                                                                        <span className="hidden sm:inline truncate max-w-[180px]">{ind.description}</span>
-                                                                    </label>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
                                                 </div>
                                                 <div className="flex flex-col gap-2">
                                                     <button onClick={handleUpdateHeader} disabled={updatingHeader} className="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-bold hover:bg-teal-600 disabled:opacity-50">บันทึก</button>
@@ -1254,15 +1247,6 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                             <div>
                                                 <div className="font-bold text-slate-700">{h.title}</div>
                                                 {!isPassFail && <div className="text-xs text-slate-400 font-medium mt-1">เต็ม {toNum(h.max_score)} คะแนน</div>}
-                                                {h.indicators && h.indicators.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1 mt-1.5">
-                                                        {h.indicators.map((ind: any) => (
-                                                            <span key={ind.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-100" title={ind.description}>
-                                                                {ind.code}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                )}
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 {deletingHeaderId === h.id ? (
@@ -1339,30 +1323,8 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                         </div>
                                         <div className="flex gap-2 ml-auto">
                                             <button onClick={handleAddHeader} disabled={addingHeader} className="px-4 py-2 rounded-xl bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 disabled:opacity-50">เพิ่ม</button>
-                                            <button onClick={() => { setShowAddHeader(false); setNewTitle(""); setNewIndicatorIds([]); }} className="px-4 py-2 rounded-xl bg-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-300">ยกเลิก</button>
+                                            <button onClick={() => { setShowAddHeader(false); setNewTitle(""); }} className="px-4 py-2 rounded-xl bg-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-300">ยกเลิก</button>
                                         </div>
-                                        {indicators.length > 0 && (
-                                            <div>
-                                                <span className="text-xs text-slate-500 font-medium block mb-1.5">ตัวชี้วัด:</span>
-                                                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                                                    {indicators.map((ind) => (
-                                                        <label key={ind.id} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all border ${newIndicatorIds.includes(ind.id) ? "bg-emerald-100 border-emerald-400 text-emerald-800" : "bg-white border-slate-200 text-slate-500 hover:border-emerald-300"}`}>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={newIndicatorIds.includes(ind.id)}
-                                                                onChange={(e) => {
-                                                                    if (e.target.checked) setNewIndicatorIds((prev) => [...prev, ind.id]);
-                                                                    else setNewIndicatorIds((prev) => prev.filter((id) => id !== ind.id));
-                                                                }}
-                                                                className="accent-emerald-500 w-3.5 h-3.5"
-                                                            />
-                                                            <span className="font-semibold">{ind.code}</span>
-                                                            <span className="hidden sm:inline truncate max-w-[180px]">{ind.description}</span>
-                                                        </label>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
                                 ) : (
                                     <button
@@ -1491,26 +1453,22 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                     </div>
                                 </div>
                                 <div className="pt-3 border-t border-emerald-100">
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700 mb-2">2. เพิ่มหมวดหมู่คะแนนลงในตาราง</h4>
-                                    <div className="flex gap-2">
-                                        <select id="newCatTypeId" className="flex-1 rounded-xl border border-emerald-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400">
-                                            <option value="">เลือกประเภทคะแนน...</option>
-                                            {categoryTypes.map(t => (
-                                                <option key={t.id} value={t.id}>{t.type_name}</option>
-                                            ))}
-                                        </select>
-                                        <input id="newCatWeight" type="number" placeholder="%" className="w-20 rounded-xl border border-emerald-200 px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-emerald-400" defaultValue="0" />
-                                        <button
-                                            onClick={() => {
-                                                const tid = (document.getElementById("newCatTypeId") as HTMLSelectElement).value;
-                                                const w = Number((document.getElementById("newCatWeight") as HTMLInputElement).value);
-                                                if (!tid) return alert("กรุณาเลือกประเภทคะแนน");
-                                                handleAddCategory("", w, Number(tid));
-                                                (document.getElementById("newCatTypeId") as HTMLSelectElement).value = "";
-                                                (document.getElementById("newCatWeight") as HTMLInputElement).value = "0";
-                                            }}
-                                            className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-emerald-700"
-                                        >เพิ่มลงตาราง</button>
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700 mb-2">2. เลือกประเภทคะแนนลงในตาราง (กดเพื่อเพิ่ม)</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {categoryTypes.map(t => (
+                                            <button
+                                                key={t.id}
+                                                onClick={() => {
+                                                    handleAddCategory("", 0, t.id);
+                                                }}
+                                                className="px-3 py-1.5 rounded-xl border border-emerald-200 bg-white text-emerald-700 text-sm font-bold hover:bg-emerald-50 hover:border-emerald-400 hover:shadow-sm transition-all flex items-center gap-1.5 active:scale-95"
+                                            >
+                                                <svg className="w-4 h-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                                                </svg>
+                                                {t.type_name}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
                             </div>
@@ -1560,21 +1518,28 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                     </div>
                                 ))}
                             </div>
-                            {categories.length > 0 && (
-                                <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
-                                    <span className="text-sm font-bold text-slate-500">รวมทั้งหมด:</span>
-                                    <span className={`text-lg font-black ${categories.reduce((a, b) => a + Number(b.weight_percent || 0), 0) === 100 ? "text-emerald-600" : "text-teal-500"}`}>
-                                        {categories.reduce((a, b) => a + Number(b.weight_percent || 0), 0)}%
-                                    </span>
-                                </div>
-                            )}
+                            {categories.length > 0 && (() => {
+                                const totalWeight = categories.reduce((a, b) => a + Number(b.weight_percent || 0), 0);
+                                const isOverweight = totalWeight > 100;
+                                return (
+                                    <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-bold text-slate-500">รวมทั้งหมด:</span>
+                                            {isOverweight && <span className="text-[10px] text-rose-500 font-bold">* ห้ามเกิน 100%</span>}
+                                        </div>
+                                        <span className={`text-lg font-black ${isOverweight ? "text-rose-600 animate-pulse" : totalWeight === 100 ? "text-emerald-600" : "text-teal-500"}`}>
+                                            {totalWeight}%
+                                        </span>
+                                    </div>
+                                );
+                            })()}
                         </div>
                         <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                            <button onClick={() => setShowCategoryManageModal(false)} className="px-6 py-2 rounded-xl bg-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-300">ยกเลิก</button>
+                            <button onClick={() => setShowCategoryManageModal(false)} className="px-6 py-2 rounded-xl bg-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-300 transition-colors">ยกเลิก</button>
                             <button 
                                 onClick={handleSaveCategories} 
-                                disabled={categorySaving}
-                                className="px-8 py-2 rounded-xl bg-emerald-600 text-white text-sm font-black hover:bg-emerald-700 shadow-lg shadow-emerald-100 flex items-center gap-2"
+                                disabled={categorySaving || categories.reduce((a, b) => a + Number(b.weight_percent || 0), 0) > 100}
+                                className="px-8 py-2 rounded-xl bg-emerald-600 text-white text-sm font-black hover:bg-emerald-700 shadow-lg shadow-emerald-100 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none"
                             >
                                 {categorySaving && <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />}
                                 บันทึกทั้งหมด

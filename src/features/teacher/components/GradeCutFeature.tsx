@@ -5,9 +5,10 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { TeacherApiService } from "@/services/teacher-api.service";
 
-const DEFAULT_THRESHOLDS = { a: 80, b_plus: 75, b: 70, c_plus: 65, c: 60, d_plus: 55, d: 50 };
+const DEFAULT_THRESHOLDS: any = { a: 80, b_plus: 75, b: 70, c_plus: 65, c: 60, d_plus: 55, d: 50, is_custom: false };
+const txt = (v: unknown) => String(v ?? "").trim();
 const num = (v: any) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
-const txt = (v: any) => String(v ?? "").trim();
+
 type SectionLike = {
     id?: number | string | null;
     class_level?: string | number | null;
@@ -26,6 +27,35 @@ type SectionLike = {
     } | null;
 } | null | undefined;
 
+function getSubjectKey(section: SectionLike) {
+    const subjectId = txt(section?.subjects?.id);
+    if (subjectId) return `id:${subjectId}`;
+    return `${txt(section?.subjects?.subject_code)}|${txt(section?.subjects?.name)}`;
+}
+
+function formatSubjectLabel(section: SectionLike) {
+    const code = txt(section?.subjects?.subject_code);
+    const name = txt(section?.subjects?.name);
+    if (code && name) return `${code} ${name}`;
+    return code || name || "-";
+}
+
+function getRoomKey(section: SectionLike) {
+    return `${txt(section?.class_level)}|${txt(section?.classroom)}`;
+}
+
+function getAcademicYearValue(section: SectionLike) {
+    return txt(section?.semesters?.academic_years?.year_name) || txt(section?.year);
+}
+
+function getYearKey(section: SectionLike) {
+    return getAcademicYearValue(section);
+}
+
+function formatYearLabel(section: SectionLike) {
+    return getAcademicYearValue(section) || "-";
+}
+
 function formatRoomLabel(section: SectionLike) {
     const level = txt(section?.class_level);
     const room = txt(section?.classroom);
@@ -34,14 +64,16 @@ function formatRoomLabel(section: SectionLike) {
     return room || level || "-";
 }
 
+function getTermKey(section: SectionLike) {
+    return `${getAcademicYearValue(section)}|${txt(section?.semester)}`;
+}
+
 function formatTermLabel(section: SectionLike) {
-    const year = txt(section?.semesters?.academic_years?.year_name) || txt(section?.year);
-    const semester = txt(section?.semester);
-    return `ปีการศึกษา ${year || "-"} ภาคเรียน ${semester || "-"}`;
+    return `ปีการศึกษา ${getAcademicYearValue(section) || "-"} ภาคเรียน ${txt(section?.semester) || "-"}`;
 }
 
 const GRADE_ORDER = ["4", "3.5", "3", "2.5", "2", "1.5", "1", "0"] as const;
-const GRADE_LABELS: Record<string, string> = { "4": "A", "3.5": "B+", "3": "B", "2.5": "C+", "2": "C", "1.5": "D+", "1": "D", "0": "F" };
+const GRADE_LABELS: Record<string, string> = { "4": "A", "3.5": "B+", "3": "B", "2.5": "C+", "2": "C", "1.5": "D+", "1": "D", "0": "F", "ผ": "Pass", "มผ": "Fail" };
 const GRADE_COLORS: Record<string, string> = {
     "4": "bg-emerald-100 text-emerald-800 border-emerald-300",
     "3.5": "bg-green-100 text-green-800 border-green-300",
@@ -51,6 +83,21 @@ const GRADE_COLORS: Record<string, string> = {
     "1.5": "bg-teal-50 text-teal-700 border-teal-200",
     "1": "bg-emerald-50 text-emerald-700 border-emerald-200",
     "0": "bg-rose-100 text-rose-800 border-rose-300",
+    "ผ": "bg-emerald-100 text-emerald-800 border-emerald-300",
+    "มผ": "bg-rose-100 text-rose-800 border-rose-300",
+};
+
+const GRADE_BAR_COLORS: Record<string, string> = {
+    "4": "from-emerald-400 to-emerald-500",
+    "3.5": "from-green-400 to-green-500",
+    "3": "from-teal-400 to-teal-500",
+    "2.5": "from-teal-400 to-teal-500",
+    "2": "from-emerald-400 to-emerald-500",
+    "1.5": "from-teal-300 to-teal-400",
+    "1": "from-emerald-300 to-emerald-400",
+    "0": "from-rose-400 to-rose-500",
+    "ผ": "from-emerald-400 to-emerald-500",
+    "มผ": "from-rose-400 to-rose-500",
 };
 
 const GRADE_ALIAS_TO_NUMERIC: Record<string, string> = {
@@ -85,15 +132,13 @@ export function GradeCutFeature({ session }: { session: any }) {
     const [savingThresholds, setSavingThresholds] = useState(false);
     const [calculating, setCalculating] = useState(false);
     const [studentSearch, setStudentSearch] = useState("");
+    const [groupOptions, setGroupOptions] = useState<any[]>([]);
+    const [selectingGroup, setSelectingGroup] = useState(false);
 
     const [selectedSubjectKey, setSelectedSubjectKey] = useState("");
     const [selectedRoomKey, setSelectedRoomKey] = useState("");
     const [selectedYearKey, setSelectedYearKey] = useState("");
     const [selectedTermKey, setSelectedTermKey] = useState("");
-
-    const getTermKey = (s: any) => `${s.year}-${s.semester}`;
-
-
 
     useEffect(() => {
         (async () => {
@@ -108,9 +153,9 @@ export function GradeCutFeature({ session }: { session: any }) {
         if (!hasSection || sections.length === 0) return;
         const s = sections.find(x => x.id === sectionId);
         if (s) {
-            setSelectedSubjectKey(txt(s.subjects?.id || s.subject_id));
-            setSelectedRoomKey(txt(s.classroom));
-            setSelectedYearKey(txt(s.semesters?.academic_years?.year_name || s.year));
+            setSelectedSubjectKey(getSubjectKey(s));
+            setSelectedRoomKey(getRoomKey(s));
+            setSelectedYearKey(getYearKey(s));
             setSelectedTermKey(getTermKey(s));
         }
     }, [hasSection, sectionId, sections]);
@@ -139,19 +184,29 @@ export function GradeCutFeature({ session }: { session: any }) {
         })();
     }, [hasSection, sectionId, session.id, sections, sectionInfo]);
 
+    const handleThresholdChange = (key: keyof typeof DEFAULT_THRESHOLDS, val: string) => {
+        const n = Number(val);
+        setThresholds((prev: any) => ({ ...prev, [key]: n }));
+    };
+
+    // Removed handleSelectGroup function
 
     /* ─── derived ─── */
     const stats = useMemo(() => {
         const count = summary.length;
+        const isPF = summary.some(r => r.is_pf);
         const avgPct = count ? Math.round((summary.reduce((s, r) => s + num(r.percentage), 0) / count) * 100) / 100 : 0;
-        const passCount = summary.filter((r) => num(r.percentage) >= num(thresholds.d)).length;
+        const passCount = summary.filter((r) => {
+            if (isPF) return r.grade === "ผ";
+            return num(r.percentage) >= num(thresholds.d);
+        }).length;
         const maxPossible = count ? num(summary[0]?.max_possible) : 0;
         const distribution = summary.reduce<Record<string, number>>((acc, r) => {
-            const k = normalizeGrade(r.grade);
+            const k = r.is_pf ? r.grade : normalizeGrade(r.grade);
             acc[k] = (acc[k] || 0) + 1;
             return acc;
         }, {});
-        return { count, avgPct, passCount, maxPossible, distribution };
+        return { count, avgPct, passCount, maxPossible, distribution, isPF };
     }, [summary, thresholds.d]);
 
     const filteredSummary = useMemo(() => {
@@ -162,55 +217,120 @@ export function GradeCutFeature({ session }: { session: any }) {
         );
     }, [summary, studentSearch]);
 
+    const isModified = useMemo(() => {
+        return (["a", "b_plus", "b", "c_plus", "c", "d_plus", "d"] as const).some(
+            key => thresholds[key] !== DEFAULT_THRESHOLDS[key as keyof typeof DEFAULT_THRESHOLDS]
+        ) || thresholds.is_custom;
+    }, [thresholds]);
+
     /* ─── selection logic ─── */
 
     const subjectOptions = useMemo(() => {
-        const unique = new Map();
-        sections.forEach(s => {
-            const id = txt(s.subjects?.id || s.subject_id);
-            if (id && !unique.has(id)) unique.set(id, { value: id, label: `${s.subjects?.subject_code} ${s.subjects?.name}` });
+        const map = new Map<string, string>();
+        sections.forEach((s) => {
+            const key = getSubjectKey(s);
+            if (!key) return;
+            if (!map.has(key)) map.set(key, formatSubjectLabel(s));
         });
-        return Array.from(unique.values());
+        return Array.from(map.entries())
+            .map(([value, label]) => ({ value, label }))
+            .sort((a, b) => a.label.localeCompare(b.label, "th"));
     }, [sections]);
 
     const roomOptions = useMemo(() => {
         if (!selectedSubjectKey) return [];
-        const unique = new Map();
-        sections.filter(s => txt(s.subjects?.id || s.subject_id) === selectedSubjectKey).forEach(s => {
-            const r = txt(s.classroom);
-            if (r && !unique.has(r)) unique.set(r, { value: r, label: `ชั้น${formatRoomLabel(s)}` });
-        });
-        return Array.from(unique.values());
+        const map = new Map<string, string>();
+        sections
+            .filter((s) => getSubjectKey(s) === selectedSubjectKey)
+            .forEach((s) => {
+                const key = getRoomKey(s);
+                if (!key) return;
+                if (!map.has(key)) map.set(key, formatRoomLabel(s));
+            });
+        return Array.from(map.entries())
+            .map(([value, label]) => ({ value, label }))
+            .sort((a, b) => {
+                const [aG = "999", aR = "999"] = a.label.split("/");
+                const [bG = "999", bR = "999"] = b.label.split("/");
+                const gDiff = Number(aG) - Number(bG);
+                if (gDiff !== 0) return gDiff;
+                return Number(aR) - Number(bR);
+            });
     }, [sections, selectedSubjectKey]);
 
     const yearOptions = useMemo(() => {
         if (!selectedSubjectKey || !selectedRoomKey) return [];
-        const unique = new Map();
-        sections.filter(s => txt(s.subjects?.id || s.subject_id) === selectedSubjectKey && txt(s.classroom) === selectedRoomKey).forEach(s => {
-            const y = txt(s.semesters?.academic_years?.year_name || s.year);
-            if (y && !unique.has(y)) unique.set(y, { value: y, label: `ปีการศึกษา ${y}` });
-        });
-        return Array.from(unique.values());
+        const map = new Map<string, string>();
+        sections
+            .filter((s) => getSubjectKey(s) === selectedSubjectKey && getRoomKey(s) === selectedRoomKey)
+            .forEach((s) => {
+                const key = getYearKey(s);
+                if (!key) return;
+                if (!map.has(key)) map.set(key, formatYearLabel(s));
+            });
+        return Array.from(map.entries())
+            .map(([value, label]) => ({ value, label }))
+            .sort((a, b) => Number(b.value) - Number(a.value));
     }, [sections, selectedSubjectKey, selectedRoomKey]);
 
     const semesterOptions = useMemo(() => {
         if (!selectedSubjectKey || !selectedRoomKey || !selectedYearKey) return [];
-        return sections
-            .filter(s => txt(s.subjects?.id || s.subject_id) === selectedSubjectKey && txt(s.classroom) === selectedRoomKey && txt(s.semesters?.academic_years?.year_name || s.year) === selectedYearKey)
-            .map(s => ({ value: getTermKey(s), label: `ภาคเรียนที่ ${s.semester}` }));
+        const map = new Map<string, string>();
+        sections
+            .filter((s) => getSubjectKey(s) === selectedSubjectKey && getRoomKey(s) === selectedRoomKey && getYearKey(s) === selectedYearKey)
+            .forEach((s) => {
+                const key = getTermKey(s);
+                if (!key) return;
+                if (!map.has(key)) map.set(key, formatTermLabel(s));
+            });
+        return Array.from(map.entries())
+            .map(([value, label]) => ({ value, label }))
+            .sort((a, b) => {
+                const [aYear = "0", aSem = "0"] = a.value.split("|");
+                const [bYear = "0", bSem = "0"] = b.value.split("|");
+                const yearDiff = Number(bYear) - Number(aYear);
+                if (yearDiff !== 0) return yearDiff;
+                return Number(bSem) - Number(aSem);
+            });
     }, [sections, selectedSubjectKey, selectedRoomKey, selectedYearKey]);
 
     const handleSubjectSelect = (val: string) => { setSelectedSubjectKey(val); setSelectedRoomKey(""); setSelectedYearKey(""); setSelectedTermKey(""); };
     const handleRoomSelect = (val: string) => { setSelectedRoomKey(val); setSelectedYearKey(""); setSelectedTermKey(""); };
     const handleYearSelect = (val: string) => {
         setSelectedYearKey(val);
-        const auto = sections.find(s => txt(s.subjects?.id || s.subject_id) === selectedSubjectKey && txt(s.classroom) === selectedRoomKey && txt(s.semesters?.academic_years?.year_name || s.year) === val);
-        if (auto) handleSemesterSelect(getTermKey(auto));
+        setSelectedTermKey("");
+        // Auto-select the latest term if possible
+        if (!val) return;
+        const availableTerms = sections
+            .filter((s) => getSubjectKey(s) === selectedSubjectKey && getRoomKey(s) === selectedRoomKey && getYearKey(s) === val)
+            .map((s) => getTermKey(s))
+            .filter(Boolean);
+        
+        if (availableTerms.length > 0) {
+            const latestTerm = availableTerms.sort((a, b) => {
+                const [, aSem = "0"] = a.split("|");
+                const [, bSem = "0"] = b.split("|");
+                return Number(bSem) - Number(aSem);
+            })[0];
+            handleSemesterSelect(latestTerm);
+        }
     };
     const handleSemesterSelect = (val: string) => {
+        if (!val) { setSelectedTermKey(""); return; }
         setSelectedTermKey(val);
-        const s = sections.find(x => txt(x.subjects?.id || x.subject_id) === selectedSubjectKey && txt(x.classroom) === selectedRoomKey && getTermKey(x) === val);
-        if (s) router.push(`/teacher/grade-cut?section_id=${s.id}`);
+        
+        // Find section immediately and navigate
+        const targetSection = sections.find((s) => 
+            getSubjectKey(s) === selectedSubjectKey &&
+            getRoomKey(s) === selectedRoomKey &&
+            getTermKey(s) === val
+        );
+        
+        if (targetSection?.id) {
+            router.push(`/teacher/grade_cut?section_id=${targetSection.id}`);
+        } else {
+            console.warn("Could not find section for selected filters", { selectedSubjectKey, selectedRoomKey, val });
+        }
     };
 
 
@@ -235,24 +355,28 @@ export function GradeCutFeature({ session }: { session: any }) {
     };
 
     const handleResetThresholds = async () => {
-        if (!confirm("ยืนยันการลบเกณฑ์คะแนนที่ตั้งไว้และกลับไปใช้ค่าเริ่มต้น?")) return;
-        setSavingThresholds(true);
+        if (!confirm("คุณต้องการคืนค่าเกณฑ์คะแนนเริ่มต้นใช่หรือไม่?")) return;
+        
         try {
-            await TeacherApiService.saveGradeThresholds(sectionId, { action: 'reset_thresholds' } as any); // Wait, I'll update TeacherApiService too or use direct fetch
-            // Better: use the action I just added to the API
-            await fetch('/api/teacher/grade-cut', {
-                method: 'POST',
-                body: JSON.stringify({ action: 'reset_thresholds', section_id: sectionId })
-            });
-            const [tData, rows] = await Promise.all([
-                TeacherApiService.getGradeThresholds(sectionId),
-                TeacherApiService.getGradeSummary(sectionId),
-            ]);
-            setThresholds(tData ? { ...DEFAULT_THRESHOLDS, ...tData } : DEFAULT_THRESHOLDS);
-            setSummary(Array.isArray(rows) ? rows : []);
-            alert("รีเซ็ตเกณฑ์คะแนนเรียบร้อย");
-        } catch { alert("ดำเนินการไม่สำเร็จ"); }
-        finally { setSavingThresholds(false); }
+            if (thresholds.is_custom) {
+                setSavingThresholds(true);
+                await TeacherApiService.resetGradeThresholds(sectionId);
+                const [tData, rows] = await Promise.all([
+                    TeacherApiService.getGradeThresholds(sectionId),
+                    TeacherApiService.getGradeSummary(sectionId),
+                ]);
+                setThresholds(tData ? { ...DEFAULT_THRESHOLDS, ...tData } : DEFAULT_THRESHOLDS);
+                setSummary(Array.isArray(rows) ? rows : []);
+                alert("ระบบคืนค่าเกณฑ์มาตรฐานเรียบร้อยแล้ว ✓");
+            } else {
+                setThresholds({ ...DEFAULT_THRESHOLDS, is_custom: false });
+            }
+        } catch (err) {
+            console.error("Reset failed", err);
+            alert("ไม่สามารถคืนค่าได้ กรุณาลองใหม่อีกครั้ง");
+        } finally {
+            setSavingThresholds(false);
+        }
     };
 
     /* ─── render ─── */
@@ -432,7 +556,7 @@ export function GradeCutFeature({ session }: { session: any }) {
                             </label>
                             <div className="relative group">
                                 <select
-                                    value={selectedTermKey ? txt(sections.find(s => getTermKey(s) === selectedTermKey)?.semester) : ""}
+                                    value={selectedTermKey}
                                     onChange={(e) => handleSemesterSelect(e.target.value)}
                                     disabled={!selectedYearKey}
                                     className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-emerald-400 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 disabled:opacity-40 cursor-pointer appearance-none"
@@ -480,99 +604,196 @@ export function GradeCutFeature({ session }: { session: any }) {
                             <div className="mt-1 text-2xl font-bold text-slate-800">{stats.avgPct}%</div>
                         </div>
                         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <div className="text-xs text-slate-500">ผ่านเกณฑ์ (D ขึ้นไป)</div>
+                            <div className="text-xs text-slate-500">{stats.isPF ? "ผ่าน (ผ)" : "ผ่านเกณฑ์ (D ขึ้นไป)"}</div>
                             <div className="mt-1 text-2xl font-bold text-emerald-700">{stats.passCount}<span className="text-sm text-slate-400 font-normal">/{stats.count}</span></div>
                         </div>
                         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <div className="text-xs text-slate-500">เต็มรวม / หัวข้อ</div>
-                            <div className="mt-1 text-2xl font-bold text-slate-800">{stats.maxPossible} <span className="text-sm text-slate-400 font-normal">({headerCount})</span></div>
+                            <div className="text-xs text-slate-500">{stats.isPF ? "ชิ้นงานรวม" : "เต็มรวม / หัวข้อ"}</div>
+                            <div className="mt-1 text-2xl font-bold text-slate-800">{stats.maxPossible} {!stats.isPF && <span className="text-sm text-slate-400 font-normal">({headerCount})</span>}</div>
                         </div>
                     </section>
 
                     {/* ── Threshold + Distribution ── */}
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                        {/* Threshold display */}
-                        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="font-bold text-slate-700">เกณฑ์คะแนน (เกรดขั้นต่ำ)</h2>
-                                {thresholds.is_custom && (
-                                    <button 
-                                        onClick={handleResetThresholds}
-                                        className="text-xs font-semibold text-rose-500 hover:text-rose-700 transition-colors bg-rose-50 px-2 py-1 rounded-lg border border-rose-100"
-                                    >ลบเกณฑ์และใช้ค่าเริ่มต้น</button>
-                                )}
-                            </div>
-
-                            <div className="space-y-2">
-                                {(["a", "b_plus", "b", "c_plus", "c", "d_plus", "d"] as const).map((key) => {
-                                    const grade = key === 'a' ? '4' : key === 'b_plus' ? '3.5' : key === 'b' ? '3' : key === 'c_plus' ? '2.5' : key === 'c' ? '2' : key === 'd_plus' ? '1.5' : '1';
-                                    return (
-                                        <div key={key} className="flex items-center justify-between rounded-xl border border-slate-50 bg-slate-50/50 p-2.5">
-                                            <div className="flex items-center gap-3">
-                                                <span className={`flex h-7 w-12 items-center justify-center rounded-lg border text-[10px] font-bold ${GRADE_COLORS[grade]}`}>
-                                                    {GRADE_LABELS[grade]}
-                                                </span>
-                                                <span className="text-xs font-medium text-slate-500">คะแนนสะสมตั้งแต่</span>
+                        {!stats.isPF ? (
+                            <>
+                                {/* Threshold display */}
+                                <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                                    <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between bg-slate-50/50 gap-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-xl bg-emerald-100 text-emerald-600">
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6m4 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                                             </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-base font-bold text-slate-700">{num(thresholds[key])}</span>
-                                                <span className="text-[10px] font-bold text-slate-400">คะแนน</span>
+                                            <div>
+                                                <h2 className="font-black text-slate-800 tracking-tight">เกณฑ์คะแนน (เกรดขั้นต่ำ)</h2>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 whitespace-nowrap">
+                                                    สัดส่วนถ่วงน้ำหนัก (เต็ม 100%)
+                                                </p>
                                             </div>
                                         </div>
-                                    );
-                                })}
-                            </div>
 
-                            <button
-                                onClick={handleSaveAndCalculate}
-                                disabled={savingThresholds || calculating || headerCount === 0}
-                                className="mt-5 w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 active:scale-95 disabled:opacity-50"
-                            >
-                                {calculating ? "กำลังคำนวณ..." : "คำนวณและบันทึกเกรดลงฐานข้อมูล"}
-                            </button>
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            {isModified && (
+                                                <button 
+                                                    onClick={handleResetThresholds}
+                                                    className="text-[10px] font-bold text-rose-500 hover:text-rose-700 transition-colors bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-100"
+                                                >คืนค่าเริ่มต้น</button>
+                                            )}
+                                        </div>
+                                    </div>
 
-                            {headerCount === 0 && (
-                                <p className="mt-2 text-xs text-emerald-600 flex items-center justify-center gap-1">
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                                    ยังไม่มีหัวข้อคะแนน กรุณาบันทึกคะแนนก่อน
-                                </p>
-                            )}
-                        </section>
+                                    <div className="p-6">
+                                        <div className="space-y-2">
+                                            {(["a", "b_plus", "b", "c_plus", "c", "d_plus", "d"] as const).map((key) => {
+                                                const grade = key === 'a' ? '4' : key === 'b_plus' ? '3.5' : key === 'b' ? '3' : key === 'c_plus' ? '2.5' : key === 'c' ? '2' : key === 'd_plus' ? '1.5' : '1';
+                                                return (
+                                                    <div key={key} className="flex items-center justify-between rounded-xl border border-slate-50 bg-slate-50/50 p-2.5">
+                                                        <div className="flex items-center gap-3">
+                                                            <span className={`flex h-7 w-12 items-center justify-center rounded-lg border text-[10px] font-bold ${GRADE_COLORS[grade] || ""}`}>
+                                                                {GRADE_LABELS[grade]}
+                                                            </span>
+                                                            <span className="text-xs font-medium text-slate-500">คะแนนสะสมตั้งแต่</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 focus-within:scale-105 transition-transform">
+                                                            <input 
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={num(thresholds[key])}
+                                                                onChange={(e) => handleThresholdChange(key, e.target.value)}
+                                                                className="w-16 h-8 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-bold text-slate-700 text-center focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                                                            />
+                                                            <span className="text-[10px] font-bold text-slate-400">คะแนน (%)</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
 
-                        {/* Grade distribution */}
-                        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                            <h2 className="font-bold text-slate-700 mb-4">การกระจายเกรด</h2>
-                            {summary.length === 0 ? (
-                                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-400">
-                                    ยังไม่มีข้อมูล — กดปุ่ม "คำนวณเกรด" เพื่อเริ่มต้น
-                                </div>
-                            ) : (
-                                <div className="space-y-2.5">
-                                    {GRADE_ORDER.map((grade) => {
-                                        const count = stats.distribution[grade] || 0;
-                                        const pct = stats.count ? (count / stats.count) * 100 : 0;
-                                        return (
-                                            <div key={grade} className="flex items-center gap-3">
-                                                <span className={`inline-flex w-12 items-center justify-center rounded-lg border px-2 py-1 text-xs font-bold ${GRADE_COLORS[grade] || ""}`}>
-                                                    {GRADE_LABELS[grade] || grade}
-                                                </span>
-                                                <div className="flex-1 h-6 rounded-full bg-slate-100 overflow-hidden relative">
-                                                    <div
-                                                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500"
-                                                        style={{ width: `${pct}%` }}
-                                                    />
-                                                    {count > 0 && (
-                                                        <span className="absolute inset-0 flex items-center px-3 text-xs font-semibold text-slate-700">
-                                                            {count} คน ({Math.round(pct)}%)
+                                        <button
+                                            onClick={handleSaveAndCalculate}
+                                            disabled={savingThresholds || calculating || headerCount === 0}
+                                            className="mt-5 w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 active:scale-95 disabled:opacity-50"
+                                        >
+                                            {calculating ? "กำลังคำนวณ..." : "คำนวณและบันทึกเกรดลงฐานข้อมูล"}
+                                        </button>
+
+                                        {headerCount === 0 && (
+                                            <p className="mt-2 text-xs text-emerald-600 flex items-center justify-center gap-1 font-bold">
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                ยังไม่มีหัวข้อคะแนน กรุณาบันทึกคะแนนก่อน
+                                            </p>
+                                        )}
+                                    </div>
+                                </section>
+
+                                {/* Grade distribution */}
+                                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                    <h2 className="font-bold text-slate-700 mb-4">การกระจายเกรด</h2>
+                                    {summary.length === 0 ? (
+                                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-400">
+                                            ยังไม่มีข้อมูล — กดปุ่ม "คำนวณเกรด" เพื่อเริ่มต้น
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2.5">
+                                            {GRADE_ORDER.map((grade) => {
+                                                const count = stats.distribution[grade] || 0;
+                                                const pct = stats.count ? (count / stats.count) * 100 : 0;
+                                                return (
+                                                    <div key={grade} className="flex items-center gap-3">
+                                                        <span className={`inline-flex w-12 items-center justify-center rounded-lg border px-2 py-1 text-xs font-bold ${GRADE_COLORS[grade] || ""}`}>
+                                                            {GRADE_LABELS[grade] || grade}
                                                         </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </section>
+                                                        <div className="flex-1 h-6 rounded-full bg-slate-100 overflow-hidden relative">
+                                                            <div
+                                                                className={`h-full rounded-full bg-gradient-to-r ${GRADE_BAR_COLORS[grade] || "from-emerald-500 to-teal-500"} transition-all duration-500`}
+                                                                style={{ width: `${pct}%` }}
+                                                            />
+                                                            {count > 0 && (
+                                                                <span className="absolute inset-0 flex items-center px-3 text-xs font-semibold text-slate-700">
+                                                                    {count} คน ({Math.round(pct)}%)
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </section>
+                            </>
+                        ) : (
+                            <>
+                                {/* Info & Button display for PF */}
+                                <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col h-full">
+                                    <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
+                                        <div className="p-2 rounded-xl bg-emerald-100 text-emerald-600">
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h2 className="font-black text-slate-800 tracking-tight">ระบบบันทึกผลการเรียนรายวิชากิจกรรม</h2>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 whitespace-nowrap">
+                                                ประเมินผลแบบ ผ่าน (ผ) / ไม่ผ่าน (มผ)
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="p-6 flex-1 flex flex-col justify-center">
+                                        <p className="text-slate-500 text-sm mb-6 flex-1">รายวิชานี้ใช้การประเมินผลแบบ <b>ผ่าน (ผ) / ไม่ผ่าน (มผ)</b> โดยอิงตามการส่งภาระงานที่ครูกำหนดให้ครบถ้วน ไม่มีการกำหนดเกณฑ์คะแนนขั้นต่ำ</p>
+                                        
+                                        <button
+                                            onClick={handleSaveAndCalculate}
+                                            disabled={savingThresholds || calculating || headerCount === 0}
+                                            className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 active:scale-95 disabled:opacity-50"
+                                        >
+                                            {calculating ? "กำลังประมวลผล..." : "ประมวลผลและบันทึก ผ/มผ ลงฐานข้อมูล"}
+                                        </button>
+                                        
+                                        {headerCount === 0 && (
+                                            <p className="mt-2 text-xs text-emerald-600 flex items-center justify-center gap-1 font-bold">
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                ยังไม่มีภาระงาน กรุณาเพิ่มชิ้นงานก่อน
+                                            </p>
+                                        )}
+                                    </div>
+                                </section>
+
+                                {/* Grade distribution for PF */}
+                                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                    <h2 className="font-bold text-slate-700 mb-4">การกระจายผลการประเมิน</h2>
+                                    {summary.length === 0 ? (
+                                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-400">
+                                            ยังไม่มีข้อมูล — กดปุ่ม "ประมวลผล" เพื่อเริ่มต้น
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4 pt-2">
+                                            {(["ผ", "มผ"]).map((grade) => {
+                                                const count = stats.distribution[grade] || 0;
+                                                const pct = stats.count ? (count / stats.count) * 100 : 0;
+                                                return (
+                                                    <div key={grade} className="flex items-center gap-4">
+                                                        <span className={`inline-flex w-24 items-center justify-center rounded-xl border px-2 py-1.5 text-sm font-black ${GRADE_COLORS[grade] || ""}`}>
+                                                            {grade === "ผ" ? "ผ่าน (ผ)" : grade === "มผ" ? "ไม่ผ่าน (มผ)" : GRADE_LABELS[grade] || grade}
+                                                        </span>
+                                                        <div className="flex-1 h-8 rounded-full bg-slate-100 overflow-hidden relative shadow-inner">
+                                                            <div
+                                                                className={`h-full rounded-full transition-all duration-700 ease-out ${grade === "มผ" ? "bg-gradient-to-r from-rose-400 to-red-500" : "bg-gradient-to-r from-emerald-400 to-teal-500"}`}
+                                                                style={{ width: `${pct}%` }}
+                                                            />
+                                                            {count > 0 && (
+                                                                <span className="absolute inset-0 flex items-center px-4 text-xs font-bold text-slate-700">
+                                                                    {count} คน ({Math.round(pct)}%)
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </section>
+                            </>
+                        )}
                     </div>
 
                     {/* ── Student Table (always visible) ── */}
@@ -604,15 +825,13 @@ export function GradeCutFeature({ session }: { session: any }) {
                                             <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 w-12">#</th>
                                             <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500">เลขประจำตัวนักเรียน</th>
                                             <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500">ชื่อ-นามสกุล</th>
-                                            <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500">คะแนนรวม</th>
-                                            <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500">%</th>
+                                            <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500">{stats.isPF ? "งานที่ส่ง" : "คะแนนรวม"}</th>
+                                            <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500">{stats.isPF ? "ความครบถ้วน (%)" : "%"}</th>
                                             <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500">เกรด</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredSummary.map((s, i) => {
-                                            const displayGrade = normalizeGrade(s.grade);
-                                            return (
+                                        {filteredSummary.map((s, i) => (
                                                 <tr key={`${s.student_id}-${i}`} className="border-b border-slate-50 hover:bg-slate-50/50">
                                                     <td className="px-4 py-2 text-xs text-slate-400">{i + 1}</td>
                                                     <td className="px-4 py-2 text-sm font-mono text-slate-600">{s.student_code}</td>
@@ -620,13 +839,12 @@ export function GradeCutFeature({ session }: { session: any }) {
                                                     <td className="px-4 py-2 text-center text-sm text-slate-700">{num(s.total_score)}<span className="text-slate-400">/{num(s.max_possible)}</span></td>
                                                     <td className="px-4 py-2 text-center text-sm text-slate-700">{num(s.percentage)}%</td>
                                                     <td className="px-4 py-2 text-center">
-                                                        <span className={`inline-flex rounded-lg border px-3 py-1 text-xs font-bold ${GRADE_COLORS[displayGrade] || "bg-slate-100 text-slate-700 border-slate-200"}`}>
-                                                            {GRADE_LABELS[displayGrade] || displayGrade} ({displayGrade})
+                                                        <span className={`inline-flex rounded-lg border px-3 py-1 text-xs font-bold ${GRADE_COLORS[s.grade] || "bg-slate-100 text-slate-700 border-slate-200"}`}>
+                                                            {GRADE_LABELS[s.grade] || s.grade} {(!s.is_pf && s.grade !== normalizeGrade(s.grade)) ? `(${normalizeGrade(s.grade)})` : ''}
                                                         </span>
                                                     </td>
                                                 </tr>
-                                            );
-                                        })}
+                                        ))}
                                     </tbody>
                                 </table>
                             </div>
