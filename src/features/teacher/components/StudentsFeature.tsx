@@ -120,7 +120,9 @@ export function StudentsFeature({ session }: { session: any }) {
                 {loading ? (
                     <div className="p-8 text-center text-slate-500">กำลังโหลด...</div>
                 ) : filtered.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500">ไม่พบนักเรียน</div>
+                    <div className="p-8 text-center text-slate-500">
+                        {students.length === 0 ? "ไม่ได้เป็นครูที่ปรึกษาในปีการศึกษานี้" : "ไม่พบนักเรียน"}
+                    </div>
                 ) : (
                     <table className="w-full">
                         <thead>

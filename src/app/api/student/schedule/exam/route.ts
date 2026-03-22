@@ -20,16 +20,7 @@ export async function GET(request: Request) {
 
         const data = await ScheduleService.getExamSchedule(student_id, year, semester);
 
-        // Map data to match old API response structure for frontend compatibility
-        const formattedData = data.map((item: any) => ({
-            ...item,
-            subject_code: item.subject_sections?.subjects?.subject_code,
-            subject_name: item.subject_sections?.subjects?.name,
-            class_level: item.subject_sections?.class_level,
-            room: item.subject_sections?.room || item.subject_sections?.classroom
-        }));
-
-        return successResponse(formattedData, "Exam schedule retrieved");
+        return successResponse(data, "Exam schedule retrieved");
     } catch (error: any) {
         return errorResponse("Failed to retrieve exam schedule", 500, error.message);
     }

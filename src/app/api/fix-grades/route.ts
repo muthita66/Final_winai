@@ -109,7 +109,7 @@ export async function GET() {
             } else {
                 log("Creating new category 'การประเมินการสอน'...");
                 const newCat: any[] = await prisma.$queryRaw`
-                    INSERT INTO evaluation_categories (name, engine_type, description)
+                    INSERT INTO evaluation_categories (name, target_type, description)
                     VALUES ('การประเมินการสอน', 'teaching', 'แบบประเมินประสิทธิภาพการสอนของครู')
                     RETURNING id
                 `;

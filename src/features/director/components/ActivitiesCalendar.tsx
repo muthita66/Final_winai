@@ -32,9 +32,29 @@ export function ActivitiesCalendar({ onAddClick, onBack, onEditClick }: { onAddC
     // Group events by date (YYYY-MM-DD)
     const eventMap = new Map<string, any[]>();
     events.forEach(ev => {
-        const key = ev.date; // YYYY-MM-DD from service
-        if (!eventMap.has(key)) eventMap.set(key, []);
-        eventMap.get(key)!.push(ev);
+        if (!ev.date) return;
+        const [sY, sM, sD] = ev.date.split('-').map(Number);
+        const start = new Date(sY, sM - 1, sD, 0, 0, 0, 0);
+        
+        let end = new Date(start);
+        if (ev.end_date) {
+            const [eY, eM, eD] = ev.end_date.split('-').map(Number);
+            end = new Date(eY, eM - 1, eD, 0, 0, 0, 0);
+        }
+        
+        if (start > end) end = new Date(start);
+
+        let current = new Date(start);
+        let safeCounter = 0;
+        while (current <= end && safeCounter < 365) {
+            const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+            if (!eventMap.has(key)) eventMap.set(key, []);
+            if (!eventMap.get(key)!.some(e => e.id === ev.id)) {
+                eventMap.get(key)!.push(ev);
+            }
+            current.setDate(current.getDate() + 1);
+            safeCounter++;
+        }
     });
 
     const renderGrid = () => {

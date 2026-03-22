@@ -13,42 +13,133 @@ async function resolveSemesterId(year?: number, semester?: number) {
 }
 
 export const LearningResultsService = {
-    // Advisor evaluation (1-5 scale)
+    // Advisor evaluation (supports multiple advisors and form types)
     async getAdvisorEvaluation(student_id: number, year?: number, semester?: number) {
-        if (!student_id) return [];
+        if (!student_id) return { advisors: [], evaluations: [] };
         const semester_id = await resolveSemesterId(year, semester);
-        const responseRows = await prisma.$queryRawUnsafe<Array<{ id: number }>>(
-            `
-            SELECT er.id
+
+        // 1. Find classroom and advisors for this student in the selected year
+        console.log(`[getAdvisorEvaluation] student_id=${student_id}, year=${year}, semester=${semester}`);
+        let classroomStudent = await prisma.classroom_students.findFirst({
+            where: { 
+                student_id: Number(student_id),
+                academic_year: year ? Number(year) : undefined
+            },
+            select: { classroom_id: true, academic_year: true }
+        });
+
+        // Fallback: if no record for this specific year, try to get the most recent one
+        if (!classroomStudent) {
+            console.log(`[getAdvisorEvaluation] No classroom found for year ${year}, attempting fallback...`);
+            classroomStudent = await prisma.classroom_students.findFirst({
+                where: { student_id: Number(student_id) },
+                orderBy: { academic_year: 'desc' },
+                select: { classroom_id: true, academic_year: true }
+            });
+        }
+        console.log(`[getAdvisorEvaluation] Final classroomStudent=${JSON.stringify(classroomStudent)}`);
+
+        const advisors: any[] = [];
+        if (classroomStudent?.classroom_id) {
+            const advisorLinks = await prisma.classroom_advisors.findMany({
+                where: { classroom_id: classroomStudent.classroom_id },
+                include: {
+                    teachers: {
+                        include: { name_prefixes: true }
+                    }
+                }
+            });
+            console.log(`[getAdvisorEvaluation] found ${advisorLinks.length} advisor links`);
+
+            advisorLinks.forEach(link => {
+                const t = link.teachers;
+                if (t) {
+                    advisors.push({
+                        id: t.id,
+                        user_id: t.user_id,
+                        name: `${t.name_prefixes?.prefix_name || ''}${t.first_name} ${t.last_name}`.trim()
+                    });
+                }
+            });
+        }
+
+        // 2. Fetch all advisor responses for this student (support both student.id and student.user_id as target_student_id)
+        const student = await prisma.students.findUnique({ where: { id: Number(student_id) }, select: { user_id: true } });
+        const studentUserId = student?.user_id;
+        
+        const advisorUserIds = advisors.map(a => a.user_id).filter(id => id != null);
+        console.log(`[getAdvisorEvaluation] semester_id=${semester_id}, studentUserId=${studentUserId}, advisorUserIds=${JSON.stringify(advisorUserIds)}`);
+
+        let query = `
+            SELECT er.id, er.evaluator_user_id, er.submitted_at, ef.form_name
             FROM public.evaluation_responses er
             INNER JOIN public.evaluation_forms ef ON ef.id = er.form_id
-            WHERE LOWER(COALESCE(ef.type, '')) = 'advisor'
-              AND UPPER(COALESCE(er.target_type, '')) = 'STUDENT'
-              AND er.target_id = ${Number(student_id)}
-              ${semester_id ? `AND er.semester_id = ${Number(semester_id)}` : ''}
-            ORDER BY er.submitted_at DESC NULLS LAST, er.id DESC
-            LIMIT 1
-            `
-        );
+            WHERE (er.target_student_id = ${Number(student_id)}${studentUserId ? ` OR er.target_student_id = ${studentUserId}` : ''})
+        `;
+        
+        if (semester_id) {
+            query += ` AND er.semester_id = ${Number(semester_id)}`;
+        }
+        
+        if (advisorUserIds.length > 0) {
+            query += ` AND er.evaluator_user_id IN (${advisorUserIds.map(id => Number(id)).join(',')})`;
+        } else {
+            // If no advisors found even after fallback, we might want to still show responses from ANY teacher 
+            // but the requirement is "Advisor". Let's keep it restricted to advisorUserIds for now.
+            // If advisorUserIds is empty, this query would return everything if not for this 'else'.
+            query += ` AND 1=0`; 
+        }
 
-        const latestResponseId = responseRows?.[0]?.id;
-        if (!latestResponseId) return [];
+        query += ` ORDER BY er.submitted_at DESC`;
 
-        const answers: any[] = await prisma.$queryRawUnsafe(`
-            SELECT ea.*, eq.question_text
-            FROM evaluation_answers ea
-            LEFT JOIN evaluation_questions eq ON eq.id = ea.question_id
-            WHERE ea.response_id = $1
-            ORDER BY ea.id ASC
-        `, Number(latestResponseId));
+        const responseRows = advisorUserIds.length > 0 ? await prisma.$queryRawUnsafe<any[]>(query) : [];
+        console.log(`[getAdvisorEvaluation] found ${responseRows.length} response rows using query: ${query}`);
 
-        return answers
-            .filter((a) => a.score != null)
-            .map((a) => ({
-                name: a.question_text || a.answer_text || '',
-                score: Number(a.score),
-            }))
-            .filter((a) => a.name && Number.isFinite(a.score));
+        const evaluations: any[] = [];
+
+        for (const resp of responseRows) {
+            const answers: any[] = await prisma.$queryRawUnsafe(`
+                SELECT ea.*, eq.question_text, es.section_name
+                FROM evaluation_answers ea
+                LEFT JOIN evaluation_questions eq ON eq.id = ea.question_id
+                LEFT JOIN evaluation_sections es ON eq.section_id = es.id
+                WHERE ea.response_id = $1
+                ORDER BY ea.id ASC
+            `, Number(resp.id));
+
+            const topics = answers
+                .filter((a) => a.score_value != null)
+                .map((a) => {
+                    const nameText = a.question_text || a.text_value || '';
+                    const sectionMatch = nameText.match(/^(\d+)\./);
+                    const sectionNameFallback = sectionMatch ? `ตอนที่ ${sectionMatch[1]}` : 'ไม่ระบุตอน';
+                    return {
+                        name: nameText,
+                        section_name: a.section_name || sectionNameFallback,
+                        score: Number(a.score_value),
+                    };
+                })
+                .filter((a) => a.name && Number.isFinite(a.score));
+
+            const feedback = answers.find(a => a.score_value == null && !a.question_id)?.text_value || '';
+            const totalScore = topics.reduce((sum, t) => sum + (t.score || 0), 0);
+            const avgScore = topics.length > 0 ? (totalScore / topics.length).toFixed(2) : 0;
+
+            evaluations.push({
+                response_id: resp.id,
+                evaluator_user_id: resp.evaluator_user_id,
+                form_name: resp.form_name,
+                submitted_at: resp.submitted_at,
+                topics,
+                feedback,
+                average_score: Number(avgScore)
+            });
+        }
+
+        return {
+            advisors,
+            evaluations
+        };
     },
 
     // Subject-level results derived from actual teacher evaluations
@@ -101,14 +192,7 @@ export const LearningResultsService = {
 
         const semester_id = await resolveSemesterId(year, semester);
 
-        // Fetch teaching forms for evaluating students via Raw SQL
-        const formRows: any[] = await prisma.$queryRawUnsafe(`
-            SELECT id FROM evaluation_forms WHERE type = 'teacher_eval_student'
-        `);
-        const formIds = formRows.map(f => f.id);
-
-        if (formIds.length === 0) return [];
-
+        // We do not need to strictly filter by form type since the teacher submission only generates one per subject.
         const results: any[] = [];
 
         // For each enrollment, find the latest evaluation response
@@ -117,16 +201,13 @@ export const LearningResultsService = {
             const subject = ta.subjects;
             const teacher = ta.teachers;
 
-            // Raw SQL because user_id (evaluator) might not be strictly checked if we just want evaluations targeting this student
-            // For SUBJECT_STUDENT, target_id is the student ID, and evaluator_user_id is the teacher's user_id
             let sql = `SELECT id, submitted_at FROM evaluation_responses 
-                       WHERE target_type = 'SUBJECT_STUDENT' 
-                       AND target_id = $1
-                       AND form_id IN (${formIds.join(',')})`;
-            const params: any[] = [student_id];
+                       WHERE target_student_id = $1
+                       AND target_subject_id = $2`;
+            const params: any[] = [student_id, ta.id];
 
             if (teacher?.user_id) {
-                sql += ` AND evaluator_user_id = $2`;
+                sql += ` AND evaluator_user_id = $3`;
                 params.push(teacher.user_id);
             }
             if (semester_id) {
@@ -142,20 +223,28 @@ export const LearningResultsService = {
             if (!latestResponse) continue; // No evaluation for this subject
 
             const answers: any[] = await prisma.$queryRawUnsafe(`
-                SELECT ea.*, eq.question_text
+                SELECT ea.*, eq.question_text, es.section_name as section_name
                 FROM evaluation_answers ea
                 LEFT JOIN evaluation_questions eq ON eq.id = ea.question_id
+                LEFT JOIN evaluation_sections es ON eq.section_id = es.id
                 WHERE ea.response_id = $1
+                ORDER BY ea.id ASC
             `, latestResponse.id);
 
             const topics = answers
-                .filter(a => a.score != null)
-                .map(a => ({
-                    name: a.question_text || a.answer_text,
-                    score: Number(a.score)
-                }));
+                .filter(a => a.score_value != null)
+                .map(a => {
+                    const nameText = a.question_text || a.text_value || '';
+                    const sectionMatch = nameText.match(/^(\d+)\./);
+                    const sectionNameFallback = sectionMatch ? `ตอนที่ ${sectionMatch[1]}` : 'ไม่ระบุตอน';
+                    return {
+                        name: nameText,
+                        section_name: a.section_name || sectionNameFallback,
+                        score: Number(a.score_value)
+                    };
+                });
 
-            const feedback = answers.find(a => a.score == null)?.answer_text || '';
+            const feedback = answers.find(a => a.score_value == null)?.text_value || '';
             const totalScore = topics.reduce((sum, t) => sum + (t.score || 0), 0);
             const avgScore = topics.length > 0 ? (totalScore / topics.length).toFixed(2) : 0;
 

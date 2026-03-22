@@ -59,6 +59,14 @@ export function AttendanceFeature({ session }: { session: any }) {
         setSelectedSection(match?.id || null);
     }, [selectedSubject, selectedRoom, activeSections]);
 
+    const isComplete = useMemo(() => {
+        return students.length > 0 && students.every(s => !!statusMap[s.student_id]);
+    }, [students, statusMap]);
+
+    const remainingCount = useMemo(() => {
+        return students.length - Object.keys(statusMap).length;
+    }, [students, statusMap]);
+
     const sectionInfo = useMemo(() => activeSections.find(s => s.id === selectedSection), [selectedSection, activeSections]);
 
     const loadAttendance = async () => {
@@ -75,21 +83,39 @@ export function AttendanceFeature({ session }: { session: any }) {
     useEffect(() => { if (selectedSection) loadAttendance(); }, [selectedSection, date]);
 
     const handleSave = async () => {
+        if (!isComplete) {
+            alert(`กรุณาเช็คชื่อให้ครบทุกคน (ยังเหลืออีก ${remainingCount} คน)`);
+            return;
+        }
         setSaving(true);
         const records = students.map(s => ({
             student_id: s.student_id, section_id: selectedSection!, date,
-            status: statusMap[s.student_id] || "present"
+            status: statusMap[s.student_id]
         }));
         await TeacherApiService.saveAttendance(records);
         setSaving(false);
         alert("บันทึกเช็คชื่อเรียบร้อย!");
     };
 
+    const handleClearAttendance = () => {
+        if (Object.keys(statusMap).length > 0 && confirm("ล้างการเช็คชื่อที่เลือกไว้ทั้งหมดในวิชานี้?")) {
+            setStatusMap({});
+        }
+    };
+
+    const handleClearFilters = () => {
+        setSelectedSubject("");
+        setSelectedRoom("");
+        setSelectedSection(null);
+        setStudents([]);
+        setStatusMap({});
+    };
+
     const statusOptions = [
-        { value: "present", label: "มา", color: "bg-emerald-100 text-emerald-700 border-emerald-300" },
-        { value: "absent", label: "ขาด", color: "bg-rose-100 text-rose-700 border-rose-300" },
-        { value: "late", label: "สาย", color: "bg-teal-100 text-teal-700 border-teal-300" },
-        { value: "leave", label: "ลา", color: "bg-emerald-50 text-emerald-600 border-emerald-200" },
+        { value: "present", label: "มา", color: "bg-green-100 text-green-700 border-green-300" },
+        { value: "absent", label: "ขาด", color: "bg-red-100 text-red-700 border-red-300" },
+        { value: "late", label: "สาย", color: "bg-amber-100 text-amber-700 border-amber-300" },
+        { value: "leave", label: "ลา", color: "bg-sky-100 text-sky-700 border-sky-300" },
     ];
 
     return (
@@ -142,34 +168,53 @@ export function AttendanceFeature({ session }: { session: any }) {
                         <>
                             <table className="w-full">
                                 <thead><tr className="bg-slate-50 border-b border-slate-200">
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">#</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">รหัส</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">ชื่อ-นามสกุล</th>
-                                    <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">สถานะ</th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">เลขที่</th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">รหัส</th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">ชื่อ-นามสกุล</th>
+                                    <th className="px-4 py-3 text-center text-sm font-medium text-slate-600">สถานะ</th>
                                 </tr></thead>
-                                <tbody>{students.map((s, i) => (
-                                    <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
-                                        <td className="px-4 py-3 text-sm text-slate-500">{i + 1}</td>
-                                        <td className="px-4 py-3 text-sm font-medium text-slate-800 tracking-tight">{s.student_code}</td>
-                                        <td className="px-4 py-3 text-sm text-slate-800 font-medium">{s.first_name} {s.last_name}</td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex gap-1.5 justify-center flex-wrap">
-                                                {statusOptions.map(opt => (
-                                                    <button key={opt.value} onClick={() => setStatusMap({ ...statusMap, [s.student_id]: opt.value })} className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all ${statusMap[s.student_id] === opt.value ? opt.color + ' ring-2 ring-offset-1 ring-slate-300 shadow-sm' : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'}`}>{opt.label}</button>
-                                                ))}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}</tbody>
+                                <tbody>{students.map((s, i) => {
+                                    const isMarked = !!statusMap[s.student_id];
+                                    return (
+                                        <tr key={i} className={`border-b border-slate-100 transition-colors ${!isMarked ? 'bg-rose-50/20' : 'hover:bg-slate-50'}`}>
+                                            <td className="px-4 py-3 text-sm text-slate-500">{i + 1}</td>
+                                            <td className="px-4 py-3 text-sm text-slate-800 tracking-tight">{s.student_code}</td>
+                                            <td className="px-4 py-3 text-sm text-slate-800">{s.first_name} {s.last_name}</td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex gap-1.5 justify-center flex-wrap">
+                                                    {statusOptions.map(opt => (
+                                                        <button key={opt.value} onClick={() => setStatusMap({ ...statusMap, [s.student_id]: opt.value })} className={`px-4 py-1.5 rounded-lg text-sm transition-all border ${statusMap[s.student_id] === opt.value ? opt.color + ' ring-2 ring-offset-1 ring-slate-200 shadow-sm' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'}`}>{opt.label}</button>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}</tbody>
                             </table>
-                            <div className="p-4 border-t border-slate-200 flex justify-between items-center">
-                                <span className="text-sm text-slate-500">นักเรียนทั้งหมด {students.length} คน</span>
-                                <button onClick={handleSave} disabled={saving} className="px-8 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center">
-                                    {saving ? (
-                                        <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2" />
-                                    ) : null}
-                                    {saving ? "กำลังบันทึก..." : "บันทึกเช็คชื่อ"}
-                                </button>
+                            <div className="p-4 border-t border-slate-200 flex flex-wrap gap-4 justify-between items-center bg-slate-50/50">
+                                <div className="flex items-center gap-4">
+                                    <span className="text-sm text-slate-600 font-medium">นักเรียนทั้งหมด {students.length} คน</span>
+                                    {remainingCount > 0 ? (
+                                        <span className="text-xs font-bold text-rose-500 px-2 py-1 bg-rose-50 rounded-lg">ยังขาดอีก {remainingCount} คน</span>
+                                    ) : (
+                                        <span className="text-xs font-bold text-emerald-600 px-2 py-1 bg-emerald-50 rounded-lg">เช็คชื่อครบแล้ว</span>
+                                    )}
+                                </div>
+                                <div className="flex gap-3">
+                                    <button onClick={handleClearAttendance} className="px-4 py-2.5 text-slate-500 hover:text-rose-600 font-bold text-sm transition-colors">
+                                        ล้างรายการเช็คชื่อ
+                                    </button>
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={saving || !isComplete}
+                                        className={`px-8 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center ${isComplete ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-md active:scale-95' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                                    >
+                                        {saving ? (
+                                            <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2" />
+                                        ) : null}
+                                        {saving ? "กำลังบันทึก..." : "บันทึกเช็คชื่อ"}
+                                    </button>
+                                </div>
                             </div>
                         </>
                     )}

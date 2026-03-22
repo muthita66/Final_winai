@@ -7,12 +7,14 @@ import { parseIntegerParam, parseStudentIdFromSession } from '@/app/api/student/
 const submitEvaluationSchema = z.object({
     data: z.array(z.object({
         name: z.string().trim().min(1),
-        score: z.number().int().min(0).max(10),
+        score: z.number().int().min(0).max(10).optional(),
+        value: z.union([z.number(), z.string(), z.null()]).optional(),
     })),
     year: z.number().int().positive(),
     semester: z.number().int().positive(),
     section_id: z.union([z.number(), z.string(), z.null()]).optional(),
     feedback: z.string().optional(),
+    type: z.enum(['teaching', 'sdq']).optional(),
 });
 
 export async function GET(request: Request) {
@@ -101,7 +103,7 @@ export async function POST(request: Request) {
             return errorResponse("Invalid payload format", 400, parsed.error.format());
         }
 
-        const { data, year, semester, section_id, feedback } = parsed.data;
+        const { data, year, semester, section_id, feedback, type } = parsed.data;
         const sectionIdParsed = parseIntegerParam(section_id == null ? null : String(section_id));
         if (!sectionIdParsed.ok) {
             return errorResponse("Invalid payload: section_id", 400, sectionIdParsed.error);
@@ -112,8 +114,9 @@ export async function POST(request: Request) {
             year,
             semester,
             sectionIdParsed.value ?? null,
-            data,
-            feedback
+            data as any, // Cast to any or fix original type to handle optional value
+            feedback,
+            type || 'teaching'
         );
 
         return successResponse(result, "Evaluation submitted successfully");

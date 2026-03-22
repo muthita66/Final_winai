@@ -43,34 +43,11 @@ async function resolveSemesterId(year?: number, semester?: number) {
 }
 
 async function ensureAdvisorEvaluationForm() {
-    // 1. Explicitly check for advisor evaluation section_ids (12, 13, 14)
-    const sectionCheck: any[] = await prisma.$queryRawUnsafe(`
-        SELECT form_id FROM evaluation_sections WHERE id IN (12, 13, 14) LIMIT 1
-    `);
-    
-    if (sectionCheck.length > 0 && sectionCheck[0].form_id) {
-        const formDetails: any[] = await prisma.$queryRawUnsafe(`
-            SELECT * FROM evaluation_forms WHERE id = $1
-        `, sectionCheck[0].form_id);
-        
-        const questions: any[] = await prisma.$queryRawUnsafe(`
-            SELECT eq.*, es.section_name 
-            FROM evaluation_questions eq 
-            INNER JOIN evaluation_sections es ON es.id = eq.section_id
-            WHERE eq.section_id IN (12, 13, 14)
-            ORDER BY es.order_number ASC, eq.order_number ASC, eq.id ASC
-        `);
-        
-        if (formDetails[0] && questions.length > 0) {
-            return { ...formDetails[0], evaluation_questions: questions };
-        }
-    }
-
-    // 2. Robust lookup using category engine_type or form name matching
+    // 1. Robust lookup using category target_type or form name matching
     const existing: any[] = await prisma.$queryRawUnsafe(`
         SELECT ef.* FROM evaluation_forms ef
         LEFT JOIN evaluation_categories ec ON ec.id = ef.category_id
-        WHERE ec.engine_type = 'advisor' 
+        WHERE ec.target_type = 'advisor' 
            OR ef.form_name LIKE '%ที่ปรึกษา%'
         ORDER BY ef.id ASC LIMIT 1
     `);
@@ -90,7 +67,7 @@ async function ensureAdvisorEvaluationForm() {
         const existingAgain: any[] = await tx.$queryRawUnsafe(`
             SELECT ef.* FROM evaluation_forms ef
             LEFT JOIN evaluation_categories ec ON ec.id = ef.category_id
-            WHERE ec.engine_type = 'advisor'
+            WHERE ec.target_type = 'advisor'
                OR ef.form_name LIKE '%ที่ปรึกษา%'
             ORDER BY ef.id ASC LIMIT 1
         `);
@@ -112,9 +89,9 @@ async function ensureAdvisorEvaluationForm() {
         const formId = nextId(formMax[0].max_id);
         let questionId = nextId(questionMax[0].max_id);
 
-        let type: any[] = await tx.$queryRawUnsafe(`SELECT id FROM evaluation_categories WHERE engine_type = 'advisor' LIMIT 1`);
+        let type: any[] = await tx.$queryRawUnsafe(`SELECT id FROM evaluation_categories WHERE target_type = 'advisor' LIMIT 1`);
         
-        // If not found by engine_type, try by name
+        // If not found by target_type, try by name
         if (!type[0]) {
             type = await tx.$queryRawUnsafe(`SELECT id FROM evaluation_categories WHERE name LIKE '%ที่ปรึกษา%' LIMIT 1`);
         }
@@ -125,7 +102,7 @@ async function ensureAdvisorEvaluationForm() {
              const catMax: any[] = await tx.$queryRawUnsafe(`SELECT MAX(id) as max_id FROM evaluation_categories`);
              categoryId = nextId(catMax[0].max_id);
              await tx.$executeRawUnsafe(`
-                INSERT INTO evaluation_categories (id, name, engine_type)
+                INSERT INTO evaluation_categories (id, name, target_type)
                 VALUES ($1, 'การประเมินครูที่ปรึกษา', 'advisor')
              `, categoryId);
         } else {
@@ -305,6 +282,16 @@ export const StudentAdvisorTeacherEvaluationService = {
             const key = String(q.question_text || "").trim().toLowerCase();
             if (key && !questionByText.has(key)) questionByText.set(key, Number(q.id));
         });
+
+        const latest = await findLatestAdvisorTeacherResponse(
+            Number(form.id),
+            Number(studentUserId),
+            [teacher_id],
+            semester_id ?? null
+        );
+        if (latest) {
+            throw new Error("นักเรียนได้ประเมินครูที่ปรึกษาท่านนี้ไปแล้วในภาคเรียนนี้");
+        }
 
         return prisma.$transaction(async (tx: any) => {
             const responseMax: any[] = await tx.$queryRawUnsafe(`SELECT MAX(id) as max_id FROM evaluation_responses`);

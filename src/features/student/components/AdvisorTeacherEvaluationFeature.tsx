@@ -10,6 +10,9 @@ import {
     getCurrentAcademicYearBE,
 } from "@/features/student/academic-term";
 
+type TopicRow = { type: 'section'; label: string } | { type: 'question'; name: string; idx: number };
+
+
 interface AdvisorTeacherEvaluationFeatureProps {
     session: {
         class_level?: string | null;
@@ -207,6 +210,82 @@ export function AdvisorTeacherEvaluationFeature({ session }: AdvisorTeacherEvalu
         }
     };
 
+    // Build section-grouped table content
+    const getSectionNum = (name: string) => {
+        const m = name.match(/^(\d+)\./);
+        return m ? parseInt(m[1]) : null;
+    };
+    const tableRows: TopicRow[] = [];
+    let lastSection = -1;
+    const sectionLabels: Record<number, string> = {};
+    topics.forEach(name => {
+        const sec = getSectionNum(name);
+        if (sec !== null && !sectionLabels[sec]) sectionLabels[sec] = `ตอนที่ ${sec}`;
+    });
+    topics.forEach((name, idx) => {
+        const sec = getSectionNum(name) ?? 0;
+        if (sec !== lastSection) {
+            tableRows.push({ type: 'section', label: sectionLabels[sec] || `ตอนที่ ${sec}` });
+            lastSection = sec;
+        }
+        tableRows.push({ type: 'question', name, idx });
+    });
+    const scoreOptions = [5, 4, 3, 2, 1];
+    const scoreHeaders = ['ดีมาก', 'ดี', 'ปานกลาง', 'พอใช้', 'ปรับปรุง'];
+    const tableContent = (
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full text-sm text-left">
+                <thead className="text-sm text-slate-600 bg-slate-50 border-b border-slate-200">
+                    <tr>
+                        <th className="px-6 py-4 font-bold w-1/2 min-w-[300px]">หัวข้อประเมิน</th>
+                        {scoreHeaders.map((label, i) => (
+                            <th key={i} className="px-3 py-4 font-medium text-center">
+                                <div className="text-xs text-teal-700 font-bold">{scoreOptions[i]}</div>
+                                <span className="text-sm font-semibold text-slate-700">{label}</span>
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {tableRows.map((row, ri) => {
+                        if (row.type === 'section') {
+                            return (
+                                <tr key={`sec-${ri}`} className="bg-teal-50 border-y border-teal-200">
+                                    <td colSpan={6} className="px-6 py-3 font-bold text-teal-800 text-sm">
+                                        {row.label}
+                                    </td>
+                                </tr>
+                            );
+                        }
+                        const { name, idx } = row;
+                        const value = Number(scores[name] || 0);
+                        return (
+                            <tr key={`q-${idx}`} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-6 py-4 font-medium text-slate-700">
+                                    {name.replace(/^[\d.]+\s*/, '')}
+                                </td>
+                                {scoreOptions.map((option) => (
+                                    <td key={option} className="px-3 py-4 text-center">
+                                        <label className="flex justify-center items-center w-full h-full cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name={`advisor-topic-${idx}`}
+                                                value={option}
+                                                checked={value === option}
+                                                onChange={() => handleScoreChange(name, option)}
+                                                className="w-5 h-5 text-teal-600 bg-slate-100 border-slate-300 focus:ring-teal-500 cursor-pointer"
+                                            />
+                                        </label>
+                                    </td>
+                                ))}
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
+    );
+
     return (
         <div className="space-y-6">
             <section className="bg-gradient-to-br from-teal-600 to-emerald-700 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
@@ -347,41 +426,9 @@ export function AdvisorTeacherEvaluationFeature({ session }: AdvisorTeacherEvalu
                                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-500 text-sm">
                                     ยังไม่มีหัวข้อประเมิน
                                 </div>
-                            ) : (
-                                topics.map((topic, idx) => {
-                                    const value = Number(scores[topic] || 0);
-                                    return (
-                                        <div key={`${topic}-${idx}`} className="rounded-2xl border border-slate-200 p-4">
-                                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
-                                                <div className="font-medium text-slate-800">1.{idx + 1} {topic.replace(/^[\d.]+\s*/, '')}</div>
-                                                <div className="text-sm text-slate-500">
-                                                    คะแนน: <span className="font-semibold text-slate-800">{value || "-"}</span> {value ? `/5 (${ratingLabel(value)})` : ""}
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-wrap gap-2">
-                                                {[5, 4, 3, 2, 1].map((option) => (
-                                                    <label
-                                                        key={option}
-                                                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors ${value === option
-                                                            ? "border-teal-500 bg-teal-50 text-teal-700"
-                                                            : "border-slate-200 hover:bg-slate-50 text-slate-700"
-                                                            }`}
-                                                    >
-                                                        <input
-                                                            type="radio"
-                                                            className="accent-teal-600"
-                                                            name={`advisor-topic-${idx}`}
-                                                            checked={value === option}
-                                                            onChange={() => handleScoreChange(topic, option)}
-                                                        />
-                                                        <span className="text-sm font-medium">{option}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
+                            ) : tableContent}
+
+
                         </div>
 
                         <div>

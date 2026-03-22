@@ -29,15 +29,17 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
     const yearOptionsData = (academicYearsQuery.data as any[]) || [];
     const yearOptions = yearOptionsData.map((y: any) => y.year_name);
 
-    const selectedYearData = yearOptionsData.find((y: any) => String(y.year_name) === String(year));
-    const semesterOptions = selectedYearData?.semesters || [];
-
     // Initial year/semester setup
     const defaultYear = String(getCurrentAcademicYearBE());
     const defaultSemester = String(getAcademicSemesterDefault());
 
     const [year, setYear] = useState(urlYear || defaultYear);
     const [semester, setSemester] = useState(urlSemester || defaultSemester);
+
+    const selectedYearData = yearOptionsData.find((y: any) => String(y.year_name) === String(year));
+    const semesterOptions = selectedYearData?.semesters || [];
+
+
 
     // Sync year state if URL and default are not available but data is loaded
     useEffect(() => {
@@ -285,32 +287,32 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
 
     return (
         <div className="space-y-6">
-            <section className="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
+            <section className="bg-gradient-to-r from-emerald-700 to-teal-800 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
                 <div className="relative z-10">
                     <div className="inline-block bg-white/20 px-3 py-0.5 rounded-full text-xs font-medium mb-3 backdrop-blur-sm border border-white/20">
                         Schedule
                     </div>
                     <h1 className="text-2xl font-bold mb-1">ตารางเรียน / ตารางสอบ</h1>
-                    <p className="text-blue-100 text-sm max-w-2xl">
+                    <p className="text-emerald-100 text-sm max-w-2xl">
                         เลือกปีการศึกษาและภาคเรียนเพื่อดูตารางล่าสุด
                     </p>
                 </div>
 
                 {/* Background Decoration */}
                 <div className="absolute top-0 right-0 w-64 h-full bg-white opacity-5 transform skew-x-12 translate-x-20"></div>
-                <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-blue-500 rounded-full blur-2xl opacity-50"></div>
+                <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-emerald-500 rounded-full blur-2xl opacity-50"></div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5 relative z-10">
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20">
-                        <div className="text-blue-200 text-xs mb-1">จำนวนคาบเรียน</div>
+                        <div className="text-emerald-200 text-xs mb-1">จำนวนคาบเรียน</div>
                         <div className="text-2xl font-bold">{classRows.length}</div>
                     </div>
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20">
-                        <div className="text-blue-200 text-xs mb-1">จำนวนสอบ</div>
+                        <div className="text-emerald-200 text-xs mb-1">จำนวนสอบ</div>
                         <div className="text-2xl font-bold">{examRows.length}</div>
                     </div>
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20">
-                        <div className="text-blue-200 text-xs mb-1">ครูที่ปรึกษา</div>
+                        <div className="text-emerald-200 text-xs mb-1">ครูที่ปรึกษา</div>
                         <div className="text-base font-bold truncate">
                             {advisors.length > 0 ? (
                                 advisors.map((adv: any, idx: number) => (
@@ -332,7 +334,7 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
                         <div className="flex items-center gap-3">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-tight">ปีการศึกษา</label>
                             <select
-                                className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50"
+                                className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50"
                                 value={year}
                                 onChange={e => {
                                     setHasManualTermSelection(true);
@@ -347,7 +349,7 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
                         <div className="flex items-center gap-3">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-tight">ภาคเรียน</label>
                             <select
-                                className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50"
+                                className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-2 focus:ring-teal-500 outline-none bg-slate-50"
                                 value={semester}
                                 onChange={e => {
                                     setHasManualTermSelection(true);
@@ -374,21 +376,21 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
                     <div className="flex flex-wrap items-center gap-3">
                         {activeTab === 'exam' && (
                             <div className="flex bg-slate-100 p-1 rounded-xl">
-                                <button className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${examFilter === 'all' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`} onClick={() => setExamFilter('all')}>ทั้งหมด</button>
-                                <button className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${examFilter === 'midterm' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`} onClick={() => setExamFilter('midterm')}>กลางภาค</button>
-                                <button className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${examFilter === 'final' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`} onClick={() => setExamFilter('final')}>ปลายภาค</button>
+                                <button className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${examFilter === 'all' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`} onClick={() => setExamFilter('all')}>ทั้งหมด</button>
+                                <button className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${examFilter === 'midterm' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`} onClick={() => setExamFilter('midterm')}>กลางภาค</button>
+                                <button className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${examFilter === 'final' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`} onClick={() => setExamFilter('final')}>ปลายภาค</button>
                             </div>
                         )}
                         <div className="flex bg-slate-100 p-1 rounded-xl">
                             <button
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'class' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'class' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                                 onClick={() => setActiveTab('class')}
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
                                 ตารางเรียน
                             </button>
                             <button
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'exam' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'exam' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                                 onClick={() => setActiveTab('exam')}
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
@@ -448,8 +450,8 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
                                                             return (
                                                                 <td key={slot} className={`px-2 py-2 border-r border-slate-200 align-top ${matches.length > 1 ? 'bg-rose-50/60' : ''}`}>
                                                                     {matches.map((r, i) => (
-                                                                        <div key={`${r.source || 'registered'}-${r.section_id || r.subject_code || i}-${i}`} className={`rounded-xl p-2.5 mb-2 last:mb-0 text-xs border shadow-sm ${r.source === 'cart' ? 'bg-amber-50 border-amber-200' : 'bg-indigo-50 border-indigo-100'}`}>
-                                                                            <div className={`font-bold mb-1 leading-tight ${r.source === 'cart' ? 'text-amber-700' : 'text-indigo-700'}`}>{r.subject_code || "-"}</div>
+                                                                        <div key={`${r.source || 'registered'}-${r.section_id || r.subject_code || i}-${i}`} className={`rounded-xl p-2.5 mb-2 last:mb-0 text-xs border shadow-sm ${r.source === 'cart' ? 'bg-amber-50 border-amber-200' : 'bg-teal-50 border-teal-100'}`}>
+                                                                            <div className={`font-bold mb-1 leading-tight ${r.source === 'cart' ? 'text-amber-700' : 'text-teal-700'}`}>{r.subject_code || "-"}</div>
                                                                             <div className="text-slate-800 font-bold leading-tight mb-1.5">{r.subject_name || "-"}</div>
                                                                             <div className="text-[10.5px] text-slate-600" title={`ผู้สอน ${r.teacher || "-"}`}>ผู้สอน: {r.teacher || "-"}</div>
                                                                             <div className="text-[10.5px] text-slate-500 font-medium mt-1">ห้อง: {(r.room_name || r.room || "-").replace(/ห้องเรียน|ห้อง/g, "").trim()}</div>

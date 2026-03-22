@@ -79,12 +79,7 @@ export function BehaviorFeature({ session }: BehaviorFeatureProps) {
     }, []);
 
     useEffect(() => {
-        if (selectedLevel && selectedRoom) {
-            fetchStudents();
-        } else {
-            setStudents([]);
-            setIsLoading(false);
-        }
+        fetchStudents();
     }, [session.id, year, semester, selectedLevel, selectedRoom]);
 
     // Filter classrooms based on selected level
@@ -405,18 +400,6 @@ export function BehaviorFeature({ session }: BehaviorFeatureProps) {
                                                 <div className="flex flex-col items-center gap-3">
                                                     <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
                                                     <span className="text-slate-400 font-bold text-base tracking-tight">กำลังโหลดข้อมูล...</span>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ) : !selectedLevel || !selectedRoom ? (
-                                        <tr>
-                                            <td colSpan={8} className="text-center py-20">
-                                                <div className="flex flex-col items-center gap-3">
-                                                    <svg className="w-14 h-14 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
-                                                    <p className="text-slate-400 font-bold text-base">
-                                                        {!selectedLevel ? 'กรุณาเลือกระดับชั้น' : 'กรุณาเลือกห้องเรียน'}
-                                                    </p>
-                                                    <p className="text-slate-300 text-sm">เลือกระดับชั้นและห้องเพื่อแสดงรายชื่อนักเรียน</p>
                                                 </div>
                                             </td>
                                         </tr>

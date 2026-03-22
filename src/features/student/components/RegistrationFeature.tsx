@@ -25,11 +25,12 @@ export function RegistrationFeature({ session }: { session: UserSession }) {
     const yearOptionsData = (academicYearsQuery.data as any[]) || [];
     const yearOptions = yearOptionsData.map((y: any) => Number(y.year_name));
 
+    const [year, setYear] = useState<number>(getCurrentAcademicYearBE());
+    const [semester, setSemester] = useState<number>(getAcademicSemesterDefault());
+
     const selectedYearData = yearOptionsData.find((y: any) => Number(y.year_name) === Number(year));
     const semesterOptions = selectedYearData?.semesters || [];
 
-    const [year, setYear] = useState<number>(getCurrentAcademicYearBE());
-    const [semester, setSemester] = useState<number>(getAcademicSemesterDefault());
 
     // Sync year state if data is loaded
     useEffect(() => {
@@ -435,8 +436,8 @@ export function RegistrationFeature({ session }: { session: UserSession }) {
                                                         </span>
                                                         {subj.teacher_name && (
                                                             <span className="flex items-center gap-1">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-                                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-blue-500">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-emerald-500">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147L12 14.63l7.74-4.483m-15.48 0L12 5.63l7.74 4.517m-15.48 0L12 14.63m-7.74-4.483L12 5.63m7.74 4.517L12 14.63m7.74-4.483L12 14.63m0 0v7.5" />
                                                                 </svg>
                                                                 {subj.teacher_name}

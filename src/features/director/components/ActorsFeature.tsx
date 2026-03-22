@@ -1,6 +1,20 @@
 "use client";
 import { useEffect, useState } from "react";
 import { fetchApi } from "@/services/api-client";
+import {
+    UserIcon,
+    AcademicCapIcon,
+    ChartBarIcon,
+    CheckCircleIcon,
+    DocumentTextIcon,
+    CalendarDaysIcon,
+    TrophyIcon,
+    CogIcon,
+    AdjustmentsHorizontalIcon,
+    DatabaseIcon,
+    InboxIcon
+} from "@/components/SimpleIcons";
+
 
 type ActorInfo = {
     name: string;
@@ -18,17 +32,17 @@ type ActorDetail = {
     data: any[];
 };
 
-const GROUP_COLORS: Record<string, { bg: string; border: string; icon: string; gradient: string }> = {
-    core: { bg: "bg-blue-50", border: "border-blue-200", icon: "👤", gradient: "from-blue-600 to-indigo-700" },
-    academic: { bg: "bg-violet-50", border: "border-violet-200", icon: "📚", gradient: "from-violet-600 to-purple-700" },
-    scores: { bg: "bg-amber-50", border: "border-amber-200", icon: "📊", gradient: "from-amber-500 to-orange-600" },
-    attendance: { bg: "bg-cyan-50", border: "border-cyan-200", icon: "✅", gradient: "from-cyan-500 to-teal-600" },
-    behavior: { bg: "bg-rose-50", border: "border-rose-200", icon: "📋", gradient: "from-rose-500 to-pink-600" },
-    schedule: { bg: "bg-emerald-50", border: "border-emerald-200", icon: "📅", gradient: "from-emerald-500 to-green-600" },
-    events: { bg: "bg-purple-50", border: "border-purple-200", icon: "🎉", gradient: "from-purple-500 to-fuchsia-600" },
-    evaluation: { bg: "bg-teal-50", border: "border-teal-200", icon: "📝", gradient: "from-teal-500 to-cyan-600" },
-    master: { bg: "bg-slate-50", border: "border-slate-200", icon: "⚙️", gradient: "from-slate-500 to-gray-600" },
-    system: { bg: "bg-red-50", border: "border-red-200", icon: "🔧", gradient: "from-red-500 to-rose-600" },
+const GROUP_COLORS: Record<string, { bg: string; border: string; icon: any; gradient: string }> = {
+    core: { bg: "bg-blue-50", border: "border-blue-200", icon: UserIcon, gradient: "from-blue-600 to-indigo-700" },
+    academic: { bg: "bg-violet-50", border: "border-violet-200", icon: AcademicCapIcon, gradient: "from-violet-600 to-purple-700" },
+    scores: { bg: "bg-amber-50", border: "border-amber-200", icon: ChartBarIcon, gradient: "from-amber-500 to-orange-600" },
+    attendance: { bg: "bg-cyan-50", border: "border-cyan-200", icon: CheckCircleIcon, gradient: "from-cyan-500 to-teal-600" },
+    behavior: { bg: "bg-rose-50", border: "border-rose-200", icon: DocumentTextIcon, gradient: "from-rose-500 to-pink-600" },
+    schedule: { bg: "bg-emerald-50", border: "border-emerald-200", icon: CalendarDaysIcon, gradient: "from-emerald-500 to-green-600" },
+    events: { bg: "bg-purple-50", border: "border-purple-200", icon: TrophyIcon, gradient: "from-purple-500 to-fuchsia-600" },
+    evaluation: { bg: "bg-teal-50", border: "border-teal-200", icon: DocumentTextIcon, gradient: "from-teal-500 to-cyan-600" },
+    master: { bg: "bg-slate-50", border: "border-slate-200", icon: CogIcon, gradient: "from-slate-500 to-gray-600" },
+    system: { bg: "bg-red-50", border: "border-red-200", icon: AdjustmentsHorizontalIcon, gradient: "from-red-500 to-rose-600" },
 };
 
 function formatCellValue(value: any): string {
@@ -88,9 +102,9 @@ function DataModal({
                 {/* Table */}
                 <div className="flex-1 overflow-auto p-4">
                     {actor.data.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                            <div className="text-5xl mb-4">📭</div>
-                            <p className="text-lg font-medium">ไม่มีข้อมูลในตารางนี้</p>
+                        <div className="flex flex-col items-center justify-center py-16 text-slate-300">
+                            <InboxIcon className="w-16 h-16 opacity-20 mb-4" />
+                            <p className="text-lg font-medium text-slate-400">ไม่มีข้อมูลในตารางนี้</p>
                         </div>
                     ) : (
                         <table className="w-full text-sm border-collapse">
@@ -213,8 +227,9 @@ export default function ActorsFeature() {
                 <div className="absolute top-0 right-0 w-72 h-full bg-white opacity-5 transform -skew-x-12 translate-x-20" />
                 <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full -translate-x-12 translate-y-12" />
                 <div className="relative z-10">
-                    <div className="inline-block bg-white/20 px-3 py-1 rounded-full text-sm font-medium mb-4">
-                        🗄️ Database Explorer
+                    <div className="inline-flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full text-sm font-medium mb-4">
+                        <DatabaseIcon className="w-4 h-4" />
+                        Database Explorer
                     </div>
                     <h1 className="text-3xl font-bold">ข้อมูลทุก Actor ในระบบ</h1>
                     <p className="text-white/70 mt-2">
@@ -241,7 +256,9 @@ export default function ActorsFeature() {
                 return (
                     <div key={group} className="space-y-3">
                         <div className="flex items-center gap-3 px-1">
-                            <span className="text-2xl">{colors.icon}</span>
+                            <div className={`p-2 rounded-xl bg-gradient-to-br ${colors.gradient} text-white shadow-sm`}>
+                                <colors.icon className="w-5 h-5" />
+                            </div>
                             <h2 className="text-lg font-bold text-slate-700">{groupLabel}</h2>
                             <span className="text-sm text-slate-400">
                                 {items.length} ตาราง • {groupTotal.toLocaleString("th-TH")} records

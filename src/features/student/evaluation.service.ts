@@ -62,7 +62,7 @@ export const EvaluationService = {
                     .filter(si => si.scale_type_id === q.scale_type_id)
                     .map(si => ({
                         label: si.label,
-                        value: Number(si.score_value)
+                        value: si.score_value != null ? Number(si.score_value) : -1
                     }));
 
                 return {
@@ -86,31 +86,17 @@ export const EvaluationService = {
     // Get question topics from DB evaluation tables (with section grouping)
     async getTopics(year?: number, semester?: number, formType: 'teaching' | 'sdq' = 'teaching') {
         try {
-            let formRows: any[] = [];
-            
+            let formId = 0;
             if (formType === 'sdq') {
-                // Fetch SDQ form specifically
-                formRows = await prisma.$queryRaw`
-                    SELECT ef.id as form_id
-                    FROM evaluation_forms ef
-                    WHERE ef.form_name ILIKE '%SDQ%' AND ef.is_active = true
-                    ORDER BY ef.id ASC
-                    LIMIT 1
+                // SDQ is requested to be explicitly fetched from sections 12-16
+                const sdqForms = await prisma.$queryRaw<any[]>`
+                    SELECT form_id FROM evaluation_sections WHERE id IN (12, 13, 14, 15, 16) LIMIT 1
                 `;
-                if (formRows.length === 0) {
-                    // Fallback to inactive SDQ form
-                    formRows = await prisma.$queryRaw`
-                        SELECT ef.id as form_id
-                        FROM evaluation_forms ef
-                        WHERE ef.form_name ILIKE '%SDQ%'
-                        ORDER BY ef.id ASC
-                        LIMIT 1
-                    `;
-                }
+                if (sdqForms.length > 0) formId = sdqForms[0].form_id;
+                else return [];
             } else {
                 // Fetch teaching evaluation form flexibly
-                // Matches "แบบประเมินครูผู้สอน", "ประเมินการสอน", etc.
-                formRows = await prisma.$queryRaw`
+                let formRows = await prisma.$queryRaw<any[]>`
                     SELECT ef.id as form_id
                     FROM evaluation_forms ef
                     WHERE (ef.form_name ILIKE '%ประเมินครูผู้สอน%' OR ef.form_name ILIKE '%ประเมินการสอน%') 
@@ -119,8 +105,7 @@ export const EvaluationService = {
                     LIMIT 1
                 `;
                 if (formRows.length === 0) {
-                    // Fallback to inactive teaching form
-                    formRows = await prisma.$queryRaw`
+                    formRows = await prisma.$queryRaw<any[]>`
                         SELECT ef.id as form_id
                         FROM evaluation_forms ef
                         WHERE (ef.form_name ILIKE '%ประเมินครูผู้สอน%' OR ef.form_name ILIKE '%ประเมินการสอน%')
@@ -128,14 +113,29 @@ export const EvaluationService = {
                         LIMIT 1
                     `;
                 }
+                if (formRows.length === 0) return [];
+                formId = formRows[0].form_id;
             }
 
-            if (formRows.length === 0) return [];
-
-            const formId = formRows[0].form_id;
-
             // Fetch all sections and questions for this form
-            const questions: any[] = await prisma.$queryRaw`
+            // For SDQ, strictly load sections 12-16 as requested
+            const questions: any[] = formType === 'sdq' 
+            ? await prisma.$queryRaw`
+                SELECT 
+                    eq.id,
+                    eq.question_text,
+                    eq.question_type_id,
+                    eq.order_number,
+                    eq.scale_type_id,
+                    es.id as section_id,
+                    es.section_name,
+                    es.order_number as section_order
+                FROM evaluation_questions eq
+                JOIN evaluation_sections es ON es.id = eq.section_id
+                WHERE es.id IN (12, 13, 14, 15, 16)
+                ORDER BY es.order_number ASC, eq.order_number ASC
+            `
+            : await prisma.$queryRaw`
                 SELECT 
                     eq.id,
                     eq.question_text,
@@ -248,7 +248,8 @@ export const EvaluationService = {
         semester: number,
         section_id: number | null,
         data: { name: string; score?: number; value?: number | string }[],
-        feedback?: string
+        feedback?: string,
+        formType: 'teaching' | 'sdq' = 'teaching'
     ) {
         if (!student_id || !year || !semester) {
             throw new Error('Missing required evaluation parameters');
@@ -257,60 +258,91 @@ export const EvaluationService = {
         const user_id = await getStudentUserId(student_id);
         if (!user_id) throw new Error('Student not found');
 
-        // Fetch teaching evaluation form flexibly (same logic as getTopics)
-        const formRows: any[] = await prisma.$queryRaw`
-            SELECT ef.id
-            FROM evaluation_forms ef
-            WHERE (ef.form_name LIKE '%ประเมินครูผู้สอน%' OR ef.form_name LIKE '%ประเมินการสอน%') 
-            AND ef.is_active = true
-            ORDER BY ef.id ASC
-            LIMIT 1
-        `;
-        
-        const form = formRows.length > 0 ? formRows[0] : null;
-        if (!form) throw new Error('No evaluation form found');
+        let formId = 0;
+        if (formType === 'sdq') {
+            const sdqForms = await prisma.$queryRaw<any[]>`
+                SELECT form_id FROM evaluation_sections WHERE id IN (12, 13, 14, 15, 16) LIMIT 1
+            `;
+            if (sdqForms.length > 0) formId = sdqForms[0].form_id;
+            else throw new Error('No SDQ evaluation form found');
+        } else {
+            const formRows: any[] = await prisma.$queryRaw`
+                SELECT ef.id
+                FROM evaluation_forms ef
+                WHERE (ef.form_name LIKE '%ประเมินครูผู้สอน%' OR ef.form_name LIKE '%ประเมินการสอน%') 
+                AND ef.is_active = true
+                ORDER BY ef.id ASC
+                LIMIT 1
+            `;
+            const form = formRows.length > 0 ? formRows[0] : null;
+            if (!form) throw new Error('No evaluation form found');
+            formId = form.id;
+        }
 
-        const questionsRaw: any[] = await prisma.$queryRaw`
-            SELECT id, question_text, question_type FROM evaluation_questions WHERE section_id IN (
-                SELECT id FROM evaluation_sections WHERE form_id = ${form.id}
-            )
-        `;
+        const questionsRaw: any[] = formType === 'sdq'
+            ? await prisma.$queryRaw`
+                SELECT id, question_text, question_type_id FROM evaluation_questions WHERE section_id IN (12, 13, 14, 15, 16)
+              `
+            : await prisma.$queryRaw`
+                SELECT id, question_text, question_type_id FROM evaluation_questions WHERE section_id IN (
+                    SELECT id FROM evaluation_sections WHERE form_id = ${formId}
+                )
+              `;
 
         const questionDetails = new Map<string, { id: number, type: string }>();
         questionsRaw.forEach((q: any) => {
             const key = String(q.question_text || '').trim().toLowerCase();
-            if (key) questionDetails.set(key, { id: q.id, type: q.question_type });
+            if (key) questionDetails.set(key, { id: q.id, type: q.question_type_id === 2 ? 'text' : 'scale' });
         });
 
         const semester_id = await resolveSemesterId(year, semester);
 
-        // Guard: check if student already submitted for this section (prevent duplicates)
+        // Guard: check if student already submitted (prevent duplicates)
         if (section_id) {
-            const existing: any[] = await prisma.$queryRaw`
-                SELECT id FROM evaluation_responses 
-                WHERE evaluator_user_id = ${user_id} AND target_subject_id = ${Number(section_id)}
-                ${semester_id ? prisma.$queryRaw`AND semester_id = ${semester_id}` : prisma.$queryRaw``}
-                LIMIT 1
-            `;
+            const existing = await prisma.evaluation_responses.findFirst({
+                where: {
+                    evaluator_user_id: user_id,
+                    target_subject_id: Number(section_id),
+                    ...(semester_id ? { semester_id: Number(semester_id) } : {})
+                },
+                select: { id: true }
+            });
 
-            if (existing.length > 0) {
+            if (existing) {
                 throw new Error('นักเรียนได้ประเมินวิชานี้ไปแล้ว');
+            }
+        } else if (formType === 'sdq') {
+            const existingSdq = await prisma.evaluation_responses.findFirst({
+                where: {
+                    evaluator_user_id: user_id,
+                    form_id: formId,
+                    ...(semester_id ? { semester_id: Number(semester_id) } : {})
+                },
+                select: { id: true }
+            });
+
+            if (existingSdq) {
+                throw new Error('นักเรียนได้ทำแบบประเมิน SDQ ไปแล้วในภาคเรียนนี้');
             }
         }
 
         return prisma.$transaction(async (tx: any) => {
-            const result = await tx.$queryRaw`
-                INSERT INTO evaluation_responses (form_id, evaluator_user_id, semester_id, target_subject_id, submitted_at) 
-                VALUES (${form.id}, ${user_id}, ${semester_id ?? null}, ${section_id ? Number(section_id) : null}, NOW()) 
-                RETURNING id
-            `;
-            const responseId = (result as any[])[0].id;
+            const result = await tx.evaluation_responses.create({
+                data: {
+                    form_id: formId,
+                    evaluator_user_id: user_id,
+                    semester_id: semester_id ?? null,
+                    target_subject_id: section_id ? Number(section_id) : null,
+                    submitted_at: new Date()
+                },
+                select: { id: true }
+            });
+            const responseId = result.id;
 
             for (const item of data || []) {
                 const topicName = String(item?.name || '').trim();
                 const detail = questionDetails.get(topicName.toLowerCase());
                 
-                // Polymorphic value: prefer '.value', fallback to '.score'
                 const val = item.value !== undefined ? item.value : item.score;
                 
                 if (detail) {
@@ -318,41 +350,40 @@ export const EvaluationService = {
                     const scoreVal = (!isText && typeof val === 'number') ? val : null;
                     const textVal = (isText || typeof val === 'string') ? String(val) : null;
 
-                    await tx.$executeRaw`
-                        INSERT INTO evaluation_answers (response_id, question_id, text_value, score_value)
-                        VALUES (${responseId}, ${detail.id}, ${textVal}, ${scoreVal})
-                    `;
+                    await tx.evaluation_answers.create({
+                        data: {
+                            response_id: responseId,
+                            question_id: detail.id,
+                            text_value: textVal,
+                            score_value: scoreVal
+                        }
+                    });
                 }
             }
 
             const feedbackText = String(feedback || '').trim();
             if (feedbackText) {
-                await tx.$executeRaw`
-                    INSERT INTO evaluation_answers (response_id, question_id, text_value, score_value)
-                    VALUES (${responseId}, null, ${feedbackText}, null)
-                `;
+                await tx.evaluation_answers.create({
+                    data: {
+                        response_id: responseId,
+                        question_id: null,
+                        text_value: feedbackText,
+                        score_value: null
+                    }
+                });
             }
 
             return { message: 'บันทึกสำเร็จ', response_id: responseId };
         });
     },
-    // Get IDs of sections already evaluated by the student (in any period)
+    // Get IDs of sections already evaluated by the student (in any period) and SDQ status
     async getEvaluatedSections(student_id: number, year: number, semester: number) {
-        if (!student_id) return [];
+        if (!student_id) return { sections: [], sdqDone: false };
 
         const user_id = await getStudentUserId(student_id);
-        if (!user_id) return [];
+        if (!user_id) return { sections: [], sdqDone: false };
 
-        // Try to narrow by period_id if it exists, otherwise return all targets for this user
         const semester_id = await resolveSemesterId(year, semester);
-
-        const whereClause: any = {
-            evaluator_user_id: user_id,
-            target_subject_id: { not: null },
-        };
-        if (semester_id) {
-            whereClause.semester_id = semester_id;
-        }
 
         const evaluated: any[] = await prisma.$queryRawUnsafe(`
             SELECT target_subject_id FROM evaluation_responses 
@@ -360,7 +391,26 @@ export const EvaluationService = {
             ${semester_id ? `AND semester_id = ${semester_id}` : ''}
         `, user_id);
 
-        return evaluated.map(e => e.target_subject_id);
+        // Check SDQ status
+        const sdqForms = await prisma.$queryRaw<any[]>`
+            SELECT form_id FROM evaluation_sections WHERE id IN (12, 13, 14, 15, 16) LIMIT 1
+        `;
+        let sdqDone = false;
+        if (sdqForms.length > 0) {
+            const sdqExisting = await prisma.evaluation_responses.findFirst({
+                where: { 
+                    evaluator_user_id: user_id, 
+                    form_id: sdqForms[0].form_id, 
+                    ...(semester_id ? { semester_id: Number(semester_id) } : {}) 
+                }
+            });
+            sdqDone = !!sdqExisting;
+        }
+
+        return { 
+            sections: evaluated.map(e => e.target_subject_id), 
+            sdqDone 
+        };
     },
 };
 

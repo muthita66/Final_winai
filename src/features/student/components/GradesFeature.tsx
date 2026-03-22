@@ -283,7 +283,7 @@ export function GradesFeature({ session }: GradesFeatureProps) {
                     />
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 relative z-10 print:grid-cols-2 print:mt-4 print:gap-2">
+                <div className="grid grid-cols-2 gap-3 mt-5 relative z-10 max-w-xl print:grid-cols-2 print:mt-4 print:gap-2">
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 print:border-none print:p-0 print:bg-transparent">
                         <div className="text-teal-200 text-xs mb-1 print:text-gray-500">ชื่อ - นามสกุล</div>
                         <div className="text-base font-bold truncate print:text-black">{student.name || "-"}</div>
@@ -291,44 +291,6 @@ export function GradesFeature({ session }: GradesFeatureProps) {
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 print:border-none print:p-0 print:bg-transparent">
                         <div className="text-teal-200 text-xs mb-1 print:text-gray-500">เลขประจำตัว</div>
                         <div className="text-base font-bold print:text-black tracking-tight">{student.code || "-"}</div>
-                    </div>
-                    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 relative print:hidden hover:bg-white/20 transition-colors group">
-                        <label className="text-teal-200 text-xs mb-1 block">ปีการศึกษา</label>
-                        <div className="relative">
-                            <select
-                                className="bg-transparent text-white w-full outline-none font-bold text-base cursor-pointer appearance-none relative z-10 pr-8"
-                                value={year} onChange={e => {
-                                    setHasManualTermSelection(true);
-                                    setYear(e.target.value);
-                                }}
-                            >
-                                {dynamicYearOptions.map((y) => (
-                                    <option key={y} value={y} className="text-black">{y}</option>
-                                ))}
-                            </select>
-                            <svg className="w-4 h-4 text-teal-300 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </div>
-                    </div>
-                    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 relative print:hidden hover:bg-white/20 transition-colors group">
-                        <label className="text-teal-200 text-xs mb-1 block">ภาคเรียน</label>
-                        <div className="relative">
-                            <select
-                                className="bg-transparent text-white w-full outline-none font-bold text-base cursor-pointer appearance-none relative z-10 pr-8"
-                                value={semester} onChange={e => {
-                                    setHasManualTermSelection(true);
-                                    setSemester(e.target.value);
-                                }}
-                            >
-                                {dynamicSemesterOptions.map((s: any) => (
-                                    <option key={s} value={String(s)} className="text-black">{s}</option>
-                                ))}
-                            </select>
-                            <svg className="w-4 h-4 text-teal-300 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </div>
                     </div>
 
                     {/* Print-only visible details */}
@@ -343,6 +305,48 @@ export function GradesFeature({ session }: GradesFeatureProps) {
                 <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-teal-500 rounded-full blur-2xl opacity-50 print:hidden"></div>
             </section>
 
+            {/* Filter Bar */}
+            <section className="bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 md:items-center print:hidden">
+                <div className="flex items-center gap-3">
+                    <span className="text-slate-500 font-medium text-sm">ปีการศึกษา</span>
+                    <div className="relative flex-1 md:w-36">
+                        <select
+                            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 w-full appearance-none cursor-pointer pr-8"
+                            value={year} onChange={e => {
+                                setHasManualTermSelection(true);
+                                setYear(e.target.value);
+                            }}
+                        >
+                            {yearOptions.map((y: any) => (
+                                <option key={y} value={y}>{y}</option>
+                            ))}
+                        </select>
+                        <svg className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <span className="text-slate-500 font-medium text-sm">ภาคเรียน</span>
+                    <div className="relative flex-1 md:w-28">
+                        <select
+                            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 w-full appearance-none cursor-pointer pr-8"
+                            value={semester} onChange={e => {
+                                setHasManualTermSelection(true);
+                                setSemester(e.target.value);
+                            }}
+                        >
+                            {(semesterOptions.length > 0 ? semesterOptions : [{semester_number: 1}, {semester_number: 2}]).map((s: any) => (
+                                <option key={s.semester_number} value={String(s.semester_number)}>{s.semester_number}</option>
+                            ))}
+                        </select>
+                        <svg className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+                </div>
+            </section>
 
             {/* Grades Table */}
             <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 print:shadow-none print:border-none print:p-0 print:mt-6">
@@ -476,11 +480,11 @@ export function GradesFeature({ session }: GradesFeatureProps) {
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border-t-4 border-indigo-500 print:shadow-none print:border print:border-gray-300">
+                    <div className="bg-white rounded-2xl p-4 shadow-sm border-t-4 border-teal-500 print:shadow-none print:border print:border-gray-300">
                         <div className="text-slate-500 text-xs font-medium mb-1">หน่วยกิตเทอมนี้</div>
                         <div className="text-2xl font-bold tracking-tight text-slate-800">{termCredit.toFixed(1)}</div>
                     </div>
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border-t-4 border-purple-500 print:shadow-none print:border print:border-gray-300">
+                    <div className="bg-white rounded-2xl p-4 shadow-sm border-t-4 border-teal-500 print:shadow-none print:border print:border-gray-300">
                         <div className="text-slate-500 text-xs font-medium mb-1">หน่วยกิตสะสม</div>
                         <div className="text-2xl font-bold tracking-tight text-slate-800">{totalCreditsAll.toFixed(1)}</div>
                     </div>

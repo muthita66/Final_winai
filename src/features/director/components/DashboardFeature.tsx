@@ -25,7 +25,9 @@ import {
     ShieldCheckIcon,
     LifebuoyIcon,
     EyeIcon,
-    DocumentTextIcon
+    DocumentTextIcon,
+    ScaleIcon,
+    DatabaseIcon
 } from "@/components/SimpleIcons";
 
 // === Pure CSS/SVG Chart Components ===
@@ -1213,7 +1215,10 @@ export function DashboardFeature({ session }: { session: any }) {
                     {/* Subject Difficulty Index */}
                     {advSubjDif.length > 0 && (
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">⚠️ ดัชนีความยากรายวิชา (วิชาที่มีแนวโน้มติด F สูง)</h3>
+                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                <ExclamationTriangleIcon className="w-5 h-5 text-amber-500" />
+                                ดัชนีความยากรายวิชา (วิชาที่มีแนวโน้มติด F สูง)
+                            </h3>
                             <div className="overflow-x-auto max-h-[400px]">
                                 <table className="w-full text-sm">
                                     <thead className="sticky top-0 bg-slate-50 shadow-sm">
@@ -1319,7 +1324,10 @@ export function DashboardFeature({ session }: { session: any }) {
                     {/* Workload vs Eval Correlation */}
                     {advWorkload.length > 0 && (
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-3">⚖️ ความสัมพันธ์ภาระงาน (Section) vs คะแนนผลประเมิน</h3>
+                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                <ScaleIcon className="w-5 h-5 text-slate-400" />
+                                ความสัมพันธ์ภาระงาน (Section) vs คะแนนผลประเมิน
+                            </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[400px] overflow-y-auto pr-2">
                                 {advWorkload.slice(0, 20).map((w: any, i: number) => {
                                     const score = parseFloat(w.avg_eval);
@@ -1329,7 +1337,12 @@ export function DashboardFeature({ session }: { session: any }) {
                                         <div key={i} className={`p-3 rounded-xl border flex flex-col gap-2 ${isWarning ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-100'}`}>
                                             <div className="flex justify-between items-start">
                                                 <span className="text-xs font-bold text-slate-700 truncate" title={`${w.first_name} ${w.last_name}`}>{w.first_name} {w.last_name}</span>
-                                                {isWarning && <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">⚠️ Overload</span>}
+                                                {isWarning && (
+                                                    <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold flex items-center gap-1">
+                                                        <ExclamationTriangleIcon className="w-3 h-3" />
+                                                        Overload
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="flex justify-between items-end mt-1">
                                                 <div>
@@ -1351,7 +1364,10 @@ export function DashboardFeature({ session }: { session: any }) {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         {/* Subject eval by topic */}
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-3">📊 ผลประเมินรายหัวข้อ (วิชา)</h3>
+                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                <ChartBarIcon className="w-5 h-5 text-emerald-500" />
+                                ผลประเมินรายหัวข้อ (วิชา)
+                            </h3>
                             {(evalData.subjectEvalByTopic || []).length > 0 ? <div className="space-y-2">{(evalData.subjectEvalByTopic || []).map((t: any, i: number) => (
                                 <div key={i} className="p-2 rounded-lg bg-slate-50 border border-slate-100 flex items-center gap-2"><span className="text-xs text-slate-700 flex-1 truncate">{t.topic}</span><span className="text-[10px] font-bold text-violet-700">{Math.round((t.avg_score || 0) * 100) / 100}</span>
                                     <div className="w-16 h-2 bg-slate-200 rounded-full"><div className="h-full bg-violet-500 rounded-full" style={{ width: `${Math.min((t.avg_score || 0) * 20, 100)}%` }} /></div></div>
@@ -1359,7 +1375,10 @@ export function DashboardFeature({ session }: { session: any }) {
                         </div>
                         {/* Advisor eval by topic */}
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-3">📋 ผลประเมินรายหัวข้อ (ที่ปรึกษา)</h3>
+                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                <DocumentTextIcon className="w-5 h-5 text-emerald-500" />
+                                ผลประเมินรายหัวข้อ (ที่ปรึกษา)
+                            </h3>
                             {(evalData.advisorEvalByTopic || []).length > 0 ? <div className="space-y-2">{(evalData.advisorEvalByTopic || []).map((t: any, i: number) => (
                                 <div key={i} className="p-2 rounded-lg bg-slate-50 border border-slate-100 flex items-center gap-2"><span className="text-xs text-slate-700 flex-1 truncate">{t.topic}</span><span className="text-[10px] font-bold text-emerald-700">{Math.round((t.avg_score || 0) * 100) / 100}</span>
                                     <div className="w-16 h-2 bg-slate-200 rounded-full"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min((t.avg_score || 0) * 20, 100)}%` }} /></div></div>

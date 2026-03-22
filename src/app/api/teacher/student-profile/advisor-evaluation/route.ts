@@ -10,7 +10,7 @@ const submitSchema = z.object({
     semester: z.number().int().positive(),
     data: z.array(z.object({
         name: z.string().trim().min(1),
-        score: z.number().int().min(1).max(5),
+        score: z.number().int().min(0).max(10),
     })),
     feedback: z.string().optional().nullable(),
     sub_mode: z.string().optional(),
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
             sub_mode: parsed.data.sub_mode
         });
 
-        return NextResponse.json(result);
+        return successResponse(result);
     } catch (error: any) {
         console.error('[AdvisorEvaluation API POST] Error:', error);
         return errorResponse(error?.message || 'Failed to submit advisor evaluation', 500, error?.message);

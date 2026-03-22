@@ -3,7 +3,11 @@ import { useState, useEffect } from "react";
 import { TeacherApiService } from "@/services/teacher-api.service";
 import { fetchApi } from "@/services/api-client";
 import { MapPin, User, Bookmark, ChevronDown, Building2, DoorOpen, Users } from "lucide-react";
-import { DynamicTargetSelect, type Target } from "./DynamicTargetSelect";
+
+export type Target = {
+    target_type: string;
+    target_value?: string | null;
+};
 
 const TH_MONTHS = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 
@@ -133,18 +137,48 @@ export function CalendarFeature({ session }: { session: any }) {
 
     const monthEvents = events.filter(ev => {
         if (!ev.event_date) return false;
-        const d = new Date(ev.event_date);
-        const matchesDate = d.getFullYear() === year && d.getMonth() === month;
+        const [sY, sM, sD] = ev.event_date.split('-').map(Number);
+        const startDate = new Date(sY, sM - 1, sD, 0, 0, 0, 0);
+        
+        let endDate = new Date(startDate);
+        if (ev.end_date) {
+            const [eY, eM, eD] = ev.end_date.split('-').map(Number);
+            endDate = new Date(eY, eM - 1, eD, 23, 59, 59, 999);
+        }
+        
+        const monthStart = new Date(year, month, 1, 0, 0, 0, 0);
+        const monthEnd = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+        const matchesDate = startDate <= monthEnd && endDate >= monthStart;
         const matchesTeacher = !filterTeacherId || String(ev.responsible_teacher_id) === filterTeacherId;
         return matchesDate && matchesTeacher;
     });
 
     const eventMap = new Map<string, any[]>();
     monthEvents.forEach(ev => {
-        const d = new Date(ev.event_date);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        if (!eventMap.has(key)) eventMap.set(key, []);
-        eventMap.get(key)!.push(ev);
+        const [sY, sM, sD] = ev.event_date.split('-').map(Number);
+        const start = new Date(sY, sM - 1, sD, 0, 0, 0, 0);
+        
+        let end = new Date(start);
+        if (ev.end_date) {
+            const [eY, eM, eD] = ev.end_date.split('-').map(Number);
+            end = new Date(eY, eM - 1, eD, 0, 0, 0, 0);
+        }
+        
+        if (start > end) end = new Date(start);
+
+        let current = new Date(start);
+        let safeCounter = 0;
+        while (current <= end && safeCounter < 365) {
+            const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+            if (!eventMap.has(key)) eventMap.set(key, []);
+            // only push if not already added to this day (in case of duplicated data)
+            if (!eventMap.get(key)!.some(e => e.id === ev.id)) {
+                eventMap.get(key)!.push(ev);
+            }
+            current.setDate(current.getDate() + 1);
+            safeCounter++;
+        }
     });
 
     const renderGrid = () => {
@@ -379,10 +413,9 @@ export function CalendarFeature({ session }: { session: any }) {
                                     <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                                         <Users size={16} className="text-emerald-600" /> กลุ่มเป้าหมายผู้เข้าร่วม
                                     </label>
-                                    <DynamicTargetSelect 
-                                        value={showAdd ? form.targets : editForm.targets}
-                                        onChange={(targets) => showAdd ? setForm({...form, targets}) : setEditForm({...editForm, targets})}
-                                    />
+                                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 italic text-center">
+                                       ระบบเลือกกลุ่มเป้าหมายแบบละเอียดกำลังอยู่ในระหว่างการพัฒนา
+                                    </div>
                                 </div>
 
                                 {/* Row 6 */}

@@ -172,7 +172,7 @@ export function HealthFeature({ session }: HealthFeatureProps) {
     if (isLoading) {
         return (
             <div className="space-y-6">
-                <section className="bg-gradient-to-br from-pink-600 to-rose-800 rounded-3xl p-6 shadow-lg relative overflow-hidden">
+                <section className="bg-gradient-to-br from-teal-600 to-emerald-800 rounded-3xl p-6 shadow-lg relative overflow-hidden">
                     <Skeleton variant="rounded" className="h-4 w-20 mb-3 bg-white/20" />
                     <Skeleton variant="rounded" className="h-7 w-48 mb-1 bg-white/20" />
                     <Skeleton variant="rounded" className="h-4 w-72 bg-white/20" />
@@ -201,14 +201,14 @@ export function HealthFeature({ session }: HealthFeatureProps) {
     return (
         <div className="space-y-6 print:space-y-4">
             {/* Hero Section */}
-            <section className="bg-gradient-to-br from-pink-600 to-rose-800 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden print:bg-none print:text-black print:p-0 print:shadow-none print:border-b print:border-black print:rounded-none">
+            <section className="bg-gradient-to-br from-teal-600 to-emerald-800 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden print:bg-none print:text-black print:p-0 print:shadow-none print:border-b print:border-black print:rounded-none">
                 <div className="relative z-10 flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
                     <div>
                         <div className="inline-block bg-white/20 px-3 py-0.5 rounded-full text-xs font-medium mb-3 backdrop-blur-sm border border-white/20 print:hidden">
                             Health
                         </div>
                         <h1 className="text-2xl font-bold mb-1 print:text-2xl">สมุดบันทึกสุขภาพ</h1>
-                        <p className="text-pink-100 text-sm print:hidden">
+                        <p className="text-teal-100 text-sm print:hidden">
                             ติดตามค่าสุขภาพและอัปเดตข้อมูลของคุณ
                         </p>
                     </div>
@@ -221,7 +221,7 @@ export function HealthFeature({ session }: HealthFeatureProps) {
 
                 {/* Decoration */}
                 <div className="absolute top-0 right-0 w-64 h-full bg-white opacity-5 transform -skew-x-12 translate-x-20"></div>
-                <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-rose-500 rounded-full blur-2xl opacity-50"></div>
+                <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-emerald-500 rounded-full blur-2xl opacity-50"></div>
                 <svg className="absolute top-1/2 right-12 transform -translate-y-1/2 w-32 h-32 text-white/10" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
@@ -229,7 +229,7 @@ export function HealthFeature({ session }: HealthFeatureProps) {
 
             {/* Editing Form */}
             {isEditing && (
-                <section className="bg-white p-6 rounded-2xl shadow-sm border border-rose-200">
+                <section className="bg-white p-6 rounded-2xl shadow-sm border border-teal-200">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-xl font-bold text-slate-800">แก้ไขข้อมูลสุขภาพ</h3>
                         <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-slate-600">
@@ -247,7 +247,7 @@ export function HealthFeature({ session }: HealthFeatureProps) {
                                     step="0.1"
                                     value={formData.weight}
                                     onChange={handleInputChange}
-                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                                 />
                             </div>
                             <div>
@@ -258,7 +258,7 @@ export function HealthFeature({ session }: HealthFeatureProps) {
                                     step="0.1"
                                     value={formData.height}
                                     onChange={handleInputChange}
-                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                                 />
                             </div>
                             <div>
@@ -268,7 +268,7 @@ export function HealthFeature({ session }: HealthFeatureProps) {
                                     name="blood_type"
                                     value={formData.blood_type}
                                     onChange={handleInputChange}
-                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                                 />
                             </div>
                         </div>
@@ -306,7 +306,7 @@ export function HealthFeature({ session }: HealthFeatureProps) {
                                             placeholder="ชื่อวัคซีน"
                                             value={vac.name}
                                             onChange={(e) => handleVaccineChange(idx, "name", e.target.value)}
-                                            className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-rose-500"
+                                            className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-teal-500"
                                         />
                                         <input
                                             type="date"
@@ -339,7 +339,7 @@ export function HealthFeature({ session }: HealthFeatureProps) {
                             <button
                                 type="button"
                                 onClick={addVaccine}
-                                className="text-sm border border-rose-300 text-rose-600 bg-rose-50 hover:bg-rose-100 px-4 py-2 rounded-lg font-medium transition-colors"
+                                className="text-sm border border-teal-300 text-teal-600 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg font-medium transition-colors"
                             >
                                 + เพิ่มวัคซีน
                             </button>
@@ -357,7 +357,7 @@ export function HealthFeature({ session }: HealthFeatureProps) {
                             <button
                                 type="submit"
                                 disabled={updateHealthMutation.isPending}
-                                className="px-6 py-2.5 rounded-xl bg-rose-600 text-white font-medium hover:bg-rose-700 transition-colors flex items-center gap-2"
+                                className="px-6 py-2.5 rounded-xl bg-teal-600 text-white font-medium hover:bg-teal-700 transition-colors flex items-center gap-2"
                             >
                                 {updateHealthMutation.isPending ? "กำลังบันทึก..." : "บันทึกข้อมูลสุขภาพ"}
                             </button>
@@ -406,7 +406,7 @@ export function HealthFeature({ session }: HealthFeatureProps) {
 
                     <section className="print:hidden">
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="p-2 bg-rose-50 text-rose-600 rounded-lg">
+                            <div className="p-2 bg-teal-50 text-teal-600 rounded-lg">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                             </div>
                             <h3 className="text-lg font-bold text-slate-800">สรุปสุขภาพวันนี้</h3>
@@ -462,14 +462,14 @@ export function HealthFeature({ session }: HealthFeatureProps) {
                         <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 print:shadow-none print:border-none print:p-0">
                             <div className="flex justify-between items-center mb-6 print:mb-2">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-rose-50 text-rose-600 rounded-lg print:hidden">
+                                    <div className="p-2 bg-teal-50 text-teal-600 rounded-lg print:hidden">
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                                     </div>
                                     <h3 className="text-lg font-bold text-slate-800 print:text-sm">ข้อมูลทางการแพทย์</h3>
                                 </div>
                                 <button
                                     onClick={() => setIsEditing(true)}
-                                    className="text-sm font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-rose-200 print:hidden"
+                                    className="text-sm font-medium text-teal-600 hover:text-teal-700 hover:bg-teal-50 px-3 py-1.5 rounded-lg transition-colors border border-teal-200 print:hidden"
                                 >
                                     แก้ไข
                                 </button>
@@ -482,7 +482,7 @@ export function HealthFeature({ session }: HealthFeatureProps) {
                                 </div>
                                 <div className="flex justify-between items-center py-3 print:py-1.5 border-b border-slate-100 print:border-slate-800">
                                     <span className="text-slate-500">ประวัติแพ้ยา/อาหาร</span>
-                                    <span className={`font-semibold ${healthData?.allergies ? "text-rose-600" : "text-slate-800"}`}>
+                                    <span className={`font-semibold ${healthData?.allergies ? "text-red-600" : "text-slate-800"}`}>
                                         {healthData?.allergies || "-"}
                                     </span>
                                 </div>
@@ -545,8 +545,8 @@ export function HealthFeature({ session }: HealthFeatureProps) {
 
                     {/* Fitness Tests */}
                     <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 print:shadow-none print:border-none print:p-0">
-                        <div className="flex items-center gap-3 mb-6 print:mb-2 text-blue-600">
-                            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg print:hidden">
+                        <div className="flex items-center gap-3 mb-6 print:mb-2 text-emerald-600">
+                            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg print:hidden">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>
                             </div>
                             <h3 className="text-lg font-bold text-slate-800 print:text-sm">ผลทดสอบสมรรถภาพทางกาย</h3>

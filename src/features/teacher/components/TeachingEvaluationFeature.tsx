@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { TeacherApiService } from "@/services/teacher-api.service";
 import toast from "react-hot-toast";
 import { getCurrentAcademicYearBE, getRecentAcademicYearsBE, getAcademicSemesterDefault } from "@/features/student/academic-term";
@@ -77,7 +78,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
         const fetchAdvisoryStudents = async () => {
             setAdvisoryLoading(true);
             try {
-                const data = await TeacherApiService.getAdvisoryStudents(teacher_id, year, semester);
+                const data = await TeacherApiService.getAdvisoryStudents(teacher_id, year, semester, advisorSubMode);
                 setAdvisoryStudents(Array.isArray(data) ? data : []);
             } catch (err) {
                 console.error("Failed to fetch advisory students", err);
@@ -87,7 +88,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
             }
         };
         fetchAdvisoryStudents();
-    }, [evalMode, teacher_id, year, semester]);
+    }, [evalMode, teacher_id, year, semester, advisorSubMode]);
 
     // Fetch data based on active tab and selected assignment
     useEffect(() => {
@@ -122,7 +123,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
             const initialScores: Record<string, number> = {};
             template.topics.forEach((t: any) => {
                 const existing = template.current.find((c: any) => c.name === t.name);
-                initialScores[t.name] = existing ? existing.score : 0;
+                initialScores[t.name] = existing ? existing.score : -1;
             });
             setEvalForm({
                 scores: initialScores,
@@ -142,7 +143,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
     };
 
     const handleSubmitEvaluation = async () => {
-        if (Object.values(evalForm.scores).some(s => s === 0)) {
+        if (Object.values(evalForm.scores).some(s => s === -1)) {
             toast.error("กรุณาให้คะแนนครบทุกหัวข้อ");
             return;
         }
@@ -184,7 +185,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
             const initialScores: Record<string, number> = {};
             (template.topics || []).forEach((t: any) => {
                 const existing = (template.current || []).find((c: any) => c.name === t.name);
-                initialScores[t.name] = existing ? existing.score : 0;
+                initialScores[t.name] = existing && existing.score != null ? existing.score : -1;
             });
             setAdvisorEvalForm({ scores: initialScores, feedback: template.feedback || "" });
             setExpandedAdvisorStudentId(studentId);
@@ -197,22 +198,22 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
 
     const handleSubmitAdvisorEval = async () => {
         if (!expandedAdvisorStudentId || !advisorEvalTemplate?.sections) return;
-        
+
         let allFilled = true;
         for (const section of advisorEvalTemplate.sections) {
             for (const topic of section.topics || []) {
-                if (!advisorEvalForm.scores[topic.name] || advisorEvalForm.scores[topic.name] === 0) {
+                if (advisorEvalForm.scores[topic.name] == null || advisorEvalForm.scores[topic.name] === -1) {
                     allFilled = false;
                     break;
                 }
             }
         }
-        
-        if (!allFilled) { 
-            toast.error("กรุณาประเมินให้ครบทุกหัวข้อก่อนบันทึก"); 
-            return; 
+
+        if (!allFilled) {
+            toast.error("กรุณาประเมินให้ครบทุกหัวข้อก่อนบันทึก");
+            return;
         }
-        
+
         setAdvisorEvalSubmitting(true);
         try {
             await TeacherApiService.saveStudentAdvisorEvaluation({
@@ -228,7 +229,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
             setExpandedAdvisorStudentId(null);
             setAdvisorEvalTemplate(null);
             // refresh list to update evaluated flag
-            const data = await TeacherApiService.getAdvisoryStudents(teacher_id, year, semester);
+            const data = await TeacherApiService.getAdvisoryStudents(teacher_id, year, semester, advisorSubMode);
             setAdvisoryStudents(Array.isArray(data) ? data : []);
         } catch {
             toast.error("บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง");
@@ -278,7 +279,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
             </section>
 
             {/* Mode Selection Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                 {/* 1. ประเมินรายวิชา */}
                 <button
                     onClick={() => setEvalMode('subject')}
@@ -313,7 +314,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                     </div>
                     <div>
                         <div className="text-sm font-bold">ประเมินนักเรียนในที่ปรึกษา</div>
-                        <div className={`text-xs mt-0.5 ${evalMode === 'advisor' ? 'text-teal-100' : 'text-slate-400'}`}>คุณลักษณะอันพึงประสงค์, การอ่าน คิดวิเคราะห์ และเขียน</div>
+                        <div className={`text-xs mt-0.5 ${evalMode === 'advisor' ? 'text-teal-100' : 'text-slate-400'}`}>คุณลักษณะอันพึงประสงค์, คุณลักษณะของนักเรียนขณะอยู่ที่โรงเรียน</div>
                     </div>
                 </button>
 
@@ -408,11 +409,11 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                 <table className="w-full text-left">
                                     <thead className="bg-slate-50 border-b border-slate-100">
                                         <tr>
-                                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest w-16">เลขที่</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">รหัสประจำตัว</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">ชื่อ-นามสกุล</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">สถานะ</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">ดำเนินการ</th>
+                                            <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase whitespace-nowrap">เลขที่</th>
+                                            <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase">รหัสประจำตัว</th>
+                                            <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase">ชื่อ-นามสกุล</th>
+                                            <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase text-left">สถานะ</th>
+                                            <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase text-left">ประเมิน</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
@@ -420,31 +421,32 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                             filteredStudents.map((s, idx) => (
                                                 <tr key={s.id} className="hover:bg-slate-50 transition-colors group">
                                                     <td className="px-6 py-4 text-sm text-slate-400 font-medium">{idx + 1}</td>
-                                                    <td className="px-6 py-4 text-sm font-semibold text-slate-600">{s.student_code}</td>
-                                                    <td className="px-6 py-4 text-base font-bold text-slate-700">{s.name}</td>
-                                                    <td className="px-6 py-4 text-center">
+                                                    <td className="px-6 py-4 text-sm text-slate-600">{s.student_code}</td>
+                                                    <td className="px-6 py-4 text-sm text-slate-700">{s.name}</td>
+                                                    <td className="px-6 py-4 text-left">
                                                         {s.evaluated ? (
-                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-xs font-bold border border-emerald-100 italic">
+                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-xs font-bold border border-emerald-100">
                                                                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                                                                 ประเมินแล้ว
                                                             </span>
                                                         ) : (
-                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-50 text-teal-600 rounded-full text-xs font-bold border border-teal-100 italic">
-                                                                <div className="w-1.5 h-1.5 bg-teal-500 rounded-full" />
-                                                                รอประเมิน
+                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-xs font-bold border border-rose-100">
+                                                                <div className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
+                                                                ยังไม่ได้ประเมิน
                                                             </span>
                                                         )}
                                                     </td>
-                                                    <td className="px-6 py-4 text-right">
-                                                        <button
-                                                            onClick={() => handleOpenEvalModal(s)}
-                                                            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${s.evaluated
-                                                                ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
-                                                                : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-200'
-                                                                }`}
-                                                        >
-                                                            {s.evaluated ? 'ประเมินแล้ว' : 'ลงบันทึกผล'}
-                                                        </button>
+                                                    <td className="px-6 py-4 text-left">
+                                                        {!s.evaluated ? (
+                                                            <button
+                                                                onClick={() => handleOpenEvalModal(s)}
+                                                                className="px-4 py-2 rounded-xl text-sm font-bold transition-all bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-200"
+                                                            >
+                                                                ประเมิน
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-slate-300 font-bold px-4">-</span>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))
@@ -540,27 +542,27 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                 <h2 className="text-2xl font-black text-slate-800">
                                     ประเมินนักเรียนในที่ปรึกษา
                                 </h2>
-                                <p className="text-slate-500 font-medium mt-1">จัดการประเมินคุณลักษณะและทักษะการอ่านคิดวิเคราะห์</p>
+                                <p className="text-slate-500 font-medium mt-1">จัดการประเมินคุณลักษณะอันพึงประสงค์และคุณลักษณะของนักเรียนขณะอยู่ที่โรงเรียน</p>
                             </div>
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                <div className="min-w-[140px]">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 ml-1">ปีการศึกษา</label>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 uppercase tracking-widest mb-1.5 ml-1">ปีการศึกษา</label>
                                     <select
                                         value={year}
                                         onChange={(e) => setYear(Number(e.target.value))}
-                                        className="w-full bg-emerald-50 px-4 py-2 rounded-2xl border border-emerald-100 text-emerald-700 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-400 appearance-none cursor-pointer"
+                                        className="w-full rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-400 outline-none transition-all"
                                     >
                                         {getRecentAcademicYearsBE(5).map(y => (
                                             <option key={y} value={y}>{y}</option>
                                         ))}
                                     </select>
                                 </div>
-                                <div className="min-w-[120px]">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 ml-1">ภาคเรียน</label>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 uppercase tracking-widest mb-1.5 ml-1">ภาคเรียน</label>
                                     <select
                                         value={semester}
                                         onChange={(e) => setSemester(Number(e.target.value))}
-                                        className="w-full bg-teal-50 px-4 py-2 rounded-2xl border border-teal-100 text-teal-700 text-sm font-bold outline-none focus:ring-2 focus:ring-teal-400 appearance-none cursor-pointer"
+                                        className="w-full rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-400 outline-none transition-all"
                                     >
                                         <option value={1}>1</option>
                                         <option value={2}>2</option>
@@ -570,14 +572,14 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                         </div>
 
                         {/* Sub-mode selection tabs within Advisor mode */}
-                        <div className="flex p-1 bg-slate-100 rounded-2xl w-full max-w-xl border border-slate-200/50">
-                                <button
+                        <div className="flex p-1 bg-slate-100 rounded-2xl w-full border border-slate-200/50">
+                            <button
                                 onClick={() => setAdvisorSubMode('attributes')}
                                 className={`flex-1 py-3 px-6 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 ${advisorSubMode === 'attributes'
                                     ? 'bg-white text-emerald-600 shadow-sm'
                                     : 'text-slate-500 hover:text-slate-700'
                                     }`}
-                                >
+                            >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                 </svg>
@@ -593,7 +595,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                 </svg>
-                                การอ่าน คิดวิเคราะห์ และเขียน
+                                คุณลักษณะของนักเรียนขณะอยู่ที่โรงเรียน
                             </button>
                         </div>
 
@@ -611,9 +613,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                     className="w-full rounded-2xl border border-slate-200 pl-11 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-400 transition-all font-medium"
                                 />
                             </div>
-                            <button className="px-6 py-3 bg-slate-800 text-white rounded-2xl font-bold text-sm hover:bg-slate-700 transition-colors shrink-0">
-                                พิมพ์รายงานรวม
-                            </button>
+
                         </div>
 
                         {/* Real Student Table for Advisor Modes */}
@@ -635,20 +635,20 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                 <table className="w-full text-left border-collapse">
                                     <thead>
                                         <tr className="bg-white">
-                                            <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest w-16">เลขที่</th>
-                                            <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">รหัสประจำตัว</th>
-                                            <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">ชื่อ-นามสกุล</th>
-                                            <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-center">สถานะประเมิน</th>
-                                            <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-right">การจัดการ</th>
+                                            <th className="px-6 py-5 text-sm font-black text-slate-500 whitespace-nowrap w-16">เลขที่</th>
+                                            <th className="px-6 py-5 text-sm font-black text-slate-500 uppercase ">รหัสประจำตัว</th>
+                                            <th className="px-6 py-5 text-sm font-black text-slate-500 uppercase ">ชื่อ-นามสกุล</th>
+                                            <th className="px-6 py-5 text-sm font-black text-slate-500 uppercase  text-center">สถานะประเมิน</th>
+                                            <th className="px-6 py-5 text-sm font-black text-slate-500 uppercase  text-right">ประเมิน</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
                                         {filteredAdvisoryStudents.length > 0 ? (
                                             filteredAdvisoryStudents.map((s, idx) => (
                                                 <tr key={s.id} className="hover:bg-white transition-colors group">
-                                                    <td className="px-6 py-5 text-sm font-bold">{idx + 1}</td>
-                                                    <td className="px-6 py-5 text-sm font-black text-slate-600 group-hover:text-emerald-600 transition-colors uppercase">{s.student_code}</td>
-                                                    <td className="px-6 py-5 font-black text-lg text-slate-700">
+                                                    <td className="px-6 py-5 text-sm font-medium text-slate-500">{idx + 1}</td>
+                                                    <td className="px-6 py-5 text-sm font-medium text-slate-600">{s.student_code}</td>
+                                                    <td className="px-6 py-5 text-base font-medium text-slate-700">
                                                         {s.prefix && <span className="mr-1">{s.prefix}</span>}
                                                         {s.first_name} {s.last_name}
                                                     </td>
@@ -656,27 +656,31 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                                         {s.evaluated ? (
                                                             <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 text-emerald-600 rounded-full text-xs font-black uppercase tracking-wider">
                                                                 <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-                                                                Completed
+                                                                ประเมินแล้ว
                                                             </span>
                                                         ) : (
-                                                            <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-100 text-slate-400 rounded-full text-xs font-black uppercase tracking-wider">
-                                                                <div className="w-2 h-2 bg-slate-300 rounded-full" />
-                                                                Pending
+                                                            <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-rose-500/10 text-rose-600 rounded-full text-xs font-black uppercase tracking-wider">
+                                                                <div className="w-2 h-2 bg-rose-500 rounded-full" />
+                                                                รอการประเมิน
                                                             </span>
                                                         )}
                                                     </td>
                                                     <td className="px-6 py-5 text-right">
-                                                        <button
-                                                            onClick={() => handleToggleAdvisorEval(s.id)}
-                                                            disabled={advisorEvalLoadingTemplate}
-                                                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-black hover:bg-emerald-700 shadow-sm shadow-emerald-200 active:scale-95 transition-all disabled:opacity-60"
-                                                        >
-                                                            {advisorEvalLoadingTemplate ? (
-                                                                <div className="w-4 h-4 border-2 border-emerald-200 border-t-white rounded-full animate-spin" />
-                                                            ) : (
-                                                                <>{s.evaluated ? 'แก้ไข' : 'ประเมิน'}</>
-                                                            )}
-                                                        </button>
+                                                        {!s.evaluated ? (
+                                                            <button
+                                                                onClick={() => handleToggleAdvisorEval(s.id)}
+                                                                disabled={advisorEvalLoadingTemplate}
+                                                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-black hover:bg-emerald-700 shadow-sm shadow-emerald-200 active:scale-95 transition-all disabled:opacity-60"
+                                                            >
+                                                                {advisorEvalLoadingTemplate ? (
+                                                                    <div className="w-4 h-4 border-2 border-emerald-200 border-t-white rounded-full animate-spin" />
+                                                                ) : (
+                                                                    <>ประเมิน</>
+                                                                )}
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-slate-300 font-bold px-5">-</span>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))
@@ -697,15 +701,15 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
             </div>
 
             {/* === Modal Popup: Subject Evaluation === */}
-            {isModalOpen && evalTemplate && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {isModalOpen && evalTemplate && typeof window !== 'undefined' ? createPortal(
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     {/* Backdrop */}
                     <div
                         className="absolute inset-0 bg-black/60 backdrop-blur-md"
                         onClick={() => setIsModalOpen(false)}
                     />
                     {/* Modal box */}
-                    <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                    <div className="relative bg-white rounded-[2rem] shadow-2xl w-[95vw] max-w-6xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
                         {/* Modal Header */}
                         <div className="flex items-start justify-between px-8 pt-8 pb-6 border-b border-slate-100 shrink-0">
                             <div>
@@ -736,8 +740,10 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                         <div className="overflow-y-auto flex-1 px-8 py-6 space-y-8">
                             {/* Tips */}
                             <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 flex gap-3">
-                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0">
-                                    <span className="text-lg">💡</span>
+                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-emerald-100">
+                                    <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                    </svg>
                                 </div>
                                 <p className="text-xs text-emerald-800 leading-relaxed font-medium">
                                     กรุณาพิจารณาผลการเรียนและพฤติกรรมของนักเรียนตามความเป็นจริง เพื่อประโยชน์ต่อการพัฒนาการเรียนการสอน
@@ -746,57 +752,94 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
 
                             {/* Questions */}
                             <div className="space-y-6">
-                                {(evalTemplate.sections || []).length > 0 ? (
-                                    evalTemplate.sections.map((section: any, idx: number) => (
-                                        <div key={section.id || idx} className="space-y-4">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
-                                                <h3 className="text-md font-bold text-slate-800">{section.name}</h3>
+                                {(() => {
+                                    const optionsList = evalTemplate.scale_options && evalTemplate.scale_options.length > 0
+                                        ? evalTemplate.scale_options
+                                        : [
+                                            { label: '5', value: 5 },
+                                            { label: '4', value: 4 },
+                                            { label: '3', value: 3 },
+                                            { label: '2', value: 2 },
+                                            { label: '1', value: 1 }
+                                        ];
+                                    const colsCount = optionsList.length;
+
+                                    if ((evalTemplate.sections || []).length > 0) {
+                                        return evalTemplate.sections.map((section: any, idx: number) => (
+                                            <div key={section.id || idx} className="space-y-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
+                                                    <h3 className="text-md font-bold text-slate-800">{section.name}</h3>
+                                                </div>
+                                                <div className="rounded-2xl overflow-hidden border border-slate-200">
+                                                    {/* Header */}
+                                                    <div className="grid bg-slate-50 border-b border-slate-200" style={{ gridTemplateColumns: `1fr repeat(${colsCount}, minmax(64px, 80px))` }}>
+                                                        <div className="px-5 py-3 text-xs font-black text-slate-500 uppercase tracking-wider flex items-center">หัวข้อประเมิน</div>
+                                                        {optionsList.map((opt: any) => (
+                                                            <div key={opt.value} className="py-3 text-center border-l border-slate-200 flex flex-col justify-center">
+                                                                <div className="text-sm font-black text-slate-700">{opt.value}</div>
+                                                                {(opt.label && opt.label !== String(opt.value)) && (
+                                                                    <div className="text-[10px] text-slate-500 line-clamp-2 px-1 mt-0.5 leading-tight font-medium">{opt.label}</div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    {/* Body */}
+                                                    <div className="flex flex-col bg-white">
+                                                        {(section.topics || []).map((t: any, tidx: number) => (
+                                                            <div key={t.id || tidx} className={`grid border-b last:border-0 border-slate-100 ${tidx % 2 !== 0 ? 'bg-slate-50/30' : 'bg-white'} hover:bg-slate-50 transition-colors`} style={{ gridTemplateColumns: `1fr repeat(${colsCount}, minmax(64px, 80px))` }}>
+                                                                <div className="px-5 py-4 text-sm font-medium text-slate-700 flex items-center pr-4">
+                                                                    {tidx + 1}. {t.name}
+                                                                </div>
+                                                                {optionsList.map((opt: any) => (
+                                                                    <div key={opt.value} className="flex justify-center items-center border-l border-slate-100 cursor-pointer group" onClick={() => handleScoreChange(t.name, opt.value)}>
+                                                                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${evalForm.scores[t.name] === opt.value ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 group-hover:border-emerald-400 group-hover:bg-emerald-50'}`}>
+                                                                            {evalForm.scores[t.name] === opt.value && <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="space-y-4">
-                                                {(section.topics || []).map((t: any) => (
-                                                    <div key={t.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                                                        <p className="text-sm font-bold text-slate-700">{t.name}</p>
-                                                        <div className="flex gap-2">
-                                                            {[1, 2, 3, 4, 5].map(score => (
-                                                                <button
-                                                                    key={score}
-                                                                    onClick={() => handleScoreChange(t.name, score)}
-                                                                    className={`flex-1 py-2 rounded-xl text-sm font-black transition-all border-2 ${evalForm.scores[t.name] === score
-                                                                        ? 'bg-emerald-500 border-emerald-500 text-white shadow-md'
-                                                                        : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-200 hover:text-emerald-500'
-                                                                        }`}
-                                                                >
-                                                                    {score}
-                                                                </button>
+                                        ));
+                                    } else {
+                                        return (
+                                            <div className="rounded-2xl overflow-hidden border border-slate-200">
+                                                {/* Header */}
+                                                <div className="grid bg-slate-50 border-b border-slate-200" style={{ gridTemplateColumns: `1fr repeat(${colsCount}, minmax(64px, 80px))` }}>
+                                                    <div className="px-5 py-3 text-xs font-black text-slate-500 uppercase tracking-wider flex items-center">หัวข้อประเมิน</div>
+                                                    {optionsList.map((opt: any) => (
+                                                        <div key={opt.value} className="py-3 text-center border-l border-slate-200 flex flex-col justify-center">
+                                                            <div className="text-sm font-black text-slate-700">{opt.value}</div>
+                                                            {(opt.label && opt.label !== String(opt.value)) && (
+                                                                <div className="text-[10px] text-slate-500 line-clamp-2 px-1 mt-0.5 leading-tight font-medium">{opt.label}</div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                {/* Body */}
+                                                <div className="flex flex-col bg-white">
+                                                    {(evalTemplate.topics || []).map((t: any, tidx: number) => (
+                                                        <div key={t.id || tidx} className={`grid border-b last:border-0 border-slate-100 ${tidx % 2 !== 0 ? 'bg-slate-50/30' : 'bg-white'} hover:bg-slate-50 transition-colors`} style={{ gridTemplateColumns: `1fr repeat(${colsCount}, minmax(64px, 80px))` }}>
+                                                            <div className="px-5 py-4 text-sm font-medium text-slate-700 flex items-center pr-4">
+                                                                {tidx + 1}. {t.name}
+                                                            </div>
+                                                            {optionsList.map((opt: any) => (
+                                                                <div key={opt.value} className="flex justify-center items-center border-l border-slate-100 cursor-pointer group" onClick={() => handleScoreChange(t.name, opt.value)}>
+                                                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${evalForm.scores[t.name] === opt.value ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 group-hover:border-emerald-400 group-hover:bg-emerald-50'}`}>
+                                                                        {evalForm.scores[t.name] === opt.value && <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />}
+                                                                    </div>
+                                                                </div>
                                                             ))}
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    (evalTemplate.topics || []).map((t: any) => (
-                                        <div key={t.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                                            <p className="text-sm font-bold text-slate-700">{t.name}</p>
-                                            <div className="flex gap-2">
-                                                {[1, 2, 3, 4, 5].map(score => (
-                                                    <button
-                                                        key={score}
-                                                        onClick={() => handleScoreChange(t.name, score)}
-                                                            className={`flex-1 py-2 rounded-xl text-sm font-black transition-all border-2 ${evalForm.scores[t.name] === score
-                                                                ? 'bg-emerald-500 border-emerald-500 text-white shadow-md'
-                                                                : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-200 hover:text-emerald-500'
-                                                                }`}
-                                                    >
-                                                        {score}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
+                                        );
+                                    }
+                                })()}
 
                                 {/* Feedback Area */}
                                 <div className="space-y-2">
@@ -812,17 +855,17 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="shrink-0 flex gap-3 px-8 py-6 border-t border-slate-100 bg-white">
+                        <div className="shrink-0 flex justify-center gap-4 px-8 py-6 border-t border-slate-100 bg-white">
                             <button
                                 onClick={() => setIsModalOpen(false)}
-                                className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-all"
+                                className="w-40 py-3 bg-slate-100 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-all"
                             >
                                 ยกเลิก
                             </button>
                             <button
                                 onClick={handleSubmitEvaluation}
                                 disabled={isSubmitting}
-                                className="flex-[2] py-3 bg-emerald-600 text-white rounded-2xl text-sm font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                className="w-60 py-3 bg-emerald-600 text-white rounded-2xl text-sm font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? (
                                     <>
@@ -840,19 +883,20 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                             </button>
                         </div>
                     </div>
-                </div>
-            )}
+                </div>,
+                document.body
+            ) : null}
 
             {/* === Modal Popup: Advisor Attributes Evaluation === */}
-            {expandedAdvisorStudentId !== null && advisorEvalTemplate && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {expandedAdvisorStudentId !== null && advisorEvalTemplate && typeof window !== 'undefined' ? createPortal(
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     {/* Backdrop */}
                     <div
-                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        className="absolute inset-0 bg-black/60 backdrop-blur-md"
                         onClick={() => { setExpandedAdvisorStudentId(null); setAdvisorEvalTemplate(null); }}
                     />
                     {/* Modal box */}
-                    <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+                    <div className="relative bg-white rounded-3xl shadow-2xl w-[95vw] max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
                         {/* Modal header */}
                         <div className="flex items-start justify-between px-8 pt-8 pb-6 border-b border-slate-100 shrink-0">
                             <div>
@@ -870,7 +914,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                     </div>
                                     <div>
                                         <h2 className="text-xl font-black text-slate-800">
-                                            {advisorSubMode === 'attributes' ? 'คุณลักษณะอันพึงประสงค์' : 'การอ่าน คิดวิเคราะห์ และเขียน'}
+                                            {advisorSubMode === 'attributes' ? 'คุณลักษณะอันพึงประสงค์' : 'คุณลักษณะของนักเรียนขณะอยู่ที่โรงเรียน'}
                                         </h2>
                                         <p className={`text-sm font-semibold mt-0.5 ${advisorSubMode === 'attributes' ? 'text-emerald-500' : 'text-teal-500'}`}>
                                             {(() => {
@@ -880,7 +924,11 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                         </p>
                                     </div>
                                 </div>
-                                <p className="text-xs text-slate-400 font-medium">เกณฑ์: 5 = ดีมาก &nbsp;·&nbsp; 4 = ดี &nbsp;·&nbsp; 3 = ปานกลาง &nbsp;·&nbsp; 2 = พอใช้ &nbsp;·&nbsp; 1 = ปรับปรุง</p>
+                                {advisorEvalTemplate?.scale_options && advisorEvalTemplate.scale_options.length > 0 && (
+                                    <p className="text-xs text-slate-400 font-medium whitespace-pre-wrap">
+                                        เกณฑ์: {advisorEvalTemplate.scale_options.map((opt: any) => `${opt.value} = ${opt.label}`).join('  ·  ')}
+                                    </p>
+                                )}
                             </div>
                             <button
                                 onClick={() => { setExpandedAdvisorStudentId(null); setAdvisorEvalTemplate(null); }}
@@ -895,53 +943,70 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                         {/* Scrollable content */}
                         <div className="overflow-y-auto flex-1 px-8 py-6 space-y-4">
                             {/* Score grid */}
-                            <div className="rounded-2xl overflow-hidden border border-slate-100">
-                                {/* Header row */}
-                                <div className="grid bg-slate-50" style={{ gridTemplateColumns: '1fr 72px 72px 72px 72px 72px' }}>
-                                    <div className="px-5 py-3 text-xs font-black text-slate-400 uppercase tracking-wider">หัวข้อประเมิน</div>
-                                    {[5, 4, 3, 2, 1].map(v => (
-                                        <div key={v} className="py-3 text-center border-l border-slate-100">
-                                            <div className="text-sm font-black text-slate-700">{v}</div>
-                                            <div className="text-xs text-slate-400">{v === 5 ? 'ดีมาก' : v === 4 ? 'ดี' : v === 3 ? 'ปานกลาง' : v === 2 ? 'พอใช้' : 'ปรับปรุง'}</div>
+                            {(() => {
+                                const advisorScaleOpts: { label: string; value: number }[] =
+                                    (advisorEvalTemplate.scale_options && advisorEvalTemplate.scale_options.length > 0)
+                                        ? advisorEvalTemplate.scale_options
+                                        : [
+                                            { label: 'ดีมาก', value: 5 },
+                                            { label: 'ดี', value: 4 },
+                                            { label: 'ปานกลาง', value: 3 },
+                                            { label: 'พอใช้', value: 2 },
+                                            { label: 'ปรับปรุง', value: 1 },
+                                        ];
+                                const colCount = advisorScaleOpts.length;
+                                const gridCols = `1fr ${Array(colCount).fill('72px').join(' ')}`;
+                                return (
+                                    <div className="rounded-2xl overflow-hidden border border-slate-100">
+                                        {/* Header row */}
+                                        <div className="grid bg-slate-50" style={{ gridTemplateColumns: gridCols }}>
+                                            <div className="px-5 py-3 text-xs font-black text-slate-400 uppercase tracking-wider">หัวข้อประเมิน</div>
+                                            {advisorScaleOpts.map(opt => (
+                                                <div key={opt.value} className="py-3 text-center border-l border-slate-100">
+                                                    <div className="text-sm font-black text-slate-700">{opt.value}</div>
+                                                    <div className="text-xs text-slate-400 leading-tight">{opt.label}</div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
-                                {/* Sections */}
-                                <div className="flex flex-col">
-                                    {(advisorEvalTemplate.sections || []).map((section: any, sidx: number) => (
-                                        <div key={section.id || sidx} className="flex flex-col">
-                                            {/* Section Header */}
-                                            <div className="bg-slate-100/80 px-5 py-2.5 border-t border-b border-slate-200 flex items-center gap-2 relative z-10">
-                                                <div className="w-1.5 h-4 bg-emerald-400 rounded-full"></div>
-                                                <h3 className="text-sm font-bold text-slate-800">{section.name}</h3>
-                                            </div>
-                                            {/* Topic rows for this section */}
-                                            {(section.topics || []).map((t: any, tidx: number) => (
-                                                <div key={t.id || tidx} className={`grid border-b border-slate-100 ${tidx % 2 !== 0 ? 'bg-slate-50/50' : 'bg-white'}`} style={{ gridTemplateColumns: '1fr 72px 72px 72px 72px 72px' }}>
-                                                    <div className="px-5 py-4 text-sm font-medium text-slate-700 flex items-center">
-                                                        {t.name}
+                                        {/* Sections */}
+                                        <div className="flex flex-col">
+                                            {(advisorEvalTemplate.sections || []).map((section: any, sidx: number) => (
+                                                <div key={section.id || sidx} className="flex flex-col">
+                                                    {/* Section Header */}
+                                                    <div className="bg-teal-600 px-5 py-2.5 border-t border-b border-teal-500 flex items-center gap-2 relative z-10">
+                                                        <div className="w-1.5 h-4 bg-white/70 rounded-full"></div>
+                                                        <h3 className="text-sm font-bold text-white">{section.name}</h3>
                                                     </div>
-                                                    {[5, 4, 3, 2, 1].map(v => (
-                                                        <div key={v} className="flex justify-center items-center border-l border-slate-100 hover:bg-slate-50">
-                                                            <div
-                                                                onClick={() => setAdvisorEvalForm(prev => ({ ...prev, scores: { ...prev.scores, [t.name]: prev.scores[t.name] === v ? 0 : v } }))}
-                                                                className={`w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${advisorEvalForm.scores[t.name] === v
-                                                                    ? 'border-emerald-500 bg-emerald-50'
-                                                                    : 'border-slate-300 hover:border-emerald-400 hover:bg-emerald-50'
-                                                                }`}
-                                                            >
-                                                                {advisorEvalForm.scores[t.name] === v && (
-                                                                    <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />
-                                                                )}
+                                                    {/* Topic rows for this section */}
+                                                    {(section.topics || []).map((t: any, tidx: number) => (
+                                                        <div key={t.id || tidx} className={`grid border-b border-slate-100 ${tidx % 2 !== 0 ? 'bg-slate-50/50' : 'bg-white'}`} style={{ gridTemplateColumns: gridCols }}>
+                                                            <div className="px-5 py-4 text-sm font-medium text-slate-700 flex items-center">
+                                                                {t.name}
                                                             </div>
+                                                            {advisorScaleOpts.map(opt => (
+                                                                <div key={opt.value} className="flex justify-center items-center border-l border-slate-100 hover:bg-slate-50">
+                                                                    <div
+                                                                        onClick={() => setAdvisorEvalForm(prev => ({ ...prev, scores: { ...prev.scores, [t.name]: prev.scores[t.name] === opt.value ? -1 : opt.value } }))}
+                                                                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${advisorEvalForm.scores[t.name] === opt.value
+                                                                            ? 'border-emerald-500 bg-emerald-50'
+                                                                            : 'border-slate-300 hover:border-emerald-400 hover:bg-emerald-50'
+                                                                            }`}
+                                                                    >
+                                                                        {advisorEvalForm.scores[t.name] === opt.value && (
+                                                                            <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     ))}
                                                 </div>
                                             ))}
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
+                                    </div>
+                                );
+                            })()}
+
 
                             {/* Feedback */}
                             <div className="space-y-2">
@@ -955,32 +1020,32 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                             </div>
                         </div>
 
-                        {/* Footer actions */}
-                        <div className="shrink-0 flex gap-3 px-8 py-6 border-t border-slate-100 bg-white">
+                        {/* Modal footer buttons centered and fixed size */}
+                        <div className="shrink-0 flex justify-center gap-4 px-8 py-6 border-t border-slate-100 bg-white relative">
                             <button
                                 onClick={() => {
                                     if (window.confirm('คุณต้องการล้างข้อมูลฟอร์มการประเมินนี้ใช่หรือไม่?')) {
                                         setAdvisorEvalForm(prev => {
                                             const clearedScores: Record<string, number> = {};
-                                            Object.keys(prev.scores).forEach(k => clearedScores[k] = 0);
+                                            Object.keys(prev.scores).forEach(k => clearedScores[k] = -1);
                                             return { ...prev, scores: clearedScores, feedback: '' };
                                         });
                                     }
                                 }}
-                                className="px-6 py-2.5 text-sm font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all mr-auto"
+                                className="px-4 py-2 text-xs font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all mr-auto absolute left-8"
                             >
-                                ล้างข้อมูลฟอร์ม
+                                ล้างข้อมูล
                             </button>
                             <button
                                 onClick={() => { setExpandedAdvisorStudentId(null); setAdvisorEvalTemplate(null); }}
-                                className="px-6 py-2.5 text-sm font-bold text-slate-600 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 hover:text-slate-800 transition-all"
+                                className="w-40 py-3 bg-slate-100 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-all"
                             >
                                 ยกเลิก
                             </button>
                             <button
                                 onClick={handleSubmitAdvisorEval}
                                 disabled={advisorEvalSubmitting}
-                                className="px-8 py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-bold hover:bg-emerald-600 shadow-lg shadow-emerald-500/25 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-60"
+                                className="w-60 py-3 bg-emerald-500 text-white rounded-2xl text-sm font-bold hover:bg-emerald-600 shadow-lg shadow-emerald-500/25 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
                             >
                                 {advisorEvalSubmitting ? (
                                     <>
@@ -998,8 +1063,9 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                             </button>
                         </div>
                     </div>
-                </div>
-            )}
+                </div>,
+                document.body
+            ) : null}
         </div>
     );
 }

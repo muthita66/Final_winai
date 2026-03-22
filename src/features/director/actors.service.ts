@@ -58,7 +58,6 @@ const ACTOR_DEFINITIONS: {
         { name: 'evaluation_questions', label: 'คำถามประเมิน', group: 'evaluation', groupLabel: 'การประเมิน' },
         { name: 'evaluation_answers', label: 'คำตอบประเมิน', group: 'evaluation', groupLabel: 'การประเมิน' },
         { name: 'evaluation_responses', label: 'การตอบประเมิน', group: 'evaluation', groupLabel: 'การประเมิน' },
-        { name: 'evaluation_periods', label: 'ช่วงประเมิน', group: 'evaluation', groupLabel: 'การประเมิน' },
         { name: 'evaluation_types', label: 'ประเภทการประเมิน', group: 'evaluation', groupLabel: 'การประเมิน' },
 
         // Master Data
@@ -122,7 +121,7 @@ export const ActorsService = {
             // Special handling for evaluation_responses due to missing user_id column
             if (name === 'evaluation_responses') {
                 const data = await prisma.$queryRawUnsafe<any[]>(
-                    `SELECT id, form_id, evaluator_user_id, submitted_at, period_id, target_type, target_id 
+                    `SELECT id, form_id, evaluator_user_id, submitted_at, semester_id, target_student_id, target_teacher_id, target_subject_id
                      FROM evaluation_responses ORDER BY id ASC LIMIT 100`
                 );
                 return { ...def, data };

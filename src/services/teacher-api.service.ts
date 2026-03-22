@@ -66,11 +66,12 @@ export const TeacherApiService = {
     },
 
     // --- Students (advisor) ---
-    async getAdvisoryStudents(teacher_id: number, year?: number, semester?: number) {
+    async getAdvisoryStudents(teacher_id: number, year?: number, semester?: number, sub_mode: string = 'attributes') {
         const params = new URLSearchParams();
         params.set('teacher_id', String(teacher_id));
         if (year) params.set('year', String(year));
         if (semester) params.set('semester', String(semester));
+        params.set('sub_mode', sub_mode);
         return fetchApi<any[]>(`/api/teacher/students?${params.toString()}`);
     },
 
@@ -324,6 +325,15 @@ export const TeacherApiService = {
 
     async getSectionStudentsForEvaluation(teacher_id: number, section_id: number, year: number, semester: number) {
         const params = new URLSearchParams({ action: 'students' });
+        params.append("teacher_id", teacher_id.toString());
+        params.append("section_id", section_id.toString());
+        params.append("year", year.toString());
+        params.append("semester", semester.toString());
+        return fetchApi<any[]>(`/api/teacher/teaching-evaluation?${params.toString()}`);
+    },
+
+    async getTeachingStudentEvaluationResults(teacher_id: number, section_id: number, year: number, semester: number) {
+        const params = new URLSearchParams({ action: 'student-results' });
         params.append("teacher_id", teacher_id.toString());
         params.append("section_id", section_id.toString());
         params.append("year", year.toString());

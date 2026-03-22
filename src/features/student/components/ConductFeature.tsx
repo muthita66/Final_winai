@@ -41,7 +41,7 @@ export function ConductFeature({ session }: ConductFeatureProps) {
     if (isLoading) {
         return (
             <div className="space-y-6">
-                <section className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-3xl p-6 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
+                <section className="bg-gradient-to-br from-teal-600 to-emerald-800 rounded-3xl p-6 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
                     <div className="w-full md:w-1/2">
                         <Skeleton variant="rounded" className="h-4 w-20 mb-3 bg-white/20" />
                         <Skeleton variant="rounded" className="h-7 w-48 mb-1 bg-white/20" />
@@ -74,18 +74,18 @@ export function ConductFeature({ session }: ConductFeatureProps) {
     return (
         <div className="space-y-6">
             {/* Hero Section */}
-            <section className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 md:gap-10">
+            <section className="bg-gradient-to-br from-teal-600 to-emerald-800 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 md:gap-10">
                 <div className="relative z-10 w-full md:w-1/2">
                     <div className="inline-block bg-white/20 px-3 py-0.5 rounded-full text-xs font-medium mb-3 backdrop-blur-sm border border-white/20">
                         Conduct
                     </div>
                     <h1 className="text-2xl font-bold mb-1 text-white">คะแนนความประพฤติ</h1>
-                    <p className="text-amber-100 text-sm mb-4">
+                    <p className="text-teal-100 text-sm mb-4">
                         ติดตามคะแนนและประวัติการปรับคะแนนตลอดปีการศึกษา
                     </p>
                     <div className="flex gap-4">
                         <div className="bg-black/10 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/10">
-                            <div className="text-[10px] uppercase tracking-wider text-amber-200 mb-0.5 font-semibold">สถานะ</div>
+                            <div className="text-[10px] uppercase tracking-wider text-teal-200 mb-0.5 font-semibold">สถานะ</div>
                             <div className="text-sm font-medium text-white flex items-center gap-2">
                                 <span className={`w-2 h-2 rounded-full ${score < 0 ? 'bg-red-400' : 'bg-green-400'}`}></span>
                                 {score < 0 ? 'ต้องปรับปรุง' : 'ปกติ'}
@@ -124,20 +124,20 @@ export function ConductFeature({ session }: ConductFeatureProps) {
                             <span className="text-4xl font-bold tracking-tighter" style={{ color: score < 0 ? '#fca5a5' : 'white' }}>
                                 {score}
                             </span>
-                            <span className="text-[10px] font-medium uppercase tracking-wider text-amber-100 mt-0.5">คะแนนปัจจุบัน</span>
+                            <span className="text-[10px] font-medium uppercase tracking-wider text-teal-100 mt-0.5">คะแนนปัจจุบัน</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Decoration */}
                 <div className="absolute top-0 right-0 w-64 h-full bg-white opacity-5 transform -skew-x-12 translate-x-20"></div>
-                <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-orange-500 rounded-full blur-2xl opacity-50"></div>
+                <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-emerald-500 rounded-full blur-2xl opacity-50"></div>
             </section>
 
             {/* History Section */}
             <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                    <div className="p-2 bg-teal-50 text-teal-600 rounded-lg">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </div>
                     <div>

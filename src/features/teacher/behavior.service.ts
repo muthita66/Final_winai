@@ -72,8 +72,9 @@ export const TeacherBehaviorService = {
             });
             targetClassroomIds = advisors.map(a => a.classroom_id);
         } else {
-            // No filters and no teacher_id (Global view for Director, but return empty until filter used)
-            targetClassroomIds = [];
+            // No filters and no teacher_id (Global view for Director, get all classrooms)
+            const allRooms = await prisma.classrooms.findMany({ select: { id: true } });
+            targetClassroomIds = allRooms.map(r => r.id);
         }
 
         const validClassroomIds = targetClassroomIds.filter(id => !isNaN(id));

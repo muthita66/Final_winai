@@ -92,7 +92,138 @@ export const ScheduleService = {
     },
 
     async getExamSchedule(student_id: number, year?: number, semester?: number) {
-        // No exam_schedule table in presentATOM — return empty
-        return [];
+        if (!student_id) return [];
+
+        const whereSemester: any = {};
+        if (year) {
+            whereSemester.academic_years = {
+                year_name: String(year)
+            };
+        }
+        if (semester) {
+            whereSemester.semester_number = Number(semester);
+        }
+
+        const semesterData = await prisma.semesters.findFirst({
+            where: whereSemester,
+            select: { id: true }
+        });
+
+        if (!semesterData) return [];
+
+        const enrollments = await prisma.enrollments.findMany({
+            where: {
+                student_id,
+                teaching_assignments: {
+                    semester_id: semesterData.id
+                }
+            },
+            select: {
+                teaching_assignments: {
+                    select: {
+                        subject_id: true,
+                        subjects: {
+                            select: {
+                                subject_code: true,
+                                subject_name: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 3. Create a subject map for lookup
+        const subjectMap = new Map<number, { subject_code: string, subject_name: string }>();
+        enrollments.forEach(e => {
+            const ta = e.teaching_assignments;
+            if (ta && ta.subjects) {
+                subjectMap.set(ta.subject_id, {
+                    subject_code: ta.subjects.subject_code || '',
+                    subject_name: ta.subjects.subject_name || ''
+                });
+            }
+        });
+
+        const subjectIds = Array.from(subjectMap.keys());
+        if (subjectIds.length === 0) return [];
+
+        const classSchedule = await ScheduleService.getClassSchedule(student_id, year, semester);
+        const regularRooms = classSchedule.map((cs: any) => cs.room).filter(Boolean);
+        const regularRoomSet = new Set(regularRooms);
+
+        const exams = await prisma.exam_schedules.findMany({
+            where: {
+                semester_id: semesterData.id,
+                subject_id: { in: subjectIds }
+            },
+            include: {
+                exam_schedule_rooms: {
+                    include: {
+                        rooms: {
+                            include: {
+                                buildings: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        return exams.map(exam => {
+            // Group rooms by building
+            const buildingMap = new Map<string, string[]>();
+            
+            // Filter rooms that match student regular room if there's any overlap!
+            const targetRoomsList = exam.exam_schedule_rooms.filter(er => {
+                if (regularRoomSet.size === 0) return true; // fallback to all
+                return er.rooms?.room_name && regularRoomSet.has(er.rooms.room_name);
+            });
+
+            // If no overlap found, use all rooms as fallback instead of returning empty
+            const roomsToProcess = targetRoomsList.length > 0 ? targetRoomsList : exam.exam_schedule_rooms;
+
+            roomsToProcess.forEach(er => {
+                const room = er.rooms;
+                if (room) {
+                    const bName = room.buildings?.building_name || '';
+                    const rName = room.room_name || '';
+                    if (!buildingMap.has(bName)) buildingMap.set(bName, []);
+                    buildingMap.get(bName)!.push(rName);
+                }
+            });
+
+            const roomsList = Array.from(buildingMap.entries()).map(([building, rooms]) => {
+                const bText = building ? ` (${building})` : '';
+                return `ห้อง ${rooms.join(', ')}${bText}`;
+            });
+            const roomNames = roomsList.join(', ');
+            
+            const formatTime = (date: Date | null) => {
+                if (!date) return '';
+                const d = new Date(date);
+                const hours = String(d.getHours()).padStart(2, '0');
+                const mins = String(d.getMinutes()).padStart(2, '0');
+                return `${hours}:${mins}`;
+            };
+
+            const startTime = formatTime(exam.start_time);
+            const endTime = formatTime(exam.end_time);
+            
+            const subjInfo = subjectMap.get(exam.subject_id);
+
+            return {
+                id: exam.id,
+                subject_code: subjInfo?.subject_code || '',
+                subject_name: subjInfo?.subject_name || '',
+                exam_type: exam.exam_type,
+                exam_date: exam.exam_date,
+                time_range: startTime && endTime ? `${startTime}-${endTime}` : '',
+                room: roomNames || '-',
+                class_level: '', 
+            };
+        });
+
+
     }
 };

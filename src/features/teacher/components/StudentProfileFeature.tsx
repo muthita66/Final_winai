@@ -297,7 +297,7 @@ export function StudentProfileFeature({ session }: { session: any }) {
                 return { name, score };
             })
             .filter((item) => item.name && Number.isFinite(item.score))
-            .map((item) => ({ ...item, score: Math.max(1, Math.min(5, Math.round(item.score))) }));
+            .map((item) => ({ ...item, score: Math.round(item.score) }));
 
         if (data.length === 0) {
             setAdvisorEvalMessage("กรุณากรอกคะแนนประเมินอย่างน้อย 1 รายการ");

@@ -157,7 +157,7 @@ export const StudentApiService = {
             year: year.toString(),
             semester: semester.toString()
         });
-        return fetchApi<number[]>(`/api/student/evaluation?${params.toString()}`);
+        return fetchApi<{ sections: number[], sdqDone: boolean }>(`/api/student/evaluation?${params.toString()}`);
     },
 
     async submitEvaluation(
@@ -165,7 +165,8 @@ export const StudentApiService = {
         year: number,
         semester: number,
         section_id: number | null,
-        feedback: string
+        feedback: string,
+        type: 'teaching' | 'sdq' = 'teaching'
     ) {
         return fetchApi<any>('/api/student/evaluation', {
             method: 'POST',
@@ -174,7 +175,8 @@ export const StudentApiService = {
                 year,
                 semester,
                 section_id,
-                feedback
+                feedback,
+                type
             })
         });
     },

@@ -14,7 +14,8 @@ export async function GET(request: Request) {
         if (yearParam && (year == null || Number.isNaN(year))) return errorResponse('year invalid', 400);
         if (semesterParam && (semester == null || Number.isNaN(semester))) return errorResponse('semester invalid', 400);
 
-        const students = await TeacherStudentsService.getAdvisoryStudents(teacher_id, year, semester);
+        const sub_mode = searchParams.get('sub_mode') || 'attributes';
+        const students = await TeacherStudentsService.getAdvisoryStudents(teacher_id, year, semester, sub_mode);
         return successResponse(students);
     } catch (error: any) {
         return errorResponse('Failed to load students', 500, error.message);

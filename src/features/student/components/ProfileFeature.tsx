@@ -130,7 +130,7 @@ export function ProfileFeature({ session }: ProfileFeatureProps) {
     if (isLoading) {
         return (
             <div className="space-y-6">
-                <div className="bg-gradient-to-br from-indigo-800 to-purple-900 rounded-3xl p-8 shadow-lg">
+                <div className="bg-gradient-to-br from-teal-800 to-teal-900 rounded-3xl p-8 shadow-lg">
                     <Skeleton variant="rounded" className="h-6 w-20 mb-4 bg-white/20" />
                     <Skeleton variant="rounded" className="h-8 w-48 mb-2 bg-white/20" />
                     <Skeleton variant="rounded" className="h-4 w-72 bg-white/20" />
@@ -160,24 +160,24 @@ export function ProfileFeature({ session }: ProfileFeatureProps) {
     return (
         <div className="space-y-6">
             {/* Hero Section */}
-            <section className="bg-gradient-to-br from-indigo-800 to-purple-900 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row gap-6 items-center">
+            <section className="bg-gradient-to-br from-teal-800 to-teal-900 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row gap-6 items-center">
                 <div className="relative z-10 flex-1 text-center md:text-left">
                     <div className="inline-block bg-white/20 px-3 py-0.5 rounded-full text-xs font-medium mb-2 backdrop-blur-sm border border-white/20">
                         Profile
                     </div>
                     <h1 className="text-2xl font-bold mb-1">ข้อมูลส่วนตัว</h1>
-                    <p className="text-indigo-200 text-sm">
+                    <p className="text-teal-200 text-sm">
                         อัปเดตข้อมูลส่วนตัวให้เป็นปัจจุบัน
                     </p>
                 </div>
 
                 <div className="relative z-10 flex gap-4">
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 min-w-[140px]">
-                        <div className="text-indigo-200 text-xs mb-1">รหัสนักเรียน</div>
+                        <div className="text-teal-200 text-xs mb-1">รหัสนักเรียน</div>
                         <div className="text-xl font-bold tracking-tight">{profile.student_code || "-"}</div>
                     </div>
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 min-w-[120px]">
-                        <div className="text-indigo-200 text-xs mb-1">ระดับ/ห้อง</div>
+                        <div className="text-teal-200 text-xs mb-1">ระดับ/ห้อง</div>
                         <div className="text-lg font-bold mt-1 tracking-tight">
                             {getLevelRoomDisplay(profile)}
                         </div>
@@ -186,8 +186,8 @@ export function ProfileFeature({ session }: ProfileFeatureProps) {
 
                 {/* Decoration */}
                 <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-                    <div className="absolute -top-24 -left-24 w-64 h-64 bg-purple-500 rounded-full blur-3xl opacity-30"></div>
-                    <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-indigo-500 rounded-full blur-3xl opacity-40"></div>
+                    <div className="absolute -top-24 -left-24 w-64 h-64 bg-teal-500 rounded-full blur-3xl opacity-30"></div>
+                    <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-teal-500 rounded-full blur-3xl opacity-40"></div>
                 </div>
             </section>
 
@@ -195,7 +195,7 @@ export function ProfileFeature({ session }: ProfileFeatureProps) {
             <section className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200">
                 <div className="flex justify-between items-center mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                        <div className="p-2 bg-teal-50 text-teal-600 rounded-lg">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                         </div>
                         <h3 className="text-lg font-bold text-slate-800">ข้อมูลพื้นฐาน</h3>
@@ -203,7 +203,7 @@ export function ProfileFeature({ session }: ProfileFeatureProps) {
                     {!isEditing && (
                         <button
                             onClick={() => setIsEditing(true)}
-                            className="text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                            className="text-sm font-medium text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                             แก้ไขข้อมูล
@@ -212,33 +212,10 @@ export function ProfileFeature({ session }: ProfileFeatureProps) {
                 </div>
 
                 {!isEditing ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {/* Photo Card */}
-                        <div className="col-span-1 lg:col-span-1 flex flex-col items-center justify-center p-4 rounded-2xl border border-slate-100 bg-slate-50 relative overflow-hidden group">
-                            <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-white border-2 border-white shadow-sm overflow-hidden mb-3 relative z-10">
-                                {profile.image_url ? (
-                                    <img
-                                        src={profile.image_url}
-                                        alt={getFullDisplayName(profile)}
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-300">
-                                        <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                        </svg>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="text-center relative z-10">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">รูปโปรไฟล์</div>
-                                <div className="text-xs font-semibold text-slate-600">รูปภาพประจำตัว</div>
-                            </div>
-                        </div>
-
-                        <div className="md:col-span-1 lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="w-full">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                             <div className="flex gap-4 p-4 rounded-xl border border-slate-100 bg-slate-50">
-                                <div className="bg-white w-10 h-10 rounded-full flex items-center justify-center text-indigo-500 shadow-sm shrink-0">
+                                <div className="bg-white w-10 h-10 rounded-full flex items-center justify-center text-teal-500 shadow-sm shrink-0">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                                 </div>
                                 <div>
@@ -301,7 +278,7 @@ export function ProfileFeature({ session }: ProfileFeatureProps) {
                                     name="prefix"
                                     value={formData.prefix}
                                     onChange={handleInputChange}
-                                    className="w-full md:w-1/3 border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                                    className="w-full md:w-1/3 border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
                                 >
                                     <option value={""}>{"\u0E40\u0E25\u0E37\u0E2D\u0E01\u0E04\u0E33\u0E19\u0E33\u0E2B\u0E19\u0E49\u0E32"}</option>
                                     <option value={"\u0E40\u0E14\u0E47\u0E01\u0E0A\u0E32\u0E22"}>{"\u0E40\u0E14\u0E47\u0E01\u0E0A\u0E32\u0E22"}</option>
@@ -317,7 +294,7 @@ export function ProfileFeature({ session }: ProfileFeatureProps) {
                                     name="first_name"
                                     value={formData.first_name}
                                     onChange={handleInputChange}
-                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                                     required
                                 />
                             </div>
@@ -328,7 +305,7 @@ export function ProfileFeature({ session }: ProfileFeatureProps) {
                                     name="last_name"
                                     value={formData.last_name}
                                     onChange={handleInputChange}
-                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                                     required
                                 />
                             </div>
@@ -339,7 +316,7 @@ export function ProfileFeature({ session }: ProfileFeatureProps) {
                                     name="birthday"
                                     value={formData.birthday}
                                     onChange={handleInputChange}
-                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                                 />
                             </div>
                             <div>
@@ -349,7 +326,7 @@ export function ProfileFeature({ session }: ProfileFeatureProps) {
                                     name="phone"
                                     value={formData.phone}
                                     onChange={handleInputChange}
-                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                                 />
                             </div>
                             <div className="col-span-1 md:col-span-2">
@@ -359,7 +336,7 @@ export function ProfileFeature({ session }: ProfileFeatureProps) {
                                     value={formData.address}
                                     onChange={handleInputChange}
                                     rows={3}
-                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
                                 />
                             </div>
                         </div>
@@ -376,7 +353,7 @@ export function ProfileFeature({ session }: ProfileFeatureProps) {
                             <button
                                 type="submit"
                                 disabled={updateProfileMutation.isPending}
-                                className="px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors shadow-sm flex items-center justify-center gap-2 min-w-[120px]"
+                                className="px-6 py-2.5 rounded-xl bg-teal-600 text-white font-medium hover:bg-teal-700 transition-colors shadow-sm flex items-center justify-center gap-2 min-w-[120px]"
                             >
                                 {updateProfileMutation.isPending ? (
                                     <>

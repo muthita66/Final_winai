@@ -18,7 +18,7 @@ export default async function Sidebar() {
             { name: 'โครงการและงบประมาณ', href: '/director/projects' },
             { name: 'กิจกรรม', href: '/director/activities' },
             { name: 'ผลการประเมิน', href: '/director/evaluation' },
-            { name: 'คะแนนพฤติกรรม', href: '/director/behavior' },
+            { name: 'บันทึกคะแนนพฤติกรรม', href: '/director/behavior' },
             { name: 'ข้อมูลทุก Actor', href: '/director/actors' },
         ],
         teacher: [
@@ -27,10 +27,10 @@ export default async function Sidebar() {
             { name: 'รายชื่อนักเรียน', href: '/teacher/students' },
             { name: 'บันทึกเวลาเรียน', href: '/teacher/attendance' },
             { name: 'บันทึกสุขภาพ', href: '/teacher/fitness' },
-            { name: 'คะแนนพฤติกรรม', href: '/teacher/behavior' },
             { name: 'ข้อมูลรายวิชา', href: '/teacher/scores' },
             { name: 'การประเมินนักเรียน', href: '/teacher/teaching_evaluation' },
             { name: 'ผลการประเมิน', href: '/teacher/advisor_evaluation' },
+            { name: 'บันทึกคะแนนพฤติกรรม', href: '/teacher/behavior' },
             { name: 'ปฏิทินกิจกรรม', href: '/teacher/activity_calendar' },
         ],
         student: [
@@ -42,7 +42,7 @@ export default async function Sidebar() {
             { name: 'ผลประเมินสุขภาพ', href: '/student/health' },
             { name: 'การประเมิน', href: '/student/evaluation' },
             { name: 'ผลการประเมิน', href: '/student/learning_results' },
-            { name: 'ผลคะแนนความประพฤติ', href: '/student/conduct' },
+            { name: 'ผลคะแนนพฤติกรรม', href: '/student/conduct' },
             { name: 'ปฏิทินกิจกรรม', href: '/student/activities' },
         ],
         guest: [

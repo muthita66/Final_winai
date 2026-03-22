@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+
 import { StudentApiService } from "@/services/student-api.service";
 import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -46,6 +47,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
     const [selectedSection, setSelectedSection] = useState<any | null>(null);
     const [topics, setTopics] = useState<any[]>([]); // Full topic objects from DB with section info
     const [evaluatedSectionIds, setEvaluatedSectionIds] = useState<number[]>([]);
+    const [isSdqEvaluated, setIsSdqEvaluated] = useState<boolean>(false);
     const [history, setHistory] = useState<any[]>([]); // Student enrollment history for dynamic terms
 
     const [isLoadingInit, setIsLoadingInit] = useState(true);
@@ -67,6 +69,20 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
     const [advisorScores, setAdvisorScores] = useState<Record<string, number>>({});
     const [advisorFeedback, setAdvisorFeedback] = useState("");
     const [isSubmittingAdvisor, setIsSubmittingAdvisor] = useState(false);
+
+    const [isSubjectDropdownOpen, setIsSubjectDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsSubjectDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
 
     // Derived: have all registered subjects been evaluated?
     const allEvaluated = totalRegistered > 0 && evaluatedCount >= totalRegistered;
@@ -133,8 +149,9 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
             const regs = await StudentApiService.getRegistered(year, semester);
 
             // Fetch evaluated sections to filter out
-            const evIds = await StudentApiService.getEvaluatedSections(year, semester);
-            setEvaluatedSectionIds(evIds);
+            const evData = await StudentApiService.getEvaluatedSections(year, semester);
+            setEvaluatedSectionIds(evData.sections || []);
+            setIsSdqEvaluated(!!evData.sdqDone);
 
             // Count total unique registered subjects
             const uniqueAll: any[] = [];
@@ -148,7 +165,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                 });
             }
             setTotalRegistered(uniqueAll.length);
-            setEvaluatedCount(evIds.length);
+            setEvaluatedCount(evData.sections ? evData.sections.length : 0);
 
             // Keep all unique registered subjects
             setRegisteredSubjects(uniqueAll);
@@ -228,7 +245,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!selectedSection) {
+        if (mode === 'evaluate' && !selectedSection) {
             toast.error("กรุณาเลือกวิชาก่อนส่งประเมิน");
             return;
         }
@@ -253,17 +270,27 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
 
         setIsSubmitting(true);
         try {
-            const dataToSubmit = topics.map((t: any) => ({
-                name: t.name,
-                value: scores[t.name]
-            }));
+            const dataToSubmit = topics.map((t: any) => {
+                const selectedVal = scores[t.name];
+                const isText = t.type === 'text' || t.type === 'textarea' || t.name?.includes("แสดงความคิดเห็น");
+                if (isText) {
+                    return { name: t.name, value: selectedVal };
+                }
+                
+                // scores now stores the actual option value directly (not an index)
+                return {
+                    name: t.name,
+                    value: (selectedVal !== undefined && selectedVal !== null && selectedVal !== -1 ? selectedVal : 0) as number
+                };
+            });
 
             await StudentApiService.submitEvaluation(
                 dataToSubmit,
                 year,
                 semester,
-                selectedSection.section_id,
-                feedback
+                selectedSection ? selectedSection.section_id : null,
+                feedback,
+                mode === 'evaluate_sdq' ? 'sdq' : 'teaching'
             );
 
             toast.success("ส่งแบบประเมินสำเร็จ ขอบคุณสำหรับความร่วมมือ");
@@ -378,10 +405,14 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
 
         setIsSubmittingAdvisor(true);
         try {
-            const dataToSubmit = topics.map((t: string) => ({
-                name: t,
-                score: advisorScores[t]
-            }));
+            const dataToSubmit = topicItems.map((t: any) => {
+                const isText = t.type === 'text' || t.type === 'textarea' || t.name?.includes("แสดงความคิดเห็น");
+                const scoreVal = advisorScores[t.name];
+                return {
+                    name: t.name,
+                    score: isText ? scoreVal : (scoreVal !== undefined && scoreVal !== null ? Number(scoreVal) : null)
+                };
+            });
 
             await StudentApiService.submitAdvisorTeacherEvaluation(
                 selectedAdvisor.teacher_id,
@@ -466,10 +497,17 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                             </div>
                                         )
                                     ) : (
-                                        <div className="text-lg font-bold text-white flex items-center gap-2">
-                                            <svg className="w-5 h-5 text-teal-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                            {mode === 'evaluate_sdq' ? 'พร้อมประเมิน' : 'กรุณาเลือกวิชา'}
-                                        </div>
+                                        mode === 'evaluate_sdq' && isSdqEvaluated ? (
+                                            <div className="text-lg font-bold text-white flex items-center gap-2">
+                                                <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                ประเมินแล้ว
+                                            </div>
+                                        ) : (
+                                            <div className="text-lg font-bold text-white flex items-center gap-2">
+                                                <svg className="w-5 h-5 text-teal-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                {mode === 'evaluate_sdq' ? 'พร้อมประเมิน' : 'กรุณาเลือกวิชา'}
+                                            </div>
+                                        )
                                     )}
                                     {mode === 'evaluate' && totalRegistered > 0 && (
                                         <div className="text-teal-200 text-[10px] mt-1">
@@ -481,14 +519,33 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                         ) : (
                             // Advisor Status
                             <>
-                                <div className="text-xl font-bold text-white mb-0.5">
-                                    {selectedAdvisor
-                                        ? (isLoadingAdvisorData
-                                            ? 'กำลังโหลด...'
-                                            : (advisorEvalTemplate?.submitted_at
-                                                ? 'ประเมินแล้ว'
-                                                : (advisorEvalTemplate ? 'รอการประเมิน' : 'ไม่สามารถโหลดฟอร์มได้')))
-                                        : '-'}
+                                <div className="text-lg font-bold text-white flex items-center gap-2 mb-0.5">
+                                    {selectedAdvisor ? (
+                                        isLoadingAdvisorData ? (
+                                            <>
+                                                <svg className="w-5 h-5 animate-spin text-teal-300" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                กำลังโหลด...
+                                            </>
+                                        ) : advisorEvalTemplate?.submitted_at ? (
+                                            <>
+                                                <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                ประเมินแล้ว
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-5 h-5 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                ยังไม่ได้ประเมิน
+                                            </>
+                                        )
+                                    ) : (
+                                        <>
+                                            <svg className="w-5 h-5 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            ยังไม่ได้ประเมิน
+                                        </>
+                                    )}
                                 </div>
                                 {selectedAdvisor && (
                                     <div className="text-teal-100 text-[10px]">
@@ -534,7 +591,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                         : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300 hover:bg-teal-50'
                         }`}
                 >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${mode === 'evaluate_advisor' ? 'bg-white/20' : 'bg-indigo-50 text-indigo-600'}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${mode === 'evaluate_advisor' ? 'bg-white/20' : 'bg-teal-50 text-teal-600'}`}>
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
@@ -605,25 +662,47 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                         </select>
                     </div>
                     {mode === 'evaluate' && (
-                        <div>
+                        <div className="relative" ref={dropdownRef}>
                             <label className="block text-sm font-medium text-slate-700 mb-2">วิชาที่ลงทะเบียนเรียน</label>
-                            <select
-                                value={selectedSection?.section_id || ""}
-                                onChange={handleSubjectChange}
-                                className="w-full border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-slate-100 appearance-none text-slate-700 shadow-sm"
-                                style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: `right 0.5rem center`, backgroundRepeat: `no-repeat`, backgroundSize: `1.5em 1.5em` }}
+                            <button 
+                                type="button" 
+                                onClick={() => setIsSubjectDropdownOpen(!isSubjectDropdownOpen)}
+                                className="w-full border border-slate-300 rounded-xl px-4 py-3 text-left outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-slate-100 flex justify-between items-center text-slate-700 shadow-sm"
                             >
-                                <option value="" disabled>-- กรุณาเลือกวิชา --</option>
-                                {registeredSubjects.map(sub => {
-                                    const isEvaluated = evaluatedSectionIds.includes(sub.section_id);
-                                    return (
-                                        <option key={sub.section_id} value={sub.section_id}>
-                                            {sub.subject_code} - {sub.subject_name} {isEvaluated ? "(ประเมินแล้ว)" : ""}
-                                        </option>
-                                    );
-                                })}
-                            </select>
+                                <span>
+                                    {selectedSection 
+                                        ? `${selectedSection.subject_code} - ${selectedSection.subject_name}` 
+                                        : '-- กรุณาเลือกวิชา --'}
+                                </span>
+                                <svg className={`w-5 h-5 text-slate-500 transition-transform ${isSubjectDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            
+                            {isSubjectDropdownOpen && (
+                                <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto top-full">
+                                    {registeredSubjects.map(sub => {
+                                        const isEvaluated = evaluatedSectionIds.includes(sub.section_id);
+                                        return (
+                                            <button
+                                                key={sub.section_id}
+                                                type="button"
+                                                onClick={() => {
+                                                    const fakeEvent = { target: { value: String(sub.section_id) } } as React.ChangeEvent<HTMLSelectElement>;
+                                                    handleSubjectChange(fakeEvent);
+                                                    setIsSubjectDropdownOpen(false);
+                                                }}
+                                                className="w-full text-left px-4 py-3 hover:bg-slate-50 text-slate-700 text-sm border-b border-slate-100 last:border-b-0 flex justify-between items-center"
+                                            >
+                                                <span>{sub.subject_code} - {sub.subject_name}</span>
+                                                {isEvaluated && <span className="text-xs text-green-600 font-medium">(ประเมินแล้ว)</span>}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
+
                     )}
                 </div>
             </section>
@@ -634,7 +713,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                     {mode === 'evaluate' && selectedSection && (
                         <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                             <div className="flex items-center gap-3 mb-6">
-                                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                                 </div>
                                 <div>
@@ -645,7 +724,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                                    <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
                                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                                     </div>
                                     <div>
@@ -654,7 +733,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                     </div>
                                 </div>
                                 <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                                    <div className="w-12 h-12 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center">
                                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
                                     </div>
                                     <div>
@@ -682,7 +761,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                             ) : (
                                 <>
                                     <div className="flex items-center gap-3 mb-6">
-                                        <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                                        <div className="p-2 bg-teal-50 text-teal-600 rounded-lg">
                                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
                                         </div>
                                         <div>
@@ -703,17 +782,27 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
 
                                     {isLoadingTopics ? (
                                         <div className="text-center py-12 text-slate-500">
-                                            <svg className="w-8 h-8 animate-spin mx-auto text-indigo-500 mb-4" fill="none" viewBox="0 0 24 24">
+                                            <svg className="w-8 h-8 animate-spin mx-auto text-teal-500 mb-4" fill="none" viewBox="0 0 24 24">
                                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                             </svg>
                                             กำลังโหลดหัวข้อประเมิน...
                                         </div>
+                                    ) : mode === 'evaluate_sdq' && isSdqEvaluated ? (
+                                        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center py-16">
+                                            <div className="w-16 h-16 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </div>
+                                            <h3 className="text-xl font-bold text-slate-800 mb-2">ประเมินแล้ว</h3>
+                                            <p className="text-slate-500">นักเรียนได้ทำแบบประเมิน SDQ ในภาคเรียนนี้เรียบร้อยแล้ว</p>
+                                        </div>
                                     ) : (
                                         <form onSubmit={handleSubmit}>
                                             <div className="overflow-x-auto rounded-xl border border-slate-200 mb-6">
                                                 <table className="w-full text-sm text-left">
-                                                    <thead className="text-xs text-slate-500 bg-slate-50 border-b border-slate-200">
+                                                    <thead className="text-sm text-slate-600 bg-slate-50 border-b border-slate-200">
                                                         <tr>
                                                             <th className="px-6 py-4 font-bold w-1/2 min-w-[300px]">หัวข้อประเมิน</th>
                                                             {(() => {
@@ -721,7 +810,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                                                 const scaleTopic = topics.find((t: any) => t.options && t.options.length > 0);
                                                                 return (scaleTopic?.options || []).map((s: any, i: number) => (
                                                                     <th key={i} className="px-3 py-4 font-medium text-center">
-                                                                        <br /><span className="text-[12px] text-slate-600">{s.label}</span>
+                                                                        <span className="text-sm font-semibold text-slate-700">{s.label}</span>
                                                                     </th>
                                                                 ));
                                                             })()}
@@ -769,50 +858,43 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                                                         );
                                                                     }
                                                                 }
+                                                                // Skip text/comment topics — rendered separately below the table
+                                                                const isText = topic.type === 'text' ||
+                                                                    topic.type === 'textarea' ||
+                                                                    topic.name?.includes("แสดงความคิดเห็น");
+                                                                if (isText) return;
+
                                                                 itemIdx++;
                                                                 const displayNum = `${sectionIdx}.${itemIdx}`;
 
-                                                                const isText = topic.type === 'text' ||
-                                                                    topic.type === 'textarea' ||
-                                                                    (mode === 'evaluate' && topic.section_name?.includes("ตอนที่ 3")) ||
-                                                                    topic.name?.includes("แสดงความคิดเห็น");
-
                                                                 rows.push(
                                                                     <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                                                        {isText ? (
-                                                                            <td colSpan={colCount} className="px-6 py-4">
-                                                                                <div className="font-medium text-slate-700 mb-3">{displayNum} {topic.name.replace(/^[\d.]+\s*/, '')}</div>
-                                                                                <textarea
-                                                                                    value={scores[topic.name] || ''}
-                                                                                    onChange={(e) => handleScoreChange(topic.name, e.target.value)}
-                                                                                    placeholder="พิมพ์ข้อเสนอแนะของคุณ..."
-                                                                                    className="w-full h-24 p-4 border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-slate-50 transition-all resize-none"
-                                                                                ></textarea>
+                                                                        <td className="px-6 py-4 font-medium text-slate-700">
+                                                                            {displayNum} {topic.name.replace(/^[\d.]+\s*/, '')}
+                                                                        </td>
+                                                                        {(scaleTopic?.options || []).map((headerOpt: any, i: number) => {
+                                                                             const currentScore = scores[topic.name];
+                                                                             const isChecked = currentScore !== undefined && currentScore !== null && currentScore !== -1
+                                                                                 && String(currentScore) === String(headerOpt.value);
+                                                                             return (
+
+                                                                            <td key={`col-${i}`} className="px-3 py-4 text-center">
+                                                                                <label className="flex justify-center items-center w-full h-full cursor-pointer group">
+                                                                                    <input
+                                                                                        type="radio"
+                                                                                        name={`topic-${idx}`}
+                                                                                        value={headerOpt.value}
+                                                                                        checked={isChecked}
+                                                                                        onChange={() => handleScoreChange(topic.name, headerOpt.value)}
+                                                                                        className="w-5 h-5 text-teal-600 bg-slate-100 border-slate-300 focus:ring-teal-500 cursor-pointer"
+                                                                                        required
+                                                                                    />
+                                                                                </label>
                                                                             </td>
-                                                                        ) : (
-                                                                            <>
-                                                                                <td className="px-6 py-4 font-medium text-slate-700">
-                                                                                    {displayNum} {topic.name.replace(/^[\d.]+\s*/, '')}
-                                                                                </td>
-                                                                                {(topic.options || []).map((s: any, i: number) => (
-                                                                                    <td key={`${s.value}-${i}`} className="px-3 py-4 text-center">
-                                                                                        <label className="flex justify-center items-center w-full h-full cursor-pointer group">
-                                                                                            <input
-                                                                                                type="radio"
-                                                                                                name={`topic-${idx}`}
-                                                                                                value={s.value}
-                                                                                                checked={scores[topic.name] === s.value}
-                                                                                                onChange={() => handleScoreChange(topic.name, s.value)}
-                                                                                                className="w-5 h-5 text-teal-600 bg-slate-100 border-slate-300 focus:ring-teal-500 cursor-pointer"
-                                                                                                required
-                                                                                            />
-                                                                                        </label>
-                                                                                    </td>
-                                                                                ))}
-                                                                            </>
-                                                                        )}
+                                                                        )})}
                                                                     </tr>
                                                                 );
+
                                                             });
                                                             return rows;
                                                         })()}
@@ -820,7 +902,34 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                                 </table>
                                             </div>
 
+                                            {/* Text/Comment questions — rendered separately below the table */}
+                                            {(() => {
+                                                const textTopics = topics.filter((t: any) =>
+                                                    t.type === 'text' || t.type === 'textarea' ||
+                                                    t.name?.includes('แสดงความคิดเห็น')
+                                                );
+                                                if (textTopics.length === 0) return null;
+                                                return (
+                                                    <div className="mt-4 space-y-4">
+                                                        {textTopics.map((topic: any, idx: number) => (
+                                                            <div key={`text-${idx}`} className="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                                                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                                                    {topic.name.replace(/^[\d.]+\s*/, '')}
+                                                                </label>
+                                                                <textarea
+                                                                    value={scores[topic.name] as string || ''}
+                                                                    onChange={(e) => handleScoreChange(topic.name, e.target.value)}
+                                                                    placeholder="พิมพ์ข้อเสนอแนะของคุณ..."
+                                                                    className="w-full h-24 border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white transition-all resize-none text-sm text-slate-700"
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })()}
+
                                             <div className="flex justify-end pt-4">
+
                                                 <button
                                                     type="submit"
                                                     disabled={isSubmitting || (mode === 'evaluate' && !selectedSection) || topics.length === 0}
@@ -912,7 +1021,18 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                     </svg>
                                 </div>
                             ) : advisorEvalTemplate && selectedAdvisor ? (
-                                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                                advisorEvalTemplate.submitted_at ? (
+                                    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center py-16 mt-6">
+                                        <div className="w-16 h-16 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </div>
+                                        <h3 className="text-xl font-bold text-slate-800 mb-2">ประเมินแล้ว</h3>
+                                        <p className="text-slate-500">นักเรียนได้ประเมินครูที่ปรึกษาท่านนี้เรียบร้อยแล้ว</p>
+                                    </div>
+                                ) : (
+                                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 mt-6">
                                     <div className="flex items-center gap-3 mb-8">
                                         <div className="p-3 bg-teal-50 text-teal-600 rounded-xl">
                                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
@@ -928,7 +1048,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                     <form onSubmit={handleSubmitAdvisorEvaluation}>
                                         <div className="overflow-x-auto rounded-xl border border-slate-200 mb-6">
                                             <table className="w-full text-sm text-left">
-                                                <thead className="text-xs text-slate-500 bg-slate-50 border-b border-slate-200">
+                                                <thead className="text-sm text-slate-600 bg-slate-50 border-b border-slate-200">
                                                     <tr>
                                                         <th className="px-6 py-4 font-medium w-1/2 min-w-[300px]">หัวข้อการประเมิน</th>
                                                         {(() => {
@@ -969,8 +1089,8 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                                                     lastSectionId = sid;
                                                                     if (topic.section_name) {
                                                                         rows.push(
-                                                                            <tr key={`sec-${sid || idx}`} className="bg-slate-50/50">
-                                                                                <td colSpan={colCount} className="px-6 py-3 font-semibold text-slate-800 border-t border-slate-100">
+                                                                            <tr key={`sec-${sid || idx}`} className="bg-teal-50 border-y border-teal-200">
+                                                                                <td colSpan={colCount} className="px-6 py-3 font-bold text-teal-800 text-sm">
                                                                                     {topic.section_name}
                                                                                 </td>
                                                                             </tr>
@@ -1060,6 +1180,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
                                         </div>
                                     </form>
                                 </div>
+                                )
                             ) : null}
                         </div>
                     )}
@@ -1068,4 +1189,6 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
         </div>
     );
 }
+
+
 

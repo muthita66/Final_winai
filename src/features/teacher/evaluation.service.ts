@@ -1,17 +1,28 @@
 import { prisma } from '@/lib/prisma';
 import { TeacherStudentsService } from '@/features/teacher/students.service';
+import { promises as fs } from 'fs';
+import path from 'path';
+
+const LOG_FILE = 'debug_advisor.log';
+async function debugLog(msg: string) {
+    const timestamp = new Date().toISOString();
+    try {
+        await fs.appendFile(path.join(process.cwd(), LOG_FILE), `[${timestamp}] [EvaluationService] ${msg}\n`);
+    } catch (e) { /* ignore */ }
+}
 
 async function resolveEvaluationPeriodId(year?: number, semester?: number) {
     if (!year || !semester) return null;
     try {
-        const period: any[] = await prisma.$queryRawUnsafe(`
-            SELECT ep.id FROM evaluation_periods ep
-            JOIN semesters s ON ep.semester_id = s.id
-            JOIN academic_years ay ON s.academic_year_id = ay.id
-            WHERE s.semester_number = $1 AND ay.year_name = $2
-            ORDER BY ep.id DESC LIMIT 1
-        `, semester, String(year));
-        return period[0]?.id ?? null;
+        // Resolve semester_id from semesters table directly
+        const semRow: any[] = await prisma.$queryRawUnsafe(`
+            SELECT s.id FROM semesters s
+            INNER JOIN academic_years ay ON ay.id = s.academic_year_id
+            WHERE ay.year_name = $1 AND s.semester_number = $2
+            LIMIT 1
+        `, String(year), semester);
+        
+        return semRow[0]?.id ? Number(semRow[0].id) : null;
     } catch (_) { return null; }
 }
 
@@ -33,15 +44,10 @@ function formatRoomLabel(classLevel?: string | null, room?: string | null) {
 export const TeacherEvaluationService = {
     async getTeachingEvaluation(teacher_id: number, year?: number, semester?: number) {
         try {
-            const assignments = await prisma.teaching_assignments.findMany({
+            console.log(`[getTeachingEvaluation] teacher_id=${teacher_id}, year=${year}, semester=${semester}`);
+            const rawAssignments = await prisma.teaching_assignments.findMany({
                 where: {
                     teacher_id,
-                    ...(year || semester ? {
-                        semesters: {
-                            ...(year ? { academic_years: { year_name: String(year) } } : {}),
-                            ...(semester ? { semester_number: semester } : {}),
-                        }
-                    } : {})
                 },
                 include: {
                     subjects: true,
@@ -50,17 +56,34 @@ export const TeacherEvaluationService = {
                 }
             });
 
+            // Filter in memory for robustness and debugging
+            const assignments = rawAssignments.filter(ta => {
+                const taYear = Number(ta.semesters?.academic_years?.year_name);
+                const taSemester = ta.semesters?.semester_number;
+                
+                const matchYear = !year || taYear === year || String(taYear) === String(year);
+                const matchSemester = !semester || taSemester === semester;
+                
+                return matchYear && matchSemester;
+            });
+
+            // Fallback: If filtered list is empty but raw list has items, return the raw list
+            // to prevent empty dropdowns due to year-name formatting mismatches.
+            const finalAssignments = assignments.length > 0 ? assignments : rawAssignments;
+
+            console.log(`[getTeachingEvaluation] raw=${rawAssignments.length}, filtered=${assignments.length}, final=${finalAssignments.length}`);
+
             // Pre-fetch the teaching evaluation form ID via Raw SQL
             const formResult: any[] = await prisma.$queryRawUnsafe(`
                 SELECT f.id FROM evaluation_forms f
                 JOIN evaluation_categories t ON f.category_id = t.id
-                WHERE t.engine_type = 'teaching'
+                WHERE t.target_type = 'subject'
                 LIMIT 1
             `);
             const teachingFormId = formResult[0]?.id || null;
 
             const results: any[] = [];
-            for (const ta of assignments) {
+            for (const ta of finalAssignments) {
                 const countResult = await prisma.$queryRawUnsafe<any[]>(
                     `SELECT COUNT(*)::int as count FROM evaluation_responses 
                      WHERE target_subject_id = $1 
@@ -120,7 +143,7 @@ export const TeacherEvaluationService = {
         const formResult: any[] = await prisma.$queryRawUnsafe(`
             SELECT f.id FROM evaluation_forms f
             JOIN evaluation_categories t ON f.category_id = t.id
-            WHERE t.engine_type = 'teaching'
+            WHERE t.target_type = 'teaching'
             LIMIT 1
         `);
         const teachingFormId = formResult[0]?.id || null;
@@ -138,13 +161,14 @@ export const TeacherEvaluationService = {
 
         // Raw SQL for evaluation_answers
         const allAnswers: any[] = await prisma.$queryRawUnsafe(`
-            SELECT a.*, q.question_text
+            SELECT a.*, q.question_text, s.section_name
             FROM evaluation_answers a
             LEFT JOIN evaluation_questions q ON a.question_id = q.id
+            LEFT JOIN evaluation_sections s ON q.section_id = s.id
             WHERE a.response_id IN (${responseIds.join(',')})
         `);
 
-        const topicScores = new Map<string, { total: number; count: number }>();
+        const topicScores = new Map<string, { total: number; count: number; section: string; topic: string }>();
         const comments: any[] = [];
 
         for (const r of responses) {
@@ -152,10 +176,17 @@ export const TeacherEvaluationService = {
             for (const a of rAnswers) {
                 if (a.score_value != null) {
                     const topic = a.question_text || a.text_value || 'อื่นๆ';
-                    const current = topicScores.get(topic) || { total: 0, count: 0 };
-                    topicScores.set(topic, {
+                    // Fallback to "ตอนที่ X" if section_name is null but topic starts with "X.Y"
+                    const sectionNameFallback = topic.match(/^(\d+)\./) ? `ตอนที่ ${topic.match(/^(\d+)\./)[1]}` : 'ไม่ระบุตอน';
+                    const section = a.section_name || sectionNameFallback;
+                    
+                    const key = `${section}@@${topic}`;
+                    const current = topicScores.get(key) || { total: 0, count: 0, section, topic };
+                    topicScores.set(key, {
                         total: current.total + Number(a.score_value),
-                        count: current.count + 1
+                        count: current.count + 1,
+                        section,
+                        topic
                     });
                 } else if (a.text_value) {
                     comments.push({
@@ -167,8 +198,9 @@ export const TeacherEvaluationService = {
         }
 
         return {
-            summary: Array.from(topicScores.entries()).map(([topic, val]) => ({
-                topic,
+            summary: Array.from(topicScores.values()).map((val) => ({
+                topic: val.topic,
+                section_name: val.section,
                 count: val.count,
                 total: val.total,
                 average: val.count ? Number((val.total / val.count).toFixed(2)) : 0
@@ -201,7 +233,7 @@ export const TeacherEvaluationService = {
         const formResult: any[] = await prisma.$queryRawUnsafe(`
             SELECT f.id FROM evaluation_forms f
             JOIN evaluation_categories t ON f.category_id = t.id
-            WHERE t.engine_type = 'teacher_eval_student'
+            WHERE t.target_type = 'STUDENT' AND t.evaluator_role_id = 2
         `);
         const formIds = formResult.map(f => f.id);
 
@@ -241,28 +273,149 @@ export const TeacherEvaluationService = {
         });
     },
 
-    async ensureSubjectEvaluationForm() {
-        // Since models are missing from schema, use raw SQL for checks and inserts if needed
-        const existing: any[] = await prisma.$queryRawUnsafe(`
-            SELECT ef.* FROM evaluation_forms ef
-            JOIN evaluation_categories eft ON ef.category_id = eft.id
-            WHERE eft.engine_type = 'teacher_eval_student'
-            LIMIT 1
-        `);
-        if (existing.length > 0) {
-            const questions = await prisma.$queryRawUnsafe(`SELECT * FROM evaluation_questions WHERE form_id = $1 ORDER BY id ASC`, existing[0].id) as any[];
-            existing[0].evaluation_questions = questions;
-            return existing[0];
+    async ensureSubjectEvaluationForm(section_id?: number) {
+        try {
+            let matchingForm: any = null;
+
+            if (section_id) {
+                // 1. Get subject details for the section
+                const assignment = await prisma.teaching_assignments.findUnique({
+                    where: { id: section_id },
+                    include: { subjects: true }
+                });
+
+                if (assignment?.subjects) {
+                    const code = assignment.subjects.subject_code || '';
+                    const name = assignment.subjects.subject_name || '';
+                    const learningGroupId = assignment.subjects.learning_subject_group_id;
+
+                    // 2. Fetch via form_subject_mappings if learningGroupId exists
+                    let mappedRows: any[] = [];
+                    if (learningGroupId) {
+                        try {
+                            mappedRows = await prisma.$queryRawUnsafe(`
+                                SELECT * FROM form_subject_mappings 
+                                WHERE learning_subject_group_id = $1
+                            `, learningGroupId);
+                        } catch (e) {
+                            try {
+                                mappedRows = await prisma.$queryRawUnsafe(`
+                                    SELECT * FROM form_subject_mappings 
+                                    WHERE subject_group_id = $1
+                                `, learningGroupId);
+                            } catch (e2) { /* fallback to following keywords match */ }
+                        }
+                    }
+
+                    if (mappedRows.length > 0) {
+                        const formId = mappedRows[0].form_id || mappedRows[0].evaluation_form_id;
+                        if (formId) {
+                            const matched: any[] = await prisma.$queryRawUnsafe(`
+                                SELECT * FROM evaluation_forms WHERE id = $1
+                            `, formId);
+                            if (matched.length > 0) matchingForm = matched[0];
+                        }
+                    }
+
+                    // 3. Keyword Match Fallback: If no mappings row or no formId found
+                    if (!matchingForm) {
+                        const candidates: any[] = await prisma.$queryRawUnsafe(`
+                            SELECT * FROM evaluation_forms 
+                            WHERE id BETWEEN 9 AND 17
+                        `);
+
+                        matchingForm = candidates.find(f => {
+                            const formWord = f.form_name.replace('ประเมินหมวด', '').trim();
+                            return name.includes(formWord) || formWord.includes(name) || f.form_name.includes(name) || name.includes(f.form_name);
+                        });
+                    }
+                }
+            }
+
+            // Fallback: If no match or no section_id, get the first form in range 9-17
+            if (!matchingForm) {
+                const fallback: any[] = await prisma.$queryRawUnsafe(`
+                    SELECT * FROM evaluation_forms 
+                    WHERE id BETWEEN 9 AND 17
+                    ORDER BY id ASC
+                    LIMIT 1
+                `);
+                if (fallback.length > 0) {
+                    matchingForm = fallback[0];
+                }
+            }
+
+            // Absolute Fallback: Original general lookup to avoid empty crash
+            if (!matchingForm) {
+                const original: any[] = await prisma.$queryRawUnsafe(`
+                    SELECT ef.* FROM evaluation_forms ef
+                    JOIN evaluation_categories eft ON ef.category_id = eft.id
+                    WHERE eft.target_type = 'STUDENT' AND eft.evaluator_role_id = 2
+                    LIMIT 1
+                `);
+                if (original.length > 0) {
+                    matchingForm = original[0];
+                }
+            }
+
+            if (matchingForm) {
+                const formId = matchingForm.id;
+
+                // 1. Fetch sections
+                const sections = await prisma.$queryRawUnsafe(`
+                    SELECT * FROM evaluation_sections 
+                    WHERE form_id = $1 
+                    ORDER BY order_number ASC
+                `, formId) as any[];
+
+                // 2. Fetch questions joined with sections
+                const questions = await prisma.$queryRawUnsafe(`
+                    SELECT q.* 
+                    FROM evaluation_questions q
+                    JOIN evaluation_sections s ON q.section_id = s.id
+                    WHERE s.form_id = $1
+                    ORDER BY s.order_number ASC, q.order_number ASC
+                `, formId) as any[];
+
+                // 3. Fetch scale options (hardcoded to ID 5 based on user requirement)
+                let scaleOptions: any[] = [];
+                try {
+                    scaleOptions = await prisma.$queryRawUnsafe(`
+                        SELECT label, score_value, order_number 
+                        FROM evaluation_scale_items 
+                        WHERE scale_type_id = 5
+                        ORDER BY score_value DESC
+                    `) as any[];
+                } catch (e) {
+                    console.error("Failed to fetch scale options for ID 5", e);
+                }
+
+                matchingForm.scale_options = scaleOptions.map(opt => ({
+                    label: opt.label || String(opt.score_value),
+                    value: Number(opt.score_value)
+                }));
+
+                matchingForm.evaluation_questions = questions; // Flat list for compatibility
+                matchingForm.sections = sections.map(sec => ({
+                    id: sec.id,
+                    name: sec.section_name,
+                    description: sec.section_description,
+                    order_number: sec.order_number,
+                    topics: questions.filter(q => q.section_id === sec.id).map(q => ({ id: q.id, name: q.question_text }))
+                }));
+
+                return matchingForm;
+            }
+        } catch (error: any) {
+            throw error;
         }
-        
-        // If not exists, we'd need to insert it via raw SQL too, but for now fallback to the existing ones
         return null;
     },
 
     async getSubjectEvaluationTemplate(teacher_id: number, student_id: number, section_id: number, year: number, semester: number) {
         try {
             const [form, period_id] = await Promise.all([
-                this.ensureSubjectEvaluationForm(),
+                this.ensureSubjectEvaluationForm(section_id),
                 resolveEvaluationPeriodId(year, semester)
             ]);
 
@@ -273,6 +426,8 @@ export const TeacherEvaluationService = {
 
             if (!teacher) throw new Error('ไม่พบข้อมูลครู');
             if (!student) throw new Error('ไม่พบข้อมูลนักเรียน');
+
+            if (!form) throw new Error('ไม่พบแบบประเมิน');
 
             // Raw SQL for evaluation_responses because user_id column is missing
             // For SUBJECT_STUDENT, target_id stores the student ID
@@ -304,16 +459,28 @@ export const TeacherEvaluationService = {
             }
 
             const topics = ((form as any).evaluation_questions || []).map((q: any) => ({ id: q.id, name: q.question_text }));
+            const sections = (form.sections || []);
 
-            return {
+            const result = {
                 form_id: form.id,
-                topics,
+                topics, // flat for compat
+                sections, // grouped for rendering
+                scale_options: (form as any).scale_options || null,
                 current,
                 feedback,
                 submitted_at: latestResponse?.submitted_at || null
             };
+
+            const fs2 = require('fs');
+            fs2.writeFileSync('d:\\new\\WinAi_SeeuNextLift\\eval_template_response.txt', JSON.stringify(result, null, 2));
+
+            return result;
         } catch (error: any) {
             console.error("[TeacherEvaluationService] Error in getSubjectEvaluationTemplate:", error);
+            try {
+                const fs = require('fs');
+                fs.writeFileSync('d:\\new\\WinAi_SeeuNextLift\\eval_error_service.txt', error.message + '\n' + error.stack);
+            } catch (e) {}
             throw error;
         }
     },
@@ -331,11 +498,12 @@ export const TeacherEvaluationService = {
         const [student, teacher, form, period_id] = await Promise.all([
             prisma.students.findUnique({ where: { id: student_id }, select: { user_id: true } }),
             prisma.teachers.findUnique({ where: { id: teacher_id }, select: { user_id: true } }),
-            this.ensureSubjectEvaluationForm(),
+            this.ensureSubjectEvaluationForm(section_id),
             resolveEvaluationPeriodId(year, semester)
         ]);
 
         if (!student || !teacher) throw new Error('Student or teacher not found');
+        if (!form) throw new Error('Evaluation form not found for this subject');
 
         const questionByText = new Map<string, number>();
         ((form as any).evaluation_questions || []).forEach((q: any) => questionByText.set(q.question_text.toLowerCase(), q.id));
@@ -344,10 +512,14 @@ export const TeacherEvaluationService = {
             // Raw SQL insert because user_id (student user id) is missing from table
             // We store student ID in target_id for SUBJECT_STUDENT
             const result = await tx.$queryRawUnsafe<any[]>(
-                `INSERT INTO evaluation_responses (form_id, evaluator_user_id, target_student_id, semester_id, submitted_at) 
-                 VALUES ($1, $2, $3, $4, NOW()) 
+                `INSERT INTO evaluation_responses (form_id, evaluator_user_id, target_student_id, target_subject_id, semester_id, submitted_at) 
+                 VALUES ($1, $2, $3, $4, $5, NOW()) 
                  RETURNING id`,
-                form.id, teacher.user_id, student_id, period_id ?? undefined
+                form.id, 
+                teacher.user_id ?? null, 
+                student_id, 
+                section_id, 
+                period_id ?? null
             );
             const responseId = result[0].id;
 
@@ -371,40 +543,55 @@ export const TeacherEvaluationService = {
     },
 
     async getAdvisorEvaluation(teacher_id: number, year?: number, semester?: number) {
+        await debugLog(`getAdvisorEvaluation: START teacher_id=${teacher_id}, year=${year}, semester=${semester}`);
+        
         const teacher = await prisma.teachers.findUnique({
             where: { id: teacher_id },
             select: { user_id: true },
         });
-        if (!teacher) return [];
+        if (!teacher) {
+            await debugLog(`getAdvisorEvaluation: Teacher not found for ID ${teacher_id}`);
+            return [];
+        }
 
-        const period_id = await resolveEvaluationPeriodId(year, semester);
-        const teacherUserId = teacher.user_id ? Number(teacher.user_id) : 0;
-        const targetIds = [teacher_id, teacherUserId].filter((n) => Number.isFinite(n) && n > 0);
-        if (targetIds.length === 0) return [];
+        // Resolve semester_id from semesters table directly
+        let semesterId: number | null = null;
+        if (year && semester) {
+            const semRow: any[] = await prisma.$queryRawUnsafe(`
+                SELECT s.id FROM semesters s
+                INNER JOIN academic_years ay ON ay.id = s.academic_year_id
+                WHERE ay.year_name = $1 AND s.semester_number = $2
+                LIMIT 1
+            `, String(year), semester);
+            semesterId = semRow[0]?.id ? Number(semRow[0].id) : null;
+        }
+        await debugLog(`getAdvisorEvaluation: Resolved semesterId=${semesterId}`);
 
+        // Submissions use target_teacher_id (not target_student_id)
+        // Find forms that are either target_type='advisor' OR have 'ที่ปรึกษา' in name
         const responseIdRows = await prisma.$queryRawUnsafe<Array<{ id: number }>>(
             `
             SELECT er.id
             FROM public.evaluation_responses er
             INNER JOIN public.evaluation_forms ef ON ef.id = er.form_id
             LEFT JOIN public.evaluation_categories eft ON eft.id = ef.category_id
-            WHERE LOWER(COALESCE(eft.engine_type, '')) = 'advisor'
-              AND er.target_student_id IN (${targetIds.join(',')})
-              ${period_id ? `AND er.semester_id = ${Number(period_id)}` : ''}
+            WHERE (LOWER(COALESCE(eft.target_type, '')) = 'advisor' OR ef.form_name LIKE '%ที่ปรึกษา%')
+              AND er.target_teacher_id = ${Number(teacher_id)}
+              ${semesterId ? `AND er.semester_id = ${semesterId}` : ''}
             ORDER BY er.submitted_at DESC NULLS LAST, er.id DESC
             `
         );
 
         const responseIds = (responseIdRows || []).map((r) => Number(r.id)).filter((n) => n > 0);
+        await debugLog(`getAdvisorEvaluation: Found ${responseIds.length} response IDs for criteria (advisor or ที่ปรึกษา)`);
         if (responseIds.length === 0) return [];
 
-        // Raw SQL for evaluation_responses findMany because model may be missing
+        // Raw SQL for evaluation_responses - join directly with semesters (no evaluation_periods table)
         const responses: any[] = await prisma.$queryRawUnsafe(`
-            SELECT er.*, u.username as creator_name, ep.semester_id, ay.year_name, s.semester_number
+            SELECT er.*, u.username as creator_name, ay.year_name, s.semester_number
             FROM evaluation_responses er
             LEFT JOIN users u ON er.evaluator_user_id = u.id
-            LEFT JOIN evaluation_periods ep ON er.period_id = ep.id
-            LEFT JOIN semesters s ON ep.semester_id = s.id
+            LEFT JOIN semesters s ON er.semester_id = s.id
             LEFT JOIN academic_years ay ON s.academic_year_id = ay.id
             WHERE er.id IN (${responseIds.join(',')})
             ORDER BY er.submitted_at DESC, er.id DESC
@@ -412,9 +599,10 @@ export const TeacherEvaluationService = {
 
         // Fetch answers for these responses via Raw SQL
         const allAnswers: any[] = await prisma.$queryRawUnsafe(`
-            SELECT a.*, q.question_text
+            SELECT a.*, q.question_text, s.section_name
             FROM evaluation_answers a
             LEFT JOIN evaluation_questions q ON a.question_id = q.id
+            LEFT JOIN evaluation_sections s ON q.section_id = s.id
             WHERE a.response_id IN (${responseIds.join(',')})
             ORDER BY a.id ASC
         `);
@@ -425,11 +613,24 @@ export const TeacherEvaluationService = {
             const semesterNo = r.semester_number || 0;
             const rAnswers = allAnswers.filter(a => a.response_id === r.id);
             for (const a of rAnswers) {
-                if (a.score == null) continue;
+                const score = a.score != null ? a.score : a.score_value;
+                const feedbackValue = a.text_value || '';
+                
+                // If it's a comment (no score), provide it in the results
+                if (score == null && !feedbackValue.trim()) continue;
+                
+                const topic = a.question_text || a.answer_text || (score == null ? 'ข้อเสนอแนะ' : 'ไม่ระบุหัวข้อ');
+                
+                // Fallback to "ตอนที่ X" if section_name is null but topic starts with "X.Y"
+                const sectionMatch = topic.match(/^(\d+)\./);
+                const sectionNameFallback = sectionMatch ? `ตอนที่ ${sectionMatch[1]}` : 'ไม่ระบุตอน';
+                
                 rows.push({
                     response_id: r.id,
-                    topic: a.question_text || a.answer_text || 'ไม่ระบุหัวข้อ',
-                    score: Number(a.score),
+                    topic: topic,
+                    section_name: a.section_name || sectionNameFallback,
+                    score: score != null ? Number(score) : null,
+                    feedback: feedbackValue,
                     submitted_at: r.submitted_at,
                     submitted_by: r.creator_name || '',
                     year: yearName ? Number(yearName) || yearName : '',
@@ -437,7 +638,7 @@ export const TeacherEvaluationService = {
                 });
             }
         }
-
+        await debugLog(`getAdvisorEvaluation: Generated ${rows.length} result rows`);
         return rows;
     },
 
@@ -485,7 +686,7 @@ export const TeacherEvaluationService = {
             LEFT JOIN public.evaluation_periods ep ON ep.id = er.period_id
             LEFT JOIN public.semesters sem ON sem.id = ep.semester_id
             LEFT JOIN public.academic_years ay ON ay.id = sem.academic_year_id
-            WHERE LOWER(COALESCE(eft.engine_type, '')) = 'advisor'
+            WHERE LOWER(COALESCE(eft.target_type, '')) = 'advisor'
               AND er.evaluator_user_id = ${teacherUserId}
               AND er.target_student_id IN (${studentIds.join(',')})
               ${period_id ? `AND er.semester_id = ${Number(period_id)}` : ''}
@@ -571,5 +772,71 @@ export const TeacherEvaluationService = {
                 if (bySemester !== 0) return bySemester;
                 return String(a.student_code || '').localeCompare(String(b.student_code || ''));
             });
+    },
+
+    async getTeachingStudentEvaluationResults(teacher_id: number, section_id: number, year: number, semester: number) {
+        // 1. Get all students enrolled in this section
+        const enrolledStudents = await prisma.enrollments.findMany({
+            where: {
+                teaching_assignment_id: section_id,
+            },
+            include: {
+                students: {
+                    include: {
+                        name_prefixes: true,
+                        classroom_students: { 
+                            where: { academic_year: year },
+                            take: 1 
+                        },
+                    }
+                }
+            }
+        });
+
+        const period_id = await resolveEvaluationPeriodId(year, semester);
+
+        // 2. Fetch teaching form ID(s)
+        const formResult: any[] = await prisma.$queryRawUnsafe(`
+            SELECT f.id FROM evaluation_forms f
+            JOIN evaluation_categories t ON f.category_id = t.id
+            WHERE t.target_type IN ('subject', 'teaching')
+        `);
+        const formIds = formResult.map(f => f.id);
+
+        const results = [];
+        for (const enrollment of enrolledStudents) {
+            const s = enrollment.students;
+            if (!s) continue;
+
+            // Check if this student (as evaluator) has responded for this section
+            const responseResult = await prisma.$queryRawUnsafe<any[]>(
+                `SELECT submitted_at FROM evaluation_responses 
+                 WHERE evaluator_user_id = $1 
+                 AND target_subject_id = $2 
+                 ${period_id ? `AND semester_id = ${Number(period_id)}` : ''}
+                 ${formIds.length > 0 ? `AND form_id IN (${formIds.join(',')})` : ''}
+                 ORDER BY submitted_at DESC LIMIT 1`,
+                s.user_id, section_id
+            );
+
+            const response = responseResult[0] || null;
+            const cs = (s as any).classroom_students?.[0];
+
+            results.push({
+                id: s.id,
+                student_code: s.student_code,
+                name: `${s.name_prefixes?.prefix_name || ''}${s.first_name} ${s.last_name}`,
+                evaluated: !!response,
+                submitted_at: response?.submitted_at || null,
+                roll_number: cs?.roll_number,
+            });
+        }
+
+        return results.sort((a, b) => {
+            const aNum = a.roll_number != null ? Number(a.roll_number) : 999999;
+            const bNum = b.roll_number != null ? Number(b.roll_number) : 999999;
+            if (aNum !== bNum) return aNum - bNum;
+            return String(a.student_code || '').localeCompare(String(b.student_code || ''));
+        });
     },
 };
