@@ -195,7 +195,9 @@ export const ScheduleService = {
 
             const roomsList = Array.from(buildingMap.entries()).map(([building, rooms]) => {
                 const bText = building ? ` (${building})` : '';
-                return `ห้อง ${rooms.join(', ')}${bText}`;
+                // Clean rooms: remove "ห้องเรียน" or "ห้อง" prefix if present
+                const cleanRooms = rooms.map(r => r.replace(/ห้องเรียน|ห้อง/g, "").trim());
+                return `${cleanRooms.join(', ')}${bText}`;
             });
             const roomNames = roomsList.join(', ');
             

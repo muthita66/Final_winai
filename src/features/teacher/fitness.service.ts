@@ -92,7 +92,21 @@ export const TeacherFitnessService = {
     async getAcademicYears() {
         return prisma.academic_years.findMany({
             orderBy: { year_name: 'desc' },
-            select: { id: true, year_name: true, is_active: true }
+            select: {
+                id: true,
+                year_name: true,
+                is_active: true,
+                semesters: {
+                    select: {
+                        id: true,
+                        semester_number: true,
+                        is_active: true
+                    },
+                    orderBy: {
+                        semester_number: 'asc'
+                    }
+                }
+            }
         });
     },
     async getAdvisorClasses(teacher_id: number) {

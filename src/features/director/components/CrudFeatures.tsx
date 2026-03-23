@@ -1,8 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { DirectorApiService } from "@/services/director-api.service";
+import Portal from "@/components/Portal";
 import { ActivitiesCalendar } from "./ActivitiesCalendar";
-import { List as ListIcon, Calendar as CalendarIcon } from "lucide-react";
+import { List as ListIcon, Calendar as CalendarIcon, Trash2, Pencil, Building2, Users2, Clock, MapPin, ChevronDown, Check, Plus, Trash, X, DoorOpen, Users } from "lucide-react";
+import { fetchApi } from "@/services/api-client";
 
 export type CrudColumn = {
     key: string;
@@ -116,7 +118,8 @@ export function EditModal({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <Portal>
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/50" onClick={onClose} />
             <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-slate-200 max-h-[90vh] overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
@@ -196,6 +199,7 @@ export function EditModal({
                 </div>
             </div>
         </div>
+        </Portal>
     );
 }
 
@@ -219,6 +223,8 @@ function CrudFeature({
     searchRightContent,
     initialEditItem,
     onCloseModal,
+    renderCreateModal,
+    renderEditModal,
 }: {
     title: string;
     subtitle: string;
@@ -239,6 +245,8 @@ function CrudFeature({
     searchRightContent?: React.ReactNode;
     initialEditItem?: any;
     onCloseModal?: () => void;
+    renderCreateModal?: (onClose: () => void, load: () => void) => React.ReactNode;
+    renderEditModal?: (item: any, onClose: () => void, load: () => void) => React.ReactNode;
 }) {
     const [items, setItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -504,16 +512,18 @@ function CrudFeature({
                                                     {hasEdit && (
                                                         <button
                                                             onClick={() => openEditModal(item)}
-                                                            className="text-xs text-amber-700 hover:text-amber-800 bg-amber-50 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors font-medium"
+                                                            title="แก้ไข"
+                                                            className="p-2 text-amber-600 hover:text-amber-700 bg-amber-50 rounded-xl hover:bg-amber-100 transition-all duration-200"
                                                         >
-                                                            แก้ไข
+                                                            <Pencil size={18} />
                                                         </button>
                                                     )}
                                                     <button
                                                         onClick={() => handleDelete(item.id)}
-                                                        className="text-xs text-red-500 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors font-medium"
+                                                        title="ลบ"
+                                                        className="p-2 text-red-500 hover:text-red-700 bg-red-50 rounded-xl hover:bg-red-100 transition-all duration-200"
                                                     >
-                                                        ลบ
+                                                        <Trash2 size={18} />
                                                     </button>
                                                 </div>
                                             </td>
@@ -541,29 +551,37 @@ function CrudFeature({
                 )}
             </div>
 
-            <EditModal
-                open={creatingItem && hasCreate}
-                title={`เพิ่ม${title}`}
-                fields={resolvedCreateFields}
-                values={createValues}
-                saving={savingCreate}
-                onClose={closeCreateModal}
-                onChange={(key, value) => setCreateValues((prev) => ({ ...prev, [key]: value }))}
-                onSubmit={submitCreate}
-                submitLabel="เพิ่ม"
-            />
+            {renderCreateModal ? (
+                creatingItem && renderCreateModal(closeCreateModal, load)
+            ) : (
+                <EditModal
+                    open={creatingItem && hasCreate}
+                    title={`เพิ่ม${title}`}
+                    fields={resolvedCreateFields}
+                    values={createValues}
+                    saving={savingCreate}
+                    onClose={closeCreateModal}
+                    onChange={(key, value) => setCreateValues((prev) => ({ ...prev, [key]: value }))}
+                    onSubmit={submitCreate}
+                    submitLabel="เพิ่ม"
+                />
+            )}
 
-            <EditModal
-                open={!!editingItem && hasEdit}
-                title={`แก้ไข${title}`}
-                fields={resolvedEditFields}
-                values={editValues}
-                saving={savingEdit}
-                onClose={closeEditModal}
-                onChange={(key, value) => setEditValues((prev) => ({ ...prev, [key]: value }))}
-                onSubmit={submitEdit}
-                submitLabel="บันทึก"
-            />
+            {renderEditModal ? (
+                editingItem && renderEditModal(editingItem, closeEditModal, load)
+            ) : (
+                <EditModal
+                    open={!!editingItem && hasEdit}
+                    title={`แก้ไข${title}`}
+                    fields={resolvedEditFields}
+                    values={editValues}
+                    saving={savingEdit}
+                    onClose={closeEditModal}
+                    onChange={(key, value) => setEditValues((prev) => ({ ...prev, [key]: value }))}
+                    onSubmit={submitEdit}
+                    submitLabel="บันทึก"
+                />
+            )}
         </div>
     );
 }
@@ -1246,119 +1264,311 @@ export function FinanceFeature() {
 
 export function ActivitiesFeature() {
     const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
-    const [teacherOptions, setTeacherOptions] = useState<{ id: number; label: string }[]>([]);
-    const [departmentOptions, setDepartmentOptions] = useState<{ id: number; label: string }[]>([]);
-    const [eventTypeOptions, setEventTypeOptions] = useState<{ id: number; label: string }[]>([]);
-    const [pendingEditItem, setPendingEditItem] = useState<any | null>(null);
-    const [calendarDetailItem, setCalendarDetailItem] = useState<any | null>(null);
-    const [calendarEditItem, setCalendarEditItem] = useState<any | null>(null);
-    const [calendarEditValues, setCalendarEditValues] = useState<Record<string, string>>({});
-    const [savingCalendarEdit, setSavingCalendarEdit] = useState(false);
-    const [calendarKey, setCalendarKey] = useState(0); // For forcing refresh
+    const [teachers, setTeachers] = useState<any[]>([]);
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [eventTypes, setEventTypes] = useState<any[]>([]);
+    const [buildings, setBuildings] = useState<any[]>([]);
+    const [targetTypes, setTargetTypes] = useState<any[]>([]);
+    const [calendarKey, setCalendarKey] = useState(0);
+    const [academicYears, setAcademicYears] = useState<any[]>([]);
 
-    const activityFields: EditField[] = [
-        { key: "name", label: "ชื่อกิจกรรม", required: true },
-        { key: "event_type_name", label: "ประเภทกิจกรรม", type: "select", options: ["", ...eventTypeOptions.map(o => o.label)] },
-        { key: "department_name", label: "ฝ่ายที่รับผิดชอบ", type: "select", options: ["", ...departmentOptions.map(o => o.label)] },
-        {
-            key: "teacher_name",
-            label: "ครูที่รับผิดชอบ",
-            type: "select",
-            options: (values) => {
-                const dept = values.department_name;
-                const teachers = (teacherOptions as any[]);
-                if (!dept) return ["", ...teachers.map(o => o.label)];
-                const filtered = teachers.filter(o => o.dept === dept || o.dept === "" || !o.dept);
-                return ["", ...filtered.map(o => o.label)];
-            }
-        },
-        { key: "start_date", label: "วันที่เริ่ม", type: "date", required: true },
-        { key: "end_date", label: "วันที่สิ้นสุด", type: "date" },
-        { key: "start_time", label: "เวลาเริ่ม", type: "time" },
-        { key: "end_time", label: "เวลาสิ้นสุด", type: "time" },
-        { key: "location", label: "สถานที่" },
-        { key: "visibility", label: "การเข้าร่วม", type: "select", options: ["public", "internal", "private"] },
-        { key: "note", label: "รายละเอียด", multiline: true },
-    ];
+    type Target = { target_type: string; target_value?: string | null };
 
-    const openCalendarDetail = (item: any) => {
-        setCalendarDetailItem(item);
-    };
-
-    const openCalendarEdit = (item: any) => {
-        const mappedItem: any = { ...item };
-        activityFields.forEach(field => {
-            if (field.type === "select") {
-                mappedItem[field.key] = item[field.key] == null ? "" : String(item[field.key]);
-            }
-        });
-        setCalendarDetailItem(null);
-        setCalendarEditItem(item);
-        setCalendarEditValues(buildInitialValues(activityFields, mappedItem));
-    };
-
-    const saveCalendarEdit = async () => {
-        if (!calendarEditItem) return;
-        try {
-            const payload = buildPayloadFromValues(activityFields, calendarEditValues);
-            const teacherObj = teacherOptions.find(o => o.label === calendarEditValues.teacher_name);
-            const deptObj = departmentOptions.find(o => o.label === calendarEditValues.department_name);
-            const typeObj = eventTypeOptions.find(o => o.label === calendarEditValues.event_type_name);
-
-            setSavingCalendarEdit(true);
-            await DirectorApiService.updateActivity(calendarEditItem.id, {
-                ...payload,
-                teacher_id: teacherObj?.id,
-                department_id: deptObj?.id,
-                event_type_id: typeObj?.id
-            });
-            setCalendarEditItem(null);
-            setCalendarKey(prev => prev + 1); // Refresh calendar
-        } catch (e: any) {
-            alert(e?.message || "บันทึกไม่สำเร็จ");
-        } finally {
-            setSavingCalendarEdit(false);
-        }
+    const initialForm = {
+        title: "", description: "", event_date: "", start_time: "",
+        end_date: "", end_time: "", responsible_teacher_id: "",
+        location: "", building_id: "", room_id: "", visibility: "public",
+        department_id: "", event_type_id: "", targets: [] as Target[]
     };
 
     useEffect(() => {
-        DirectorApiService.getTeachers().then(rows => {
-            setTeacherOptions(rows.map(r => ({
-                id: r.id,
-                label: `${r.prefix || ''}${r.first_name} ${r.last_name}`,
-                dept: (r as any).departments?.department_name || ''
-            })));
-        });
-        DirectorApiService.getDepartmentsLookup().then(rows => {
-            setDepartmentOptions(rows.map(r => ({ id: r.id, label: r.department_name })));
-        });
-        DirectorApiService.getEventTypesLookup().then(rows => {
-            setEventTypeOptions(rows.map(r => ({ id: r.id, label: r.name })));
-        });
+        Promise.all([
+            DirectorApiService.getTeachers(),
+            DirectorApiService.getDepartmentsLookup(),
+            DirectorApiService.getEventTypesLookup(),
+            fetchApi<any[]>("/api/options/buildings"),
+            DirectorApiService.getTargetTypes()
+        ]).then(([tchs, depts, types, bldgs, tgtTypes]) => {
+            setTeachers(tchs || []);
+            setDepartments(depts || []);
+            setEventTypes(types || []);
+            setBuildings(bldgs || []);
+            setTargetTypes(tgtTypes || []);
+        }).catch(() => {});
+        DirectorApiService.getAcademicYears().then(setAcademicYears).catch(() => {});
     }, []);
+
+    const ActivityModal = ({
+        mode, initialData, onClose, onSave
+    }: {
+        mode: 'create' | 'edit';
+        initialData?: any;
+        onClose: () => void;
+        onSave: (data: any) => Promise<void>;
+    }) => {
+        const [form, setForm] = useState(() => {
+            if (mode === 'edit' && initialData) {
+                return {
+                    title: initialData.name || initialData.title || "",
+                    description: initialData.note || initialData.description || "",
+                    event_date: initialData.date || initialData.start_date || "",
+                    start_time: initialData.start_time || "",
+                    end_date: initialData.end_date || "",
+                    end_time: initialData.end_time || "",
+                    responsible_teacher_id: initialData.teacher_id ? String(initialData.teacher_id) : "",
+                    location: initialData.location || "",
+                    building_id: "", room_id: "",
+                    visibility: initialData.visibility || "public",
+                    department_id: initialData.department_id ? String(initialData.department_id) : "",
+                    event_type_id: initialData.event_type_id ? String(initialData.event_type_id) : "",
+                    semester_id: initialData.semester_id ? String(initialData.semester_id) : "",
+                    targets: (initialData.targets || []) as Target[]
+                };
+            }
+            return { ...initialForm, semester_id: "" };
+        });
+        // Find initial year from semester_id
+        const initSemId = form.semester_id;
+        const initYear = initSemId ? academicYears.find(y => y.semesters?.some((s: any) => String(s.id) === String(initSemId))) : null;
+        const [selectedYearId, setSelectedYearId] = useState<string>(initYear?.id ? String(initYear.id) : "");
+        const [localRooms, setLocalRooms] = useState<any[]>([]);
+        const [saving, setSaving] = useState(false);
+        const [localTargetOptions, setLocalTargetOptions] = useState<any[]>([]);
+        const [localLoadingTargets, setLocalLoadingTargets] = useState(false);
+
+        const handleSubmit = async () => {
+            if (!form.title || !form.event_date) { alert('กรุณากรอกชื่อกิจกรรมและวันที่เริ่ม'); return; }
+            setSaving(true);
+            try {
+                await onSave({
+                    name: form.title, note: form.description,
+                    start_date: form.event_date, start_time: form.start_time,
+                    end_date: form.end_date, end_time: form.end_time,
+                    teacher_id: form.responsible_teacher_id ? Number(form.responsible_teacher_id) : null,
+                    department_id: form.department_id ? Number(form.department_id) : null,
+                    event_type_id: form.event_type_id ? Number(form.event_type_id) : null,
+                    semester_id: form.semester_id ? Number(form.semester_id) : null,
+                    location: form.location || (localRooms.find((r: any) => String(r.id) === String(form.room_id))?.label) || "",
+                    visibility: form.visibility,
+                    targets: form.targets,
+                });
+            } finally { setSaving(false); }
+        };
+
+        return (
+            <Portal>
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                            <h3 className="text-xl font-bold text-slate-800">{mode === 'edit' ? 'แก้ไขกิจกรรม' : 'เพิ่มกิจกรรม'}</h3>
+                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-5 overflow-y-auto">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">ชื่อกิจกรรม</label>
+                                    <input className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800"
+                                        placeholder="ระบุชื่อกิจกรรม..." value={form.title}
+                                        onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">ปีการศึกษา</label>
+                                    <select className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 cursor-pointer"
+                                        value={selectedYearId}
+                                        onChange={e => {
+                                            setSelectedYearId(e.target.value);
+                                            setForm(f => ({ ...f, semester_id: "" }));
+                                        }}
+                                    >
+                                        <option value="">เลือกปีการศึกษา</option>
+                                        {academicYears.map((y: any) => <option key={y.id} value={String(y.id)}>{y.year_name}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">ภาคเรียน</label>
+                                    <select className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 cursor-pointer"
+                                        value={form.semester_id}
+                                        onChange={e => setForm(f => ({ ...f, semester_id: e.target.value }))}
+                                        disabled={!selectedYearId}
+                                    >
+                                        <option value="">เลือกภาคเรียน</option>
+                                        {(academicYears.find((y: any) => String(y.id) === String(selectedYearId))?.semesters || []).map((s: any) => (
+                                            <option key={s.id} value={String(s.id)}>ภาคเรียนที่ {s.semester_number}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">ประเภทกิจกรรม</label>
+                                    <select className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 cursor-pointer"
+                                        value={form.event_type_id} onChange={e => setForm(f => ({ ...f, event_type_id: e.target.value }))}>
+                                        <option value="">ทั้งหมด</option>
+                                        {eventTypes.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">ฝ่ายที่รับผิดชอบ</label>
+                                    <select className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 cursor-pointer"
+                                        value={form.department_id}
+                                        onChange={e => setForm(f => ({ ...f, department_id: e.target.value, responsible_teacher_id: "" }))}>
+                                        <option value="">ทั้งหมด</option>
+                                        {departments.map((d: any) => <option key={d.id} value={d.id}>{d.department_name}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">ครูที่รับผิดชอบ</label>
+                                    <select className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 cursor-pointer"
+                                        value={form.responsible_teacher_id} onChange={e => setForm(f => ({ ...f, responsible_teacher_id: e.target.value }))}>
+                                        <option value="">ทั้งหมด</option>
+                                        {teachers.filter((t: any) => !form.department_id || String(t.department_id) === String(form.department_id))
+                                            .map((t: any) => <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">วันที่เริ่ม</label>
+                                    <input type="date" className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800"
+                                        value={form.event_date} onChange={e => setForm(f => ({ ...f, event_date: e.target.value }))} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">วันที่สิ้นสุด</label>
+                                    <input type="date" className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800"
+                                        value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">เวลาเริ่ม</label>
+                                    <input type="time" className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800"
+                                        value={form.start_time} onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">เวลาสิ้นสุด</label>
+                                    <input type="time" className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800"
+                                        value={form.end_time} onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700 flex items-center gap-1"><Building2 size={14} className="text-emerald-500" /> อาคาร</label>
+                                    <select className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 cursor-pointer"
+                                        value={form.building_id}
+                                        onChange={async (e) => {
+                                            const bId = e.target.value;
+                                            setForm(f => ({ ...f, building_id: bId, room_id: "" }));
+                                            if (bId) { const rl = await fetchApi<any[]>(`/api/options/rooms?buildingId=${bId}`); setLocalRooms(rl || []); }
+                                            else { setLocalRooms([]); }
+                                        }}>
+                                        <option value="">เลือกอาคาร</option>
+                                        {buildings.map((b: any) => <option key={b.id} value={b.id}>{b.label}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700 flex items-center gap-1"><DoorOpen size={14} className="text-emerald-500" /> ห้อง</label>
+                                    <select className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 cursor-pointer"
+                                        value={form.room_id} onChange={e => setForm(f => ({ ...f, room_id: e.target.value }))} disabled={!form.building_id}>
+                                        <option value="">สมาคม / อื่นๆ</option>
+                                        {localRooms.map((r: any) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                                    </select>
+                                </div>
+                                <div className="md:col-span-2 space-y-3 border-t border-slate-100 pt-4">
+                                    <label className="text-sm font-bold text-slate-700 flex items-center gap-2"><Users size={16} className="text-emerald-600" /> กลุ่มเป้าหมายผู้เข้าร่วม</label>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">ประเภทกลุ่มเป้าหมาย</label>
+                                            <select className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                                                value={form.targets[0]?.target_type || ""}
+                                                onChange={async (e) => {
+                                                    const type = e.target.value;
+                                                    const cfg = targetTypes.find((t: any) => t.code === type);
+                                                    setForm(f => ({ ...f, targets: [{ target_type: type, target_value: null }] }));
+                                                    if (cfg?.input_type === 'select') {
+                                                        setLocalLoadingTargets(true);
+                                                        try { const opts = await fetchApi<any[]>(`/api/options/targets?targetType=${type}`); setLocalTargetOptions(opts || []); }
+                                                        finally { setLocalLoadingTargets(false); }
+                                                    } else { setLocalTargetOptions([]); }
+                                                }}>
+                                                <option value="">เลือกกลุ่มเป้าหมาย</option>
+                                                {targetTypes.map((t: any) => <option key={t.code} value={t.code}>{t.display_name}</option>)}
+                                            </select>
+                                        </div>
+                                        {(form.targets[0]?.target_type && targetTypes.find((t: any) => t.code === form.targets[0]?.target_type)?.input_type === 'select') && (
+                                            <div className="md:col-span-2 space-y-2 pt-2 border-t border-slate-100 mt-2">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">ระบุรายละเอียด <span className="text-emerald-600 font-normal normal-case">(เลือกได้มากกว่า 1)</span></label>
+                                                    {localTargetOptions.length > 0 && (
+                                                        <button type="button" className="text-[11px] font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded transition-colors"
+                                                            onClick={() => {
+                                                                const tt = form.targets[0]?.target_type;
+                                                                const sel = form.targets.map((t: Target) => t.target_value).filter(Boolean);
+                                                                if (sel.length === localTargetOptions.length) setForm(f => ({ ...f, targets: [{ target_type: tt, target_value: null }] }));
+                                                                else setForm(f => ({ ...f, targets: localTargetOptions.map((o: any) => ({ target_type: tt, target_value: String(o.id) })) }));
+                                                            }}>
+                                                            {form.targets.map((t: Target) => t.target_value).filter(Boolean).length === localTargetOptions.length ? 'ล้างการเลือกทั้งหมด' : 'เลือกทั้งหมด'}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                {localLoadingTargets ? (
+                                                    <div className="text-sm text-slate-500 p-4 text-center animate-pulse">กำลังโหลดข้อมูล...</div>
+                                                ) : localTargetOptions.length > 0 ? (
+                                                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-3 border border-slate-200 rounded-lg bg-white">
+                                                        {localTargetOptions.map((opt: any) => {
+                                                            const isChecked = form.targets.some((t: Target) => t.target_value === String(opt.id));
+                                                            return (
+                                                                <label key={opt.id} className={`flex items-start gap-2 text-sm cursor-pointer p-2 rounded-lg border transition-all ${isChecked ? 'bg-emerald-50 border-emerald-200' : 'hover:bg-slate-50 border-transparent'}`}>
+                                                                    <input type="checkbox" className="mt-0.5 rounded text-emerald-600 border-slate-300"
+                                                                        checked={isChecked}
+                                                                        onChange={(e) => {
+                                                                            const tt = form.targets[0]?.target_type;
+                                                                            let updated = [...form.targets];
+                                                                            if (e.target.checked) {
+                                                                                if (updated.length === 1 && !updated[0].target_value) updated[0] = { target_type: tt, target_value: String(opt.id) };
+                                                                                else if (!updated.some((t: Target) => t.target_value === String(opt.id))) updated.push({ target_type: tt, target_value: String(opt.id) });
+                                                                            } else {
+                                                                                updated = updated.filter((t: Target) => t.target_value !== String(opt.id));
+                                                                                if (updated.length === 0) updated = [{ target_type: tt, target_value: null }];
+                                                                            }
+                                                                            setForm(f => ({ ...f, targets: updated }));
+                                                                        }} />
+                                                                    <span className={`text-sm select-none ${isChecked ? 'font-medium text-emerald-800' : 'text-slate-600'}`}>{opt.label}</span>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-sm text-slate-500 p-4 text-center">ไม่พบข้อมูลตัวเลือก</div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="md:col-span-2 space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">รายละเอียด</label>
+                                    <textarea className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-slate-800 min-h-[100px] resize-none"
+                                        placeholder="..." value={form.description}
+                                        onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-4 px-6 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-3 shrink-0">
+                            <button onClick={onClose} className="px-5 py-2 text-slate-600 font-bold rounded-xl border border-slate-300 hover:bg-slate-100 transition-all text-sm">ยกเลิก</button>
+                            <button onClick={handleSubmit} disabled={saving}
+                                className="px-7 py-2 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md text-sm disabled:opacity-60">
+                                {saving ? "กำลังบันทึก..." : (mode === 'edit' ? "บันทึก" : "เพิ่ม")}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Portal>
+        );
+    };
 
     const switcher = (
         <div className="flex justify-end p-1">
             <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
-                <button
-                    onClick={() => setViewMode('list')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'list'
-                        ? 'bg-white text-emerald-600 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                >
-                    <ListIcon size={16} />
-                    รายการ
+                <button onClick={() => setViewMode('list')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'list' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <ListIcon size={16} /> รายการ
                 </button>
-                <button
-                    onClick={() => setViewMode('calendar')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'calendar'
-                        ? 'bg-white text-emerald-600 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                >
-                    <CalendarIcon size={16} />
-                    ปฏิทิน
+                <button onClick={() => setViewMode('calendar')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'calendar' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <CalendarIcon size={16} /> ปฏิทิน
                 </button>
             </div>
         </div>
@@ -1373,34 +1583,35 @@ export function ActivitiesFeature() {
                     subtitle="จัดการปฏิทินกิจกรรมโรงเรียน"
                     color="from-emerald-600 to-teal-700"
                     searchRightContent={switcher}
-                    initialEditItem={pendingEditItem}
-                    onCloseModal={() => setPendingEditItem(null)}
                     fetchFn={(s) => DirectorApiService.getActivities(s)}
-                    createFn={(data) => {
-                        const teacherObj = teacherOptions.find(o => o.label === data.teacher_name);
-                        const deptObj = departmentOptions.find(o => o.label === data.department_name);
-                        const typeObj = eventTypeOptions.find(o => o.label === data.event_type_name);
-                        return DirectorApiService.createActivity({
-                            ...data,
-                            teacher_id: teacherObj?.id,
-                            department_id: deptObj?.id,
-                            event_type_id: typeObj?.id
-                        });
-                    }}
-                    editFn={(id, data) => {
-                        const teacherObj = teacherOptions.find(o => o.label === data.teacher_name);
-                        const deptObj = departmentOptions.find(o => o.label === data.department_name);
-                        const typeObj = eventTypeOptions.find(o => o.label === data.event_type_name);
-                        return DirectorApiService.updateActivity(id, {
-                            ...data,
-                            teacher_id: teacherObj?.id,
-                            department_id: deptObj?.id,
-                            event_type_id: typeObj?.id
-                        });
-                    }}
                     deleteFn={(id) => DirectorApiService.deleteActivity(id)}
-                    createFields={() => activityFields}
-                    editFields={() => activityFields}
+                    createFn={async (data) => data}
+                    editFn={async (_, data) => data}
+                    createFields={() => [{ key: "_dummy", label: "" }]}
+                    editFields={() => [{ key: "_dummy", label: "" }]}
+                    renderCreateModal={(onClose, load) => (
+                        <ActivityModal
+                            mode="create"
+                            onClose={onClose}
+                            onSave={async (data) => {
+                                await DirectorApiService.createActivity(data);
+                                load();
+                                onClose();
+                            }}
+                        />
+                    )}
+                    renderEditModal={(item, onClose, load) => (
+                        <ActivityModal
+                            mode="edit"
+                            initialData={item}
+                            onClose={onClose}
+                            onSave={async (data) => {
+                                await DirectorApiService.updateActivity(item.id, data);
+                                load();
+                                onClose();
+                            }}
+                        />
+                    )}
                     renderDetail={(item) => (
                         <div className="p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             <div className="space-y-1">
@@ -1425,20 +1636,8 @@ export function ActivitiesFeature() {
                                 <p className="text-sm font-semibold text-slate-500">สถานที่</p>
                                 <p className="text-base font-normal text-slate-800">{item.location || "-"}</p>
                             </div>
-                            <div className="space-y-1">
-                                <p className="text-sm font-semibold text-slate-500">การเข้าร่วม</p>
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${item.visibility === 'public' ? 'bg-emerald-100 text-emerald-700' :
-                                    calendarDetailItem.visibility === 'internal' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
-                                    }`}>
-                                    {item.visibility || "public"}
-                                </span>
-                            </div>
-
                             <div className="md:col-span-2 lg:col-span-3 space-y-2 pt-5 border-t border-slate-100 mt-2">
-                                <div className="flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                    <p className="text-sm font-semibold text-slate-500">รายละเอียดกิจกรรม</p>
-                                </div>
+                                <p className="text-sm font-semibold text-slate-500">รายละเอียดกิจกรรม</p>
                                 <p className="text-base font-normal text-slate-700 leading-snug whitespace-pre-wrap pl-4 border-l-2 border-emerald-100">
                                     {item.note || "— ไม่ระบุรายละเอียดเพิ่มเติม —"}
                                 </p>
@@ -1450,13 +1649,9 @@ export function ActivitiesFeature() {
                             key: "name",
                             label: "ชื่อกิจกรรม",
                             render: (v, _, { toggleExpand, isExpanded }) => (
-                                <button
-                                    onClick={toggleExpand}
-                                    className="text-left font-semibold text-slate-800 hover:text-emerald-700 flex items-center gap-2 group transition-colors"
-                                >
-                                    <span className={`w-5 h-5 flex items-center justify-center rounded-full bg-emerald-50 text-emerald-600 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>
-                                        ▾
-                                    </span>
+                                <button onClick={toggleExpand}
+                                    className="text-left font-semibold text-slate-800 hover:text-emerald-700 flex items-center gap-2 group transition-colors">
+                                    <span className={`w-5 h-5 flex items-center justify-center rounded-full bg-emerald-50 text-emerald-600 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>▾</span>
                                     <span className="group-hover:underline">{v}</span>
                                 </button>
                             )
@@ -1469,110 +1664,12 @@ export function ActivitiesFeature() {
             ) : (
                 <ActivitiesCalendar
                     key={calendarKey}
-                    onAddClick={() => setViewMode('list')}
                     onBack={() => setViewMode('list')}
-                    onEditClick={openCalendarDetail}
                 />
             )}
-
-            {/* Calendar Detail Modal (read-only) */}
-            {calendarDetailItem && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setCalendarDetailItem(null)} />
-                    <div className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                        {/* Header */}
-                        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white">
-                            <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-xs font-medium bg-white/20 inline-block px-2 py-0.5 rounded-full mb-2">
-                                        {calendarDetailItem.event_type_name || 'กิจกรรม'}
-                                    </div>
-                                    <h3 className="text-xl font-black text-white leading-tight">{calendarDetailItem.name}</h3>
-                                </div>
-                                <button onClick={() => setCalendarDetailItem(null)} className="p-2 hover:bg-white/20 rounded-xl transition-colors flex-shrink-0">
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
-                            </div>
-                        </div>
-                        {/* Body */}
-                        <div className="p-6 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <p className="text-xs font-bold text-slate-400 uppercase">วันที่เริ่ม</p>
-                                    <p className="text-sm font-bold text-slate-800">
-                                        {calendarDetailItem.date ? new Date(calendarDetailItem.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
-                                        {calendarDetailItem.start_time && <span className="ml-1 text-emerald-600">({calendarDetailItem.start_time})</span>}
-                                    </p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs font-bold text-slate-400 uppercase">วันที่สิ้นสุด</p>
-                                    <p className="text-sm font-bold text-slate-800">
-                                        {calendarDetailItem.end_date ? new Date(calendarDetailItem.end_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
-                                        {calendarDetailItem.end_time && <span className="ml-1 text-emerald-600">({calendarDetailItem.end_time})</span>}
-                                    </p>
-                                </div>
-                                {calendarDetailItem.location && (
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-bold text-slate-400 uppercase">สถานที่</p>
-                                        <p className="text-sm font-bold text-slate-800">{calendarDetailItem.location}</p>
-                                    </div>
-                                )}
-                                {calendarDetailItem.department_name && (
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-bold text-slate-400 uppercase">ฝ่ายที่รับผิดชอบ</p>
-                                        <p className="text-sm font-bold text-slate-800">{calendarDetailItem.department_name}</p>
-                                    </div>
-                                )}
-                                {calendarDetailItem.teacher_name && (
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-bold text-slate-400 uppercase">ครูผู้รับผิดชอบ</p>
-                                        <p className="text-sm font-bold text-slate-800">{calendarDetailItem.teacher_name}</p>
-                                    </div>
-                                )}
-                                <div className="space-y-1">
-                                    <p className="text-xs font-bold text-slate-400 uppercase">การเข้าร่วม</p>
-                                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${calendarDetailItem.visibility === 'public' ? 'bg-emerald-100 text-emerald-700' :
-                                            calendarDetailItem.visibility === 'internal' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
-                                        }`}>{calendarDetailItem.visibility || 'public'}</span>
-                                </div>
-                            </div>
-                            {calendarDetailItem.note && (
-                                <div className="pt-3 border-t border-slate-100">
-                                    <p className="text-xs font-bold text-slate-400 uppercase mb-2">รายละเอียด</p>
-                                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap pl-3 border-l-2 border-emerald-200">{calendarDetailItem.note}</p>
-                                </div>
-                            )}
-                        </div>
-                        {/* Footer */}
-                        <div className="px-6 pb-6 flex gap-3">
-                            <button
-                                onClick={() => setCalendarDetailItem(null)}
-                                className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
-                            >
-                                ปิด
-                            </button>
-                            <button
-                                onClick={() => openCalendarEdit(calendarDetailItem)}
-                                className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-200"
-                            >
-                                แก้ไขกิจกรรม
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <EditModal
-                open={!!calendarEditItem}
-                title="แก้ไขกิจกรรม"
-                fields={activityFields}
-                values={calendarEditValues}
-                saving={savingCalendarEdit}
-                onClose={() => setCalendarEditItem(null)}
-                onChange={(k, v) => setCalendarEditValues(prev => ({ ...prev, [k]: v }))}
-                onSubmit={saveCalendarEdit}
-            />
         </div>
     );
 }
+
+
 

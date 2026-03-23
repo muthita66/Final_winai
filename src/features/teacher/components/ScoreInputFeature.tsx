@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useCallback, useMemo, useRef, type KeyboardEvent } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { TeacherApiService } from "@/services/teacher-api.service";
+import Portal from "@/components/Portal";
 
 type SectionLike = {
     id?: number | string | null;
@@ -1175,7 +1176,8 @@ export function ScoreInputFeature({ session }: { session: any }) {
             )}
             {/* ── Manage Headers Modal ── */}
             {showManageModal && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+                <Portal>
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
                             <div>
@@ -1352,10 +1354,12 @@ export function ScoreInputFeature({ session }: { session: any }) {
                         </div>
                     </div>
                 </div>
-            )}
+            </Portal>
+        )}
             {/* ── Manage Categories Modal ── */}
             {showCategoryManageModal && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                <Portal>
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-emerald-50/50">
                             <div>
@@ -1547,7 +1551,8 @@ export function ScoreInputFeature({ session }: { session: any }) {
                         </div>
                     </div>
                 </div>
-            )}
+            </Portal>
+        )}
         </div>
     );
 }

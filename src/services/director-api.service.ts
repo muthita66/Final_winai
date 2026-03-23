@@ -135,6 +135,9 @@ export const DirectorApiService = {
     async getDepartmentsLookup() {
         return fetchApi<any[]>('/api/director/lookups/departments');
     },
+    async getTargetTypes() {
+        return fetchApi<any[]>('/api/options/target-types');
+    },
 
     // --- Projects ---
     async getProjects(search?: string, year?: number, semester?: number) {
@@ -187,10 +190,11 @@ export const DirectorApiService = {
     },
 
     // --- Evaluation ---
-    async getEvaluationSummary(year?: number, semester?: number) {
+    async getEvaluationSummary(year?: number, semester?: number, type?: string) {
         const params = new URLSearchParams();
         if (year) params.append('year', year.toString());
         if (semester) params.append('semester', semester.toString());
+        if (type) params.append('type', type);
         const q = params.toString();
         return fetchApi<any[]>(`/api/director/evaluation${q ? `?${q}` : ''}`);
     },

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { TeacherApiService } from "@/services/teacher-api.service";
+import Portal from "@/components/Portal";
 
 function normalizeText(value: any) {
     return String(value ?? "").trim().toLowerCase();
@@ -25,7 +26,9 @@ function formatThaiDate(raw: any): string {
 }
 
 const EXAM_TYPE_LABELS: Record<string, string> = {
-    midterm: "สอบกลางภาค",
+    MIDTERM: "สอบกลางภาค",
+    FINAL: "สอบปลายภาค",
+    midterm: "สอบกลางภาค", // keep fallback for existing data if any
     final: "สอบปลายภาค",
 };
 
@@ -42,11 +45,12 @@ function ExamModal({
 }) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [examType, setExamType] = useState("midterm");
+    const [examType, setExamType] = useState("MIDTERM");
     const [examDate, setExamDate] = useState("");
     const [startTime, setStartTime] = useState("09:00");
     const [endTime, setEndTime] = useState("11:00");
     const [existingList, setExistingList] = useState<any[]>([]);
+    const [showConfirm, setShowConfirm] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -70,7 +74,7 @@ function ExamModal({
 
     useEffect(() => {
         load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [section.id]);
 
     // When exam type changes, update prefill
@@ -90,6 +94,12 @@ function ExamModal({
     const handleSave = async () => {
         if (!examDate) return alert("กรุณาเลือกวันสอบ");
         if (!startTime || !endTime) return alert("กรุณาระบุเวลาเริ่มและเวลาสิ้นสุด");
+
+        if (!showConfirm) {
+            setShowConfirm(true);
+            return;
+        }
+
         setSaving(true);
         try {
             await TeacherApiService.saveSectionExamSchedule({
@@ -100,6 +110,7 @@ function ExamModal({
                 end_time: endTime,
             });
             await load();
+            setShowConfirm(false);
             alert("บันทึกวันสอบเรียบร้อยแล้ว ✓");
         } catch {
             alert("บันทึกไม่สำเร็จ");
@@ -109,121 +120,172 @@ function ExamModal({
     };
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            onClick={(e) => e.target === e.currentTarget && onClose()}
-        >
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-emerald-600 to-teal-700 px-6 py-5 text-white">
-                    <button onClick={onClose} className="absolute top-4 right-5 text-white/70 hover:text-white transition-colors">
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                    <div className="flex items-center gap-2 mb-1">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span className="text-sm font-medium text-emerald-100">กำหนดวันสอบ</span>
+        <Portal>
+            <div
+                className="fixed inset-0 z-[9999] flex items-center justify-center p-4 text-slate-800"
+                onClick={(e) => e.target === e.currentTarget && onClose()}
+            >
+                <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+                <div className="relative w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-emerald-600 to-teal-700 px-6 py-5 text-white">
+                        <button onClick={onClose} className="absolute top-4 right-5 text-white/70 hover:text-white transition-colors">
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                        <div className="flex items-center gap-2 mb-1">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span className="text-sm font-medium text-emerald-100">กำหนดวันสอบ</span>
+                        </div>
+                        <h2 className="text-xl font-bold leading-tight">{section?.subjects?.name || "-"}</h2>
+                        <p className="text-emerald-100 text-sm mt-0.5 opacity-90">{section?.subjects?.subject_code} · {section?.class_level}/{section?.classroom?.split("/").pop() || section?.classroom}</p>
                     </div>
-                    <h2 className="text-xl font-bold">{section?.subjects?.name || "-"}</h2>
-                    <p className="text-emerald-100 text-sm">{section?.subjects?.subject_code} · {section?.class_level}/{section?.classroom?.split("/").pop() || section?.classroom}</p>
-                </div>
 
-                {/* Existing exams summary */}
-                {existingList.length > 0 && (
-                    <div className="px-6 pt-4 flex flex-wrap gap-2">
-                        {existingList.map((item: any) => (
-                            <div key={item.id} className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs text-emerald-800">
-                                <span className="font-bold">{EXAM_TYPE_LABELS[item.exam_type] || item.exam_type}</span>
-                                {" · "}
-                                {formatThaiDate(item.exam_date)}
-                                {" · "}
-                                {formatTime(item.start_time)}–{formatTime(item.end_time)} น.
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {/* Form */}
-                {loading ? (
-                    <div className="p-8 text-center text-slate-500">กำลังโหลด...</div>
-                ) : (
-                    <div className="px-6 py-5 space-y-4">
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-500 mb-1.5">ประเภทการสอบ</label>
-                            <div className="flex gap-2">
-                                {["midterm", "final"].map((t) => (
-                                    <button
-                                        key={t}
-                                        onClick={() => setExamType(t)}
-                                        className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${examType === t
-                                            ? "border-emerald-500 bg-emerald-600 text-white shadow-sm"
-                                            : "border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50"
-                                            }`}
-                                    >
-                                        {EXAM_TYPE_LABELS[t]}
-                                    </button>
+                    {/* Body */}
+                    <div className="max-h-[70vh] overflow-y-auto">
+                        {/* Existing exams summary */}
+                        {existingList.length > 0 && !showConfirm && (
+                            <div className="px-6 pt-4 flex flex-wrap gap-2">
+                                {existingList.map((item: any) => (
+                                    <div key={item.id} className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-[11px] text-emerald-800 font-medium">
+                                        <span className="font-bold">{EXAM_TYPE_LABELS[item.exam_type] || item.exam_type}</span>
+                                        {" · "}
+                                        {formatThaiDate(item.exam_date)}
+                                        {" · "}
+                                        {formatTime(item.start_time)}–{formatTime(item.end_time)} น.
+                                    </div>
                                 ))}
                             </div>
-                        </div>
+                        )}
 
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-500 mb-1.5">วันสอบ</label>
-                            <input
-                                type="date"
-                                value={examDate}
-                                onChange={(e) => setExamDate(e.target.value)}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-500 mb-1.5">เวลาเริ่ม</label>
-                                <input
-                                    type="time"
-                                    value={startTime}
-                                    onChange={(e) => setStartTime(e.target.value)}
-                                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
-                                />
+                        {loading ? (
+                            <div className="p-12 text-center text-slate-500 flex flex-col items-center gap-3">
+                                <div className="w-8 h-8 border-3 border-emerald-100 border-t-emerald-600 rounded-full animate-spin" />
+                                <span className="font-medium">กำลังโหลด...</span>
                             </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-500 mb-1.5">เวลาสิ้นสุด</label>
-                                <input
-                                    type="time"
-                                    value={endTime}
-                                    onChange={(e) => setEndTime(e.target.value)}
-                                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
-                                />
-                            </div>
-                        </div>
+                        ) : showConfirm ? (
+                            <div className="px-6 py-8">
+                                <div className="rounded-2xl bg-amber-50 border border-amber-200 p-5 text-center mb-6">
+                                    <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                    </div>
+                                    <h3 className="text-lg font-bold text-amber-900 mb-1">ยืนยันการบันทึกข้อมูล?</h3>
+                                    <p className="text-amber-700 text-sm">กรุณาตรวจสอบข้อมูลวันและเวลาสอบให้ถูกต้อง</p>
+                                </div>
 
-                        <button
-                            onClick={handleSave}
-                            disabled={saving}
-                            className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
-                        >
-                            {saving ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                                    กำลังบันทึก...
-                                </>
-                            ) : (
-                                <>
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                <div className="space-y-4 bg-slate-50 rounded-2xl p-5 border border-slate-200">
+                                    <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                                        <span className="text-sm text-slate-500">ประเภทการสอบ</span>
+                                        <span className="text-sm font-bold text-slate-800">{EXAM_TYPE_LABELS[examType]}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                                        <span className="text-sm text-slate-500">วันสอบ</span>
+                                        <span className="text-sm font-bold text-slate-800">{formatThaiDate(examDate)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm text-slate-500">เวลาสอบ</span>
+                                        <span className="text-sm font-bold text-slate-800">{startTime} – {endTime} น.</span>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 mt-8">
+                                    <button
+                                        onClick={() => setShowConfirm(false)}
+                                        disabled={saving}
+                                        className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                                    >
+                                        ยกเลิก
+                                    </button>
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={saving}
+                                        className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 shadow-md shadow-emerald-200 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+                                    >
+                                        {saving ? (
+                                            <>
+                                                <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                                กำลังบันทึก...
+                                            </>
+                                        ) : (
+                                            "ยืนยันบันทึก"
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="px-6 py-6 space-y-5">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">ประเภทการสอบ</label>
+                                    <div className="flex gap-2">
+                                        {["MIDTERM", "FINAL"].map((t) => (
+                                            <button
+                                                key={t}
+                                                onClick={() => setExamType(t)}
+                                                className={`flex-1 rounded-xl border px-3 py-3 text-sm font-bold transition-all ${examType === t
+                                                    ? "border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm"
+                                                    : "border-slate-200 text-slate-500 hover:border-emerald-200 hover:bg-emerald-50/50"
+                                                    }`}
+                                            >
+                                                {EXAM_TYPE_LABELS[t]}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">วันสอบ</label>
+                                    <div className="relative">
+                                        <input
+                                            type="date"
+                                            value={examDate}
+                                            onChange={(e) => setExamDate(e.target.value)}
+                                            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-slate-50/50 transition-all"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">เวลาเริ่ม</label>
+                                        <input
+                                            type="time"
+                                            value={startTime}
+                                            onChange={(e) => setStartTime(e.target.value)}
+                                            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-slate-50/50 transition-all"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">เวลาสิ้นสุด</label>
+                                        <input
+                                            type="time"
+                                            value={endTime}
+                                            onChange={(e) => setEndTime(e.target.value)}
+                                            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-slate-50/50 transition-all"
+                                        />
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={handleSave}
+                                    disabled={saving}
+                                    className="w-full mt-4 rounded-xl bg-emerald-600 px-4 py-4 text-sm font-bold text-white hover:bg-emerald-700 shadow-lg shadow-emerald-100 transition-all disabled:opacity-60 flex items-center justify-center gap-2 group"
+                                >
+                                    <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                                     </svg>
-                                    บันทึกวันสอบ
-                                </>
-                            )}
-                        </button>
+                                    ยืนยัน
+                                </button>
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
             </div>
-        </div>
+        </Portal>
     );
 }
 

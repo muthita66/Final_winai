@@ -23,6 +23,12 @@ export const TeacherApiService = {
     async getEventTypes() {
         return fetchApi<any[]>('/api/teacher/calendar?action=event-types');
     },
+    async getTargetTypes() {
+        return fetchApi<any[]>('/api/teacher/calendar?action=target-types');
+    },
+    async getTargetOptions(targetType: string) {
+        return fetchApi<any[]>(`/api/options/targets?targetType=${targetType}`);
+    },
     async addCalendarEvent(data: {
         title: string;
         description?: string;
@@ -36,6 +42,7 @@ export const TeacherApiService = {
         userId?: number | null;
         department_id?: number | null;
         event_type_id?: number | null;
+        semester_id?: number | null;
         targets?: { target_type: string; target_value?: string | null }[];
     }) {
         return fetchApi<any>('/api/teacher/calendar', { method: 'POST', body: JSON.stringify(data) });
@@ -52,6 +59,7 @@ export const TeacherApiService = {
         visibility?: string;
         department_id?: number | null;
         event_type_id?: number | null;
+        semester_id?: number | null;
         targets?: { target_type: string; target_value?: string | null }[];
     }) {
         return fetchApi<any>('/api/teacher/calendar', { method: 'PUT', body: JSON.stringify({ id, ...data }) });

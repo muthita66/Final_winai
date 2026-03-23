@@ -1,5 +1,6 @@
 import { ActivitiesService } from '@/features/student/activities.service';
 import { successResponse, errorResponse } from '@/lib/api-response';
+import { getSession } from '@/lib/auth';
 
 export async function GET() {
     try {

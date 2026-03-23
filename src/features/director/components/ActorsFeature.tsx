@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { fetchApi } from "@/services/api-client";
+import Portal from "@/components/Portal";
 import {
     UserIcon,
     AcademicCapIcon,
@@ -77,7 +78,8 @@ function DataModal({
     const columns = actor.data.length > 0 ? Object.keys(actor.data[0]) : [];
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <Portal>
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
             <div className="relative w-full max-w-7xl rounded-2xl bg-white shadow-2xl border border-slate-200 max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
@@ -149,7 +151,8 @@ function DataModal({
                 </div>
             </div>
         </div>
-    );
+    </Portal>
+);
 }
 
 export default function ActorsFeature() {
@@ -292,14 +295,16 @@ export default function ActorsFeature() {
 
             {/* Loading Modal */}
             {modalOpen && loadingDetail && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <Portal>
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
                     <div className="relative bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4">
                         <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
                         <p className="text-slate-600 font-medium">กำลังโหลดข้อมูล...</p>
                     </div>
                 </div>
-            )}
+            </Portal>
+        )}
 
             {/* Data Modal */}
             <DataModal open={modalOpen && !loadingDetail} actor={selectedActor} onClose={closeModal} />

@@ -10,8 +10,10 @@ export default function PortalLayout({
         <div className="flex pt-16 h-screen">
             <Header />
             <Sidebar />
-            <main className="flex-1 ml-64 px-4 py-8 overflow-y-auto">
-                {children}
+            <main className="flex-1 ml-64 relative">
+                <div className="h-full overflow-y-auto px-4 py-8 custom-scrollbar">
+                    {children}
+                </div>
             </main>
         </div>
     );

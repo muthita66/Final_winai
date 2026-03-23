@@ -12,6 +12,9 @@ export async function GET(request: Request) {
         if (action === 'event-types') {
             return successResponse(await TeacherCalendarService.getEventTypes());
         }
+        if (action === 'target-types') {
+            return successResponse(await TeacherCalendarService.getTargetTypes());
+        }
 
         const events = await TeacherCalendarService.getAll();
         return successResponse(events);

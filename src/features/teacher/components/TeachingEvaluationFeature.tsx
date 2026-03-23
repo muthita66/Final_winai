@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { TeacherApiService } from "@/services/teacher-api.service";
 import toast from "react-hot-toast";
+import Portal from "@/components/Portal";
 import { getCurrentAcademicYearBE, getRecentAcademicYearsBE, getAcademicSemesterDefault } from "@/features/student/academic-term";
 
 interface TeachingEvaluationFeatureProps {
@@ -701,8 +702,9 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
             </div>
 
             {/* === Modal Popup: Subject Evaluation === */}
-            {isModalOpen && evalTemplate && typeof window !== 'undefined' ? createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            {isModalOpen && evalTemplate && (
+                <Portal>
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                     {/* Backdrop */}
                     <div
                         className="absolute inset-0 bg-black/60 backdrop-blur-md"
@@ -883,13 +885,14 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                             </button>
                         </div>
                     </div>
-                </div>,
-                document.body
-            ) : null}
+                </div>
+            </Portal>
+        )}
 
             {/* === Modal Popup: Advisor Attributes Evaluation === */}
-            {expandedAdvisorStudentId !== null && advisorEvalTemplate && typeof window !== 'undefined' ? createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            {expandedAdvisorStudentId !== null && advisorEvalTemplate && (
+                <Portal>
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                     {/* Backdrop */}
                     <div
                         className="absolute inset-0 bg-black/60 backdrop-blur-md"
@@ -1063,9 +1066,9 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                             </button>
                         </div>
                     </div>
-                </div>,
-                document.body
-            ) : null}
+                </div>
+            </Portal>
+        )}
         </div>
     );
 }

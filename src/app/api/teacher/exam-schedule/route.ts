@@ -12,10 +12,13 @@ export async function GET(request: Request) {
             where: { id: section_id },
             select: { subject_id: true, semester_id: true }
         });
-        if (!ta) return successResponse(null);
+        if (!ta) return successResponse([]);
 
         const rows = await (prisma.exam_schedules as any).findMany({
-            where: { subject_id: ta.subject_id, semester_id: ta.semester_id },
+            where: { 
+                subject_id: ta.subject_id, 
+                semester_id: ta.semester_id 
+            },
             orderBy: [{ exam_date: 'asc' }]
         });
 
@@ -27,7 +30,7 @@ export async function GET(request: Request) {
             end_time: r.end_time,
         })));
     } catch (error: any) {
-        return errorResponse('Failed', 500, error.message);
+        return errorResponse('Failed to fetch exam schedule', 500, error.message);
     }
 }
 
@@ -45,35 +48,55 @@ export async function POST(request: Request) {
             where: { id: Number(section_id) },
             select: { subject_id: true, semester_id: true }
         });
-        if (!ta) return errorResponse('Section not found', 404);
+        if (!ta) return errorResponse('Section assignment not found', 404);
 
-        const examTypeVal = exam_type || 'midterm';
+        // Standardize exam type to uppercase enum value
+        const examTypeVal = (exam_type || 'MIDTERM').toUpperCase() as any;
 
-        // Try to upsert: find existing by subject+semester+type, then update or create
-        const existing: any[] = await prisma.$queryRawUnsafe(
-            `SELECT id FROM exam_schedules WHERE subject_id = $1 AND semester_id = $2 AND exam_type = $3 LIMIT 1`,
-            ta.subject_id, ta.semester_id, examTypeVal
-        );
+        // Find existing schedule for this subject, semester, and type
+        const existing = await (prisma.exam_schedules as any).findFirst({
+            where: {
+                subject_id: ta.subject_id,
+                semester_id: ta.semester_id,
+                exam_type: examTypeVal
+            }
+        });
 
+        // Parse date and time correctly
+        // exam_date is "YYYY-MM-DD"
         const examDateObj = new Date(exam_date);
-        const startTimeObj = new Date(`1970-01-01T${start_time}:00`);
-        const endTimeObj = new Date(`1970-01-01T${end_time}:00`);
+        
+        // start_time and end_time are "HH:mm"
+        // For Postgres TIME fields, Prisma expects a Date object where the time part is used
+        const startTimeObj = new Date(`1970-01-01T${start_time}:00Z`);
+        const endTimeObj = new Date(`1970-01-01T${end_time}:00Z`);
 
-        if (existing.length > 0) {
-            await prisma.$executeRawUnsafe(
-                `UPDATE exam_schedules SET exam_date = $1, start_time = $2, end_time = $3 WHERE id = $4`,
-                examDateObj, startTimeObj, endTimeObj, existing[0].id
-            );
-            return successResponse({ id: existing[0].id });
+        let result;
+        if (existing) {
+            result = await (prisma.exam_schedules as any).update({
+                where: { id: existing.id },
+                data: {
+                    exam_date: examDateObj,
+                    start_time: startTimeObj,
+                    end_time: endTimeObj
+                }
+            });
         } else {
-            const result: any[] = await prisma.$queryRawUnsafe(
-                `INSERT INTO exam_schedules (semester_id, subject_id, exam_type, exam_date, start_time, end_time)
-                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-                ta.semester_id, ta.subject_id, examTypeVal, examDateObj, startTimeObj, endTimeObj
-            );
-            return successResponse({ id: result[0].id });
+            result = await (prisma.exam_schedules as any).create({
+                data: {
+                    semester_id: ta.semester_id,
+                    subject_id: ta.subject_id,
+                    exam_type: examTypeVal,
+                    exam_date: examDateObj,
+                    start_time: startTimeObj,
+                    end_time: endTimeObj
+                }
+            });
         }
+
+        return successResponse({ id: result.id }, existing ? 'Exam schedule updated' : 'Exam schedule created');
     } catch (error: any) {
-        return errorResponse('Failed', 500, error.message);
+        console.error('Save exam error:', error);
+        return errorResponse('Failed to save exam schedule', 500, error.message);
     }
 }

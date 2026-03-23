@@ -22,7 +22,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ type: st
             });
             const data = classrooms.map((c: any) => ({
                 id: c.id,
-                label: `${c.levels?.name || ''} ${c.room_name}`.trim(),
+                label: c.room_name.trim(),
                 level: c.levels?.name || ''
             }));
             return successResponse(data);
@@ -117,7 +117,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ type: st
                 });
                 return successResponse(classrooms.map((c: any) => ({
                     id: String(c.id),
-                    label: `${c.levels?.name || ''} ${c.room_name}`.trim()
+                    label: c.room_name.trim()
                 })));
             }
             if (optionsType === 'learning-groups') {

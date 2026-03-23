@@ -5,6 +5,7 @@ import { StudentApiService } from '@/services/student-api.service';
 import toast from 'react-hot-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from '@/components/Skeleton';
+import Portal from '@/components/Portal';
 import { getAcademicSemesterDefault, getAcademicYearOptionsForStudent, getCurrentAcademicYearBE } from '@/features/student/academic-term';
 
 interface UserSession {
@@ -387,7 +388,8 @@ export function RegistrationFeature({ session }: { session: UserSession }) {
 
             {/* Modal for Search / Browse Results */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                <Portal>
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
                     <div className="bg-white w-full max-w-4xl max-h-[85vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden">
                         {/* Modal Header */}
                         <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50/50">
@@ -506,7 +508,8 @@ export function RegistrationFeature({ session }: { session: UserSession }) {
 
                     </div>
                 </div>
-            )}
+            </Portal>
+        )}
 
             {/* Cart Section */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">

@@ -53,7 +53,7 @@ export default async function Sidebar() {
     const links = roleLinks[role as keyof typeof roleLinks] || roleLinks.guest;
 
     return (
-        <aside className="fixed left-0 top-16 bottom-0 w-64 bg-slate-50 border-r border-slate-200 p-4 flex flex-col transition-transform duration-300">
+        <aside className="fixed left-0 top-16 bottom-0 w-64 bg-slate-50 border-r border-slate-200 p-4 flex flex-col transition-transform duration-300 z-30">
             <SidebarNav links={links} />
 
             <div className="p-4 mt-auto border-t border-slate-200 text-xs text-slate-400 text-center">

@@ -109,14 +109,16 @@ export const StudentDashboardService = {
                 },
             }),
             Promise.resolve([] as any[]),
-            (prisma.event_participants as any).findMany({
-                where: { user_id: student.user_id },
-                include: { events: true },
-            }),
+            prisma.$queryRawUnsafe(`
+                SELECT ep.*, e.title, e.start_datetime, e.location
+                FROM event_participants ep
+                JOIN events e ON ep.event_id = e.id
+                WHERE ep.user_id = $1
+            `, student.user_id),
         ]);
 
         const attendance = { present: 0, absent: 0, late: 0, leave: 0, total: attendanceRecords.length, rate: 0 };
-        for (const record of attendanceRecords) {
+        for (const record of attendanceRecords as any[]) {
             const key = normalizeAttendanceStatus(record.status);
             if (key === 'present') attendance.present += 1;
             if (key === 'absent') attendance.absent += 1;
@@ -140,14 +142,13 @@ export const StudentDashboardService = {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const upcomingEvents = await prisma.events.findMany({
-            where: {
-                start_datetime: { gte: today },
-                visibility: 'public'
-            },
-            orderBy: { start_datetime: 'asc' },
-            take: 5
-        });
+        const upcomingEvents: any[] = await prisma.$queryRawUnsafe(`
+            SELECT id, title, start_datetime, end_datetime, location
+            FROM events
+            WHERE start_datetime >= $1 AND visibility = 'public'
+            ORDER BY start_datetime ASC
+            LIMIT 5
+        `, today);
 
         const upcomingActivities = upcomingEvents.map((e) => ({
             id: e.id,

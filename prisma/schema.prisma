@@ -254,14 +254,14 @@ model events {
   teacher_id           Int?
   event_type_id        Int?
   department_id        Int?
-  evaluation_form_id   Int?
+  semester_id          Int?
   evaluation_responses evaluation_responses[]
   event_evaluations    event_evaluations[]
   event_participants   event_participants[]
   event_targets        event_targets[]
   users                users?                 @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   departments          departments?           @relation(fields: [department_id], references: [id], onUpdate: NoAction)
-  evaluation_forms     evaluation_forms?      @relation(fields: [evaluation_form_id], references: [id], onUpdate: NoAction)
+  semesters            semesters?             @relation(fields: [semester_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   event_types          event_types?           @relation(fields: [event_type_id], references: [id], onUpdate: NoAction)
   teachers             teachers?              @relation(fields: [teacher_id], references: [id], onUpdate: NoAction)
 }
@@ -537,6 +537,7 @@ model semesters {
   exam_schedules       exam_schedules[]
   academic_years       academic_years         @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   teaching_assignments teaching_assignments[]
+  events               events[]
 
   @@unique([academic_year_id, semester_number])
 }
@@ -850,6 +851,7 @@ model evaluation_answers {
   evaluation_choices       evaluation_choices?     @relation(fields: [choice_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   evaluation_questions     evaluation_questions?   @relation(fields: [question_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   evaluation_scale_items   evaluation_scale_items? @relation(fields: [evaluation_scale_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "evaluation_answers_scale_item_id_fkey")
+  evaluation_responses     evaluation_responses?   @relation(fields: [response_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model evaluation_categories {
@@ -875,7 +877,6 @@ model evaluation_forms {
   evaluation_schedules  evaluation_schedules[]
   evaluation_sections   evaluation_sections[]
   event_evaluations     event_evaluations[]
-  events                events[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -910,6 +911,10 @@ model evaluation_responses {
   evaluation_forms   evaluation_forms? @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   semesters          semesters?        @relation(fields: [semester_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
   events             events?           @relation(fields: [target_activity_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_target_activity_event")
+  evaluation_answers evaluation_answers[]
+  teachers           teachers?         @relation(fields: [target_teacher_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  students           students?         @relation(fields: [target_student_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  subjects           subjects?         @relation(fields: [target_subject_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([evaluator_user_id], map: "idx_eval_resp_evaluator")
   @@index([semester_id], map: "idx_eval_resp_semester")

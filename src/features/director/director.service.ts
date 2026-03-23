@@ -1012,6 +1012,7 @@ export const DirectorService = {
                     department_name: dMap.get(r.department_id) || '',
                     event_type_id: r.event_type_id,
                     event_type_name: etMap.get(r.event_type_id) || '',
+                    semester_id: r.semester_id,
                 };
             });
         } catch (error: any) {
@@ -1027,7 +1028,7 @@ export const DirectorService = {
         const start = `${startDateString} ${startTimeString}:00`;
 
         const endDateString = data.end_date || startDateString;
-        const endTimeString = data.end_time || "23:59";
+        const endTimeString = data.end_time || (data.start_time ? data.start_time : '23:59');
         const end = `${endDateString} ${endTimeString}:00`;
 
         const title = data.title || data.name || '';
@@ -1035,7 +1036,7 @@ export const DirectorService = {
         const location = data.location || '';
         const visibility = String(data.visibility || 'public');
         const is_all_day = data.is_all_day ?? (data.start_time ? false : true);
-        const created_by = data.created_by ? Number(data.created_by) : null;
+        const created_by = data.created_by ? Number(data.created_by) : (data.userId ? Number(data.userId) : null);
         const teacher_id = data.teacher_id ? Number(data.teacher_id) : null;
         const department_id = data.department_id ? Number(data.department_id) : null;
         const event_type_id = data.event_type_id ? Number(data.event_type_id) : null;
@@ -1044,17 +1045,32 @@ export const DirectorService = {
             INSERT INTO events (
                 title, description, start_datetime, end_datetime, 
                 is_all_day, location, visibility, created_by,
-                teacher_id, department_id, event_type_id
+                teacher_id, department_id, event_type_id, semester_id
             ) VALUES (
                 $1, $2, $3::timestamp, $4::timestamp, 
                 $5, $6, $7, $8, 
-                $9, $10, $11
+                $9, $10, $11, $12
             ) RETURNING id
-        `, 
-        title, description, start, end, 
-        is_all_day, location, visibility, created_by,
-        teacher_id, department_id, event_type_id
+        `,
+            title, description, start, end,
+            is_all_day, location, visibility, created_by,
+            teacher_id, department_id, event_type_id, data.semester_id ? Number(data.semester_id) : null
         );
+
+        const eventId = (res as any)[0].id;
+
+        // Handle targets
+        if (data.targets && Array.isArray(data.targets)) {
+            for (const t of data.targets) {
+                if (t.target_type) {
+                    await prisma.$executeRawUnsafe(
+                        `INSERT INTO event_targets (event_id, target_type, target_value) VALUES ($1, $2, $3)`,
+                        eventId, t.target_type, t.target_value || null
+                    );
+                }
+            }
+        }
+
         return (res as any)[0];
     },
 
@@ -1082,7 +1098,7 @@ export const DirectorService = {
         const department_id = data.department_id !== undefined ? (data.department_id ? Number(data.department_id) : null) : c.department_id;
         const event_type_id = data.event_type_id !== undefined ? (data.event_type_id ? Number(data.event_type_id) : null) : c.event_type_id;
 
-        return prisma.$executeRawUnsafe(`
+        await prisma.$executeRawUnsafe(`
             UPDATE events 
             SET title = $1, 
                 description = $2, 
@@ -1092,20 +1108,37 @@ export const DirectorService = {
                 visibility = $6, 
                 teacher_id = $7, 
                 department_id = $8, 
-                event_type_id = $9
-            WHERE id = $10
-        `, 
-        title, 
-        description, 
-        start, 
-        end, 
-        location, 
-        visibility, 
-        teacher_id, 
-        department_id, 
-        event_type_id, 
-        nid
+                event_type_id = $9,
+                semester_id = $10
+            WHERE id = $11
+        `,
+            title,
+            description,
+            start,
+            end,
+            location,
+            visibility,
+            teacher_id,
+            department_id,
+            event_type_id,
+            data.semester_id ? Number(data.semester_id) : c.semester_id,
+            nid
         );
+
+        // Update targets
+        if (data.targets !== undefined && Array.isArray(data.targets)) {
+            await prisma.$executeRawUnsafe(`DELETE FROM event_targets WHERE event_id = $1`, nid);
+            for (const t of data.targets) {
+                if (t.target_type) {
+                    await prisma.$executeRawUnsafe(
+                        `INSERT INTO event_targets (event_id, target_type, target_value) VALUES ($1, $2, $3)`,
+                        nid, t.target_type, t.target_value || null
+                    );
+                }
+            }
+        }
+
+        return { id: nid, ...data };
     },
 
     async getEventTypes() {
@@ -1116,11 +1149,45 @@ export const DirectorService = {
         return prisma.departments.findMany({ orderBy: { department_name: 'asc' } });
     },
 
+    async getTargetTypes() {
+        return prisma.target_types.findMany({
+            where: { is_active: true },
+            orderBy: { display_name: 'asc' }
+        });
+    },
+
     async deleteActivity(id: number) {
-        await prisma.event_participants.deleteMany({ where: { event_id: id } });
-        await prisma.event_targets.deleteMany({ where: { event_id: id } });
-        await prisma.$executeRawUnsafe(`DELETE FROM activity_evaluation_link WHERE event_id = $1`, id).catch(() => {});
-        return prisma.events.delete({ where: { id } });
+        // Manually delete related records to avoid foreign key constraints
+        // We use catch on all to ensure we try everything even if some tables don't exist
+        await prisma.event_participants.deleteMany({ where: { event_id: id } }).catch(() => {});
+        await prisma.event_targets.deleteMany({ where: { event_id: id } }).catch(() => {});
+        await prisma.event_evaluations.deleteMany({ where: { event_id: id } }).catch(() => {});
+        await prisma.evaluation_responses.deleteMany({ where: { target_activity_id: id } }).catch(() => {});
+        
+        // Brute force other potential hidden/legacy tables
+        const tables = [
+            'activity_evaluation_link',
+            'activity_evaluation_results',
+            'event_evaluations', // redundant but safe
+            'event_attendance',
+            'activity_participants',
+            'activity_targets',
+            'event_responses',
+            'activity_evaluation'
+        ];
+        
+        for (const table of tables) {
+            try {
+                // Try event_id
+                await prisma.$executeRawUnsafe(`DELETE FROM ${table} WHERE event_id = $1`, id).catch(() => {});
+                // Try activity_id
+                await prisma.$executeRawUnsafe(`DELETE FROM ${table} WHERE activity_id = $1`, id).catch(() => {});
+            } catch (e) {}
+        }
+        
+        // Use raw SQL to delete from events to bypass Prisma Client sync issues 
+        // (specifically the missing evaluation_form_id column)
+        return prisma.$executeRawUnsafe(`DELETE FROM events WHERE id = $1`, id);
     },
 
     // --- Projects ---
@@ -1342,26 +1409,199 @@ export const DirectorService = {
 
     // --- Evaluation Summary ---
     async getEvaluationSummary(year?: number, semester?: number) {
-        void year;
-        void semester;
-        // Use raw SQL for evaluation summary as these models are currently missing from schema.prisma
-        const rows: any[] = await prisma.$queryRawUnsafe(`
-            SELECT 
-                ef.id, 
-                ef.name, 
-                (SELECT COUNT(*)::int FROM evaluation_questions eq WHERE eq.form_id = ef.id) as questions_count,
-                (SELECT COUNT(*)::int FROM evaluation_responses er WHERE er.form_id = ef.id) as responses_count
-            FROM evaluation_forms ef
-            ORDER BY ef.id ASC
-        `);
+        // Find semester id first
+        const semesterFilter: any = {};
+        if (year && semester) {
+            const sem = await prisma.semesters.findFirst({
+                where: {
+                    semester_number: semester,
+                    academic_years: { year_name: String(year) }
+                },
+                select: { id: true }
+            });
+            if (sem) semesterFilter.semester_id = sem.id;
+        }
 
-        return rows.map((f: any) => ({
-            id: f.id,
-            name: f.name,
-            type: '', // type column missing or unknown
-            questions_count: f.questions_count,
-            responses_count: f.responses_count,
-        }));
+        const forms = await prisma.evaluation_forms.findMany({
+            where: { is_active: true },
+            include: {
+                evaluation_responses: {
+                    where: semesterFilter,
+                    include: {
+                        evaluation_answers: {
+                            select: { score_value: true }
+                        }
+                    }
+                }
+            } as any
+        });
+
+        return forms.map(f => {
+            const responses = (f as any).evaluation_responses || [];
+            let totalScore = 0;
+            let totalQuestions = 0;
+
+            responses.forEach((r: any) => {
+                (r.evaluation_answers || []).forEach((a: any) => {
+                    if (a.score_value != null) {
+                        totalScore += Number(a.score_value);
+                        totalQuestions++;
+                    }
+                });
+            });
+
+            return {
+                id: f.id,
+                name: f.form_name,
+                avg_score: totalQuestions > 0 ? (totalScore / totalQuestions) : 0,
+                responses_count: responses.length
+            };
+        });
+    },
+
+    async getDetailedEvaluationResults(year?: number, semester?: number, type: 'teaching' | 'advisor' | 'activity' = 'teaching') {
+        const semesterFilter: any = {};
+        if (year && semester) {
+            const sem = await prisma.semesters.findFirst({
+                where: {
+                    semester_number: semester,
+                    academic_years: { year_name: String(year) }
+                },
+                select: { id: true }
+            });
+            if (sem) semesterFilter.semester_id = sem.id;
+        }
+
+        if (type === 'teaching') {
+            // Student Evaluating Teacher
+            const rows = await prisma.evaluation_responses.findMany({
+                where: {
+                    ...semesterFilter,
+                    target_teacher_id: { not: null },
+                    target_subject_id: { not: null }
+                },
+                include: {
+                    evaluation_answers: { select: { score_value: true } },
+                    teachers: { select: { first_name: true, last_name: true, teacher_code: true } },
+                    subjects: { select: { subject_name: true, subject_code: true } }
+                } as any
+            });
+
+            const groups = new Map<string, any>();
+            rows.forEach(r => {
+                const key = `${r.target_teacher_id}-${r.target_subject_id}`;
+                if (!groups.has(key)) {
+                    groups.set(key, {
+                        id: key,
+                        teacher_name: `${(r as any).teachers?.first_name} ${(r as any).teachers?.last_name}`,
+                        subject_name: `[${(r as any).subjects?.subject_code}] ${(r as any).subjects?.subject_name}`,
+                        total_score: 0,
+                        count: 0,
+                        responses: 0
+                    });
+                }
+                const g = groups.get(key);
+                g.responses++;
+                ((r as any).evaluation_answers || []).forEach((a: any) => {
+                    if (a.score_value != null) {
+                        g.total_score += Number(a.score_value);
+                        g.count++;
+                    }
+                });
+            });
+
+            return Array.from(groups.values()).map(g => ({
+                id: g.id,
+                name: `${g.teacher_name} - ${g.subject_name}`,
+                avg_score: g.count > 0 ? (g.total_score / g.count) : 0,
+                responses_count: g.responses
+            }));
+        } else if (type === 'advisor') {
+            // Teacher Evaluating Student
+            const rows = await prisma.evaluation_responses.findMany({
+                where: {
+                    ...semesterFilter,
+                    target_student_id: { not: null }
+                },
+                include: {
+                    evaluation_answers: { select: { score_value: true } },
+                    students: { select: { first_name: true, last_name: true, student_code: true } }
+                } as any
+            });
+
+            const groups = new Map<number, any>();
+            rows.forEach(r => {
+                const sid = r.target_student_id!;
+                if (!groups.has(sid)) {
+                    groups.set(sid, {
+                        id: sid,
+                        student_name: `${(r as any).students?.first_name} ${(r as any).students?.last_name}`,
+                        student_code: (r as any).students?.student_code,
+                        total_score: 0,
+                        count: 0,
+                        responses: 0
+                    });
+                }
+                const g = groups.get(sid);
+                g.responses++;
+                ((r as any).evaluation_answers || []).forEach((a: any) => {
+                    if (a.score_value != null) {
+                        g.total_score += Number(a.score_value);
+                        g.count++;
+                    }
+                });
+            });
+
+            return Array.from(groups.values()).map(g => ({
+                id: g.id,
+                name: `[${g.student_code}] ${g.student_name}`,
+                avg_score: g.count > 0 ? (g.total_score / g.count) : 0,
+                responses_count: g.responses
+            }));
+        } else if (type === 'activity') {
+            // Activity Evaluation
+            const rows = await prisma.evaluation_responses.findMany({
+                where: {
+                    ...semesterFilter,
+                    target_activity_id: { not: null }
+                },
+                include: {
+                    evaluation_answers: { select: { score_value: true } },
+                    events: { select: { title: true } }
+                } as any
+            });
+
+            const groups = new Map<number, any>();
+            rows.forEach(r => {
+                const aid = r.target_activity_id!;
+                if (!groups.has(aid)) {
+                    groups.set(aid, {
+                        id: aid,
+                        title: (r as any).events?.title || 'Unknown Activity',
+                        total_score: 0,
+                        count: 0,
+                        responses: 0
+                    });
+                }
+                const g = groups.get(aid);
+                g.responses++;
+                ((r as any).evaluation_answers || []).forEach((a: any) => {
+                    if (a.score_value != null) {
+                        g.total_score += Number(a.score_value);
+                        g.count++;
+                    }
+                });
+            });
+
+            return Array.from(groups.values()).map(g => ({
+                id: g.id,
+                name: g.title,
+                avg_score: g.count > 0 ? (g.total_score / g.count) : 0,
+                responses_count: g.responses
+            }));
+        }
+
+        return [];
     },
 
     async getGradeLevels() {
@@ -1390,7 +1630,25 @@ export const DirectorService = {
     async getAcademicYears() {
         return prisma.academic_years.findMany({
             orderBy: { year_name: 'desc' },
-            select: { id: true, year_name: true, is_active: true }
+            select: {
+                id: true,
+                year_name: true,
+                is_active: true,
+                semesters: {
+                    select: {
+                        id: true,
+                        semester_number: true,
+                        is_active: true
+                    },
+                    orderBy: {
+                        semester_number: 'asc'
+                    }
+                }
+            }
         });
+    },
+
+    async _diagnosticListTables() {
+        return prisma.$queryRawUnsafe(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`);
     }
 };

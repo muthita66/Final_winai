@@ -286,7 +286,7 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 space-y-6 w-full">
             <section className="bg-gradient-to-r from-emerald-700 to-teal-800 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
                 <div className="relative z-10">
                     <div className="inline-block bg-white/20 px-3 py-0.5 rounded-full text-xs font-medium mb-3 backdrop-blur-sm border border-white/20">
@@ -416,7 +416,7 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
             ) : (
                 <>
                     {activeTab === 'class' && (
-                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 w-full overflow-hidden">
                             <div className="flex items-center gap-3 mb-6">
                                 <h3 className="text-lg font-bold text-slate-800">ตารางเรียน</h3>
                             </div>
@@ -424,9 +424,9 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
                                 <table className="w-full text-xs text-left border-collapse min-w-[1600px] table-fixed">
                                     <thead className="text-[11px] text-slate-600 bg-slate-50 border-b border-t border-slate-200 uppercase tracking-wider">
                                         <tr>
-                                            <th className="px-3 py-2 border-r border-slate-200 text-center w-20">วัน/เวลา</th>
+                                            <th className="px-3 py-3 border-r border-slate-200 text-center w-24">วัน/เวลา</th>
                                             {fixedSlots.map(slot => (
-                                                <th key={slot} className="px-3 py-2 border-r border-slate-200 text-center min-w-[180px] font-bold">{slot}</th>
+                                                <th key={slot} className="px-3 py-3 border-r border-slate-200 text-center font-bold">{slot}</th>
                                             ))}
                                         </tr>
                                     </thead>
@@ -450,11 +450,11 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
                                                             return (
                                                                 <td key={slot} className={`px-2 py-2 border-r border-slate-200 align-top ${matches.length > 1 ? 'bg-rose-50/60' : ''}`}>
                                                                     {matches.map((r, i) => (
-                                                                        <div key={`${r.source || 'registered'}-${r.section_id || r.subject_code || i}-${i}`} className={`rounded-xl p-2.5 mb-2 last:mb-0 text-xs border shadow-sm ${r.source === 'cart' ? 'bg-amber-50 border-amber-200' : 'bg-teal-50 border-teal-100'}`}>
-                                                                            <div className={`font-bold mb-1 leading-tight ${r.source === 'cart' ? 'text-amber-700' : 'text-teal-700'}`}>{r.subject_code || "-"}</div>
-                                                                            <div className="text-slate-800 font-bold leading-tight mb-1.5">{r.subject_name || "-"}</div>
-                                                                            <div className="text-[10.5px] text-slate-600" title={`ผู้สอน ${r.teacher || "-"}`}>ผู้สอน: {r.teacher || "-"}</div>
-                                                                            <div className="text-[10.5px] text-slate-500 font-medium mt-1">ห้อง: {(r.room_name || r.room || "-").replace(/ห้องเรียน|ห้อง/g, "").trim()}</div>
+                                                                        <div key={`${r.source || 'registered'}-${r.section_id || r.subject_code || i}-${i}`} className={`rounded-xl p-2.5 mb-2 last:mb-0 text-xs border shadow-sm shrink-0 ${r.source === 'cart' ? 'bg-amber-50 border-amber-200' : 'bg-teal-50 border-teal-100'}`}>
+                                                                            <div className={`font-bold mb-1 leading-tight truncate ${r.source === 'cart' ? 'text-amber-700' : 'text-teal-700'}`}>{r.subject_code || "-"}</div>
+                                                                            <div className="text-slate-800 font-bold leading-tight mb-1.5 line-clamp-2">{r.subject_name || "-"}</div>
+                                                                            <div className="text-[10.5px] text-slate-800 font-medium whitespace-nowrap overflow-hidden text-ellipsis" title={`ผู้สอน ${r.teacher || "-"}`}>ผู้สอน: {r.teacher || "-"}</div>
+                                                                            <div className="text-[10.5px] text-slate-500 font-medium mt-1 whitespace-nowrap overflow-hidden text-ellipsis">ห้อง: {(r.room_name || r.room || "-").replace(/ห้องเรียน|ห้อง/g, "").trim()}</div>
                                                                         </div>
                                                                     ))}
                                                                     {matches.length > 1 && (

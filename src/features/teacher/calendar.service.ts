@@ -49,6 +49,10 @@ export const TeacherCalendarService = {
             const etMap = new Map((eventTypes as any[]).map(et => [et.id, et.name]));
             const uMap = new Map((users as any[]).map(u => [u.id, u.username]));
 
+            const allTargets = (rows as any[]).flatMap(r => r.targets || []);
+            const { resolveTargetValues, formatTargetValue } = await import('@/lib/target-resolver');
+            const targetDict = await resolveTargetValues(allTargets);
+
             return (rows as any[]).map((r: any) => {
                 const teacher = tMap.get(r.teacher_id);
                 const deptName = dMap.get(r.department_id) || '';
@@ -73,7 +77,11 @@ export const TeacherCalendarService = {
                     event_type_id: r.event_type_id,
                     event_type_name: typeName,
                     created_by: creatorName,
-                    targets: r.targets || []
+                    semester_id: r.semester_id,
+                    targets: (r.targets || []).map((t: any) => ({
+                        ...t,
+                        target_value: formatTargetValue(t.target_type, t.target_value, targetDict)
+                    }))
                 };
             });
         } catch (error: any) {
@@ -95,6 +103,7 @@ export const TeacherCalendarService = {
         userId?: number | null;
         department_id?: number | null;
         event_type_id?: number | null;
+        semester_id?: number | null;
         targets?: { target_type: string; target_value?: string | null }[];
     }) {
         const startStr = `${data.event_date} ${data.start_time || '00:00'}:00`;
@@ -104,11 +113,12 @@ export const TeacherCalendarService = {
             INSERT INTO events (
                 title, description, start_datetime, end_datetime, 
                 location, visibility, created_by,
-                teacher_id, department_id, event_type_id, is_all_day
+                teacher_id, department_id, event_type_id, is_all_day,
+                semester_id
             ) VALUES (
                 $1, $2, $3::timestamp, $4::timestamp, 
                 $5, $6, $7, $8, 
-                $9, $10, $11
+                $9, $10, $11, $12
             ) RETURNING id
         `, 
             data.title, 
@@ -121,7 +131,8 @@ export const TeacherCalendarService = {
             data.responsible_teacher_id || null, 
             data.department_id || null, 
             data.event_type_id || null,
-            !data.start_time && !data.end_time
+            !data.start_time && !data.end_time,
+            data.semester_id ? Number(data.semester_id) : null
         );
         
         const eventId = (res as any)[0].id;
@@ -151,6 +162,7 @@ export const TeacherCalendarService = {
         visibility?: string;
         department_id?: number | null;
         event_type_id?: number | null;
+        semester_id?: number | null;
         targets?: { target_type: string; target_value?: string | null }[];
     }) {
         const current = await (prisma.events as any).findUnique({ where: { id } });
@@ -177,6 +189,7 @@ export const TeacherCalendarService = {
                 teacher_id: data.responsible_teacher_id !== undefined ? data.responsible_teacher_id : current.teacher_id,
                 department_id: data.department_id !== undefined ? data.department_id : current.department_id,
                 event_type_id: data.event_type_id !== undefined ? data.event_type_id : current.event_type_id,
+                semester_id: data.semester_id !== undefined ? (data.semester_id ? Number(data.semester_id) : null) : current.semester_id,
             }
         });
 
@@ -213,6 +226,13 @@ export const TeacherCalendarService = {
         return prisma.event_types.findMany({
             orderBy: { name: 'asc' },
             select: { id: true, name: true }
+        });
+    },
+
+    async getTargetTypes() {
+        return prisma.target_types.findMany({
+            where: { is_active: true },
+            orderBy: { display_name: 'asc' }
         });
     }
 };

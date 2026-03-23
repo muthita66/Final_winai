@@ -5,6 +5,7 @@ import { TeacherApiService } from '@/services/teacher-api.service';
 import { getCurrentAcademicYearBE, getAcademicSemesterDefault } from '@/features/student/academic-term';
 import { History, X, CheckCircle2, AlertCircle, Clock, Info } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import Portal from "@/components/Portal";
 
 interface BehaviorFeatureProps {
     session: any;
@@ -554,131 +555,134 @@ export function BehaviorFeature({ session }: BehaviorFeatureProps) {
 
             {/* Behavior Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-10 p-4">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setIsModalOpen(false)} />
+                <Portal>
+                    <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-10 p-4">
+                        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setIsModalOpen(false)} />
 
-                    <div className="relative bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                        <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                            <div>
-                                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Record Behavior</h3>
-                                <p className="text-slate-500 font-medium text-base mt-1">บันทึกพฤติกรรม {selectedStudent?.prefix}{selectedStudent?.first_name} {selectedStudent?.last_name}</p>
-                            </div>
-                            <button onClick={() => setIsModalOpen(false)} className="p-3 hover:bg-white rounded-2xl transition-colors border border-transparent hover:border-slate-200 text-slate-400 hover:text-slate-600">
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        <div className="p-8 space-y-6">
-                            {/* Toggle Positive/Negative */}
-                            <div className="grid grid-cols-2 gap-3 bg-slate-100 p-1.5 rounded-2xl">
-                                <button
-                                    onClick={() => { setIsPositive(true); setSelectedType(''); setPoints(0); }}
-                                    className={`py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${isPositive ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                >
-                                    <div className={`w-2 h-2 rounded-full ${isPositive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                                    เชิงบวก (บวกแต้ม)
-                                </button>
-                                <button
-                                    onClick={() => { setIsPositive(false); setSelectedType(''); setPoints(0); }}
-                                    className={`py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${!isPositive ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                >
-                                    <div className={`w-2 h-2 rounded-full ${!isPositive ? 'bg-rose-500' : 'bg-slate-300'}`} />
-                                    เชิงลบ (หักแต้ม)
+                        <div className="relative bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Record Behavior</h3>
+                                    <p className="text-slate-500 font-medium text-base mt-1">บันทึกพฤติกรรม {selectedStudent?.prefix}{selectedStudent?.first_name} {selectedStudent?.last_name}</p>
+                                </div>
+                                <button onClick={() => setIsModalOpen(false)} className="p-3 hover:bg-white rounded-2xl transition-colors border border-transparent hover:border-slate-200 text-slate-400 hover:text-slate-600">
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
                                 </button>
                             </div>
 
-                            {/* Behavior Type Selection */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase ml-1">หัวข้อพฤติกรรม</label>
-                                <select
-                                    value={selectedType}
-                                    onChange={(e) => handleTypeChange(e.target.value)}
-                                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-medium text-base text-slate-700"
+                            <div className="p-8 space-y-6">
+                                {/* Toggle Positive/Negative */}
+                                <div className="grid grid-cols-2 gap-3 bg-slate-100 p-1.5 rounded-2xl">
+                                    <button
+                                        onClick={() => { setIsPositive(true); setSelectedType(''); setPoints(0); }}
+                                        className={`py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${isPositive ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        <div className={`w-2 h-2 rounded-full ${isPositive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                                        เชิงบวก (บวกแต้ม)
+                                    </button>
+                                    <button
+                                        onClick={() => { setIsPositive(false); setSelectedType(''); setPoints(0); }}
+                                        className={`py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${!isPositive ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        <div className={`w-2 h-2 rounded-full ${!isPositive ? 'bg-rose-500' : 'bg-slate-300'}`} />
+                                        เชิงลบ (หักแต้ม)
+                                    </button>
+                                </div>
+
+                                {/* Behavior Type Selection */}
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase ml-1">หัวข้อพฤติกรรม</label>
+                                    <select
+                                        value={selectedType}
+                                        onChange={(e) => handleTypeChange(e.target.value)}
+                                        className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-medium text-base text-slate-700"
+                                    >
+                                        <option value="">เลือกหัวข้อการบันทึก...</option>
+                                        {behaviorTypes
+                                            .filter(t => t.is_positive === isPositive)
+                                            .map(t => (
+                                                <option key={t.id} value={t.id}>{t.name}</option>
+                                            ))
+                                        }
+                                    </select>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-6">
+                                    <div className="col-span-1 space-y-2">
+                                        <label className="text-xs font-bold text-slate-400 uppercase ml-1">คะแนน</label>
+                                        <input
+                                            type="number"
+                                            value={points}
+                                            onChange={(e) => setPoints(Number(e.target.value))}
+                                            className={`w-full px-6 py-4 border rounded-2xl outline-none transition-all font-black text-xl text-center shadow-inner ${isPositive ? 'bg-emerald-50 border-emerald-100 text-emerald-600 focus:ring-4 focus:ring-emerald-500/10' : 'bg-rose-50 border-rose-100 text-rose-600 focus:ring-4 focus:ring-rose-500/10'}`}
+                                        />
+                                    </div>
+                                    <div className="col-span-2 space-y-2">
+                                        <label className="text-xs font-bold text-slate-400 uppercase ml-1">หมายเหตุ (ถ้ามี)</label>
+                                        <input
+                                            placeholder="รายละเอียดเพิ่มเติม..."
+                                            value={note}
+                                            onChange={(e) => setNote(e.target.value)}
+                                            className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold text-slate-700"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="px-8 py-5 bg-slate-50 border-t border-slate-100 flex gap-3">
+                                <button
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="px-6 py-2.5 bg-white text-slate-500 rounded-xl font-medium text-sm hover:bg-slate-100 transition-all border border-slate-200 active:scale-[0.98]"
                                 >
-                                    <option value="">เลือกหัวข้อการบันทึก...</option>
-                                    {behaviorTypes
-                                        .filter(t => t.is_positive === isPositive)
-                                        .map(t => (
-                                            <option key={t.id} value={t.id}>{t.name}</option>
-                                        ))
-                                    }
-                                </select>
+                                    ยกเลิก
+                                </button>
+                                <button
+                                    onClick={handleSaveBehavior}
+                                    disabled={!selectedType || points === 0 || isRecording}
+                                    className={`flex-1 py-2.5 text-white rounded-xl font-bold text-sm shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100 ${isPositive ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-100'}`}
+                                >
+                                    {isRecording ? (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <>
+                                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
+                                            ยืนยันการบันทึก
+                                        </>
+                                    )}
+                                </button>
                             </div>
-
-                            <div className="grid grid-cols-3 gap-6">
-                                <div className="col-span-1 space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase ml-1">คะแนน</label>
-                                    <input
-                                        type="number"
-                                        value={points}
-                                        onChange={(e) => setPoints(Number(e.target.value))}
-                                        className={`w-full px-6 py-4 border rounded-2xl outline-none transition-all font-black text-xl text-center shadow-inner ${isPositive ? 'bg-emerald-50 border-emerald-100 text-emerald-600 focus:ring-4 focus:ring-emerald-500/10' : 'bg-rose-50 border-rose-100 text-rose-600 focus:ring-4 focus:ring-rose-500/10'}`}
-                                    />
-                                </div>
-                                <div className="col-span-2 space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase ml-1">หมายเหตุ (ถ้ามี)</label>
-                                    <input
-                                        placeholder="รายละเอียดเพิ่มเติม..."
-                                        value={note}
-                                        onChange={(e) => setNote(e.target.value)}
-                                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold text-slate-700"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="px-8 py-5 bg-slate-50 border-t border-slate-100 flex gap-3">
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="px-6 py-2.5 bg-white text-slate-500 rounded-xl font-medium text-sm hover:bg-slate-100 transition-all border border-slate-200 active:scale-[0.98]"
-                            >
-                                ยกเลิก
-                            </button>
-                            <button
-                                onClick={handleSaveBehavior}
-                                disabled={!selectedType || points === 0 || isRecording}
-                                className={`flex-1 py-2.5 text-white rounded-xl font-bold text-sm shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100 ${isPositive ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-100'}`}
-                            >
-                                {isRecording ? (
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : (
-                                    <>
-                                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                        </svg>
-                                        ยืนยันการบันทึก
-                                    </>
-                                )}
-                            </button>
                         </div>
                     </div>
-                </div>
+                </Portal>
             )}
             {/* History Modal */}
             {isHistoryModalOpen && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setIsHistoryModalOpen(false)} />
+                <Portal>
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setIsHistoryModalOpen(false)} />
 
-                    <div className="relative bg-white w-full max-w-7xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
-                        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 flex-shrink-0">
-                            <div>
-                                <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-3">
-                                    <History className="w-7 h-7 text-emerald-600" />
-                                    Behavior History
-                                </h3>
-                                <p className="text-slate-500 font-bold text-sm mt-1">
-                                    ประวัติพฤติกรรม: {selectedStudentForHistory?.prefix}{selectedStudentForHistory?.first_name} {selectedStudentForHistory?.last_name}
-                                    <span className="ml-2 px-2 py-0.5 bg-emerald-200 text-emerald-700 rounded-lg text-xs font-black">
-                                        รหัสประจำตัว: {selectedStudentForHistory?.student_code}
-                                    </span>
-                                </p>
+                        <div className="relative bg-white w-full max-w-7xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+                            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 flex-shrink-0">
+                                <div>
+                                    <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-3">
+                                        <History className="w-7 h-7 text-emerald-600" />
+                                        Behavior History
+                                    </h3>
+                                    <p className="text-slate-500 font-bold text-sm mt-1">
+                                        ประวัติพฤติกรรม: {selectedStudentForHistory?.prefix}{selectedStudentForHistory?.first_name} {selectedStudentForHistory?.last_name}
+                                        <span className="ml-2 px-2 py-0.5 bg-emerald-200 text-emerald-700 rounded-lg text-xs font-black">
+                                            รหัสประจำตัว: {selectedStudentForHistory?.student_code}
+                                        </span>
+                                    </p>
+                                </div>
+                                <button onClick={() => setIsHistoryModalOpen(false)} className="p-3 hover:bg-white rounded-2xl transition-colors border border-transparent hover:border-slate-200 text-slate-400 hover:text-slate-600">
+                                    <X className="w-6 h-6" />
+                                </button>
                             </div>
-                            <button onClick={() => setIsHistoryModalOpen(false)} className="p-3 hover:bg-white rounded-2xl transition-colors border border-transparent hover:border-slate-200 text-slate-400 hover:text-slate-600">
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
 
                         <div className="flex-1 overflow-y-auto p-8">
                             {isHistoryLoading ? (
@@ -761,7 +765,8 @@ export function BehaviorFeature({ session }: BehaviorFeatureProps) {
                         </div>
                     </div>
                 </div>
-            )}
-        </>
-    );
+            </Portal>
+        )}
+    </>
+);
 }
