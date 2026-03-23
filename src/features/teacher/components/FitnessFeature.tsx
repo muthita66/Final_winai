@@ -103,6 +103,7 @@ export function FitnessFeature({ session }: { session: any }) {
                             if (genderMatch && genderMatch.passing_threshold) {
                                 next[s.id].standard = parseFloat(genderMatch.passing_threshold).toString();
                                 next[s.id].criteriaSource = `${genderMatch.gender} / ${genderMatch.grade_level}`;
+                                next[s.id].criteriaId = genderMatch.id;
                                 // Recalculate status if result exists
                                 if (next[s.id].result) {
                                     next[s.id].status = calculateStatus(next[s.id].result, next[s.id].standard, testName);
@@ -124,8 +125,22 @@ export function FitnessFeature({ session }: { session: any }) {
         setLoading(true);
         setHasSearched(true);
         try {
-            const data = await TeacherApiService.getFitnessStudents(session.id, classLevel, room);
+            const data = await TeacherApiService.getFitnessStudents(session.id, classLevel, room, year, semester === "all" ? undefined : Number(semester));
             setStudents(data || []);
+
+            const initialResults: Record<number, any> = {};
+            (data || []).forEach((s: any) => {
+                initialResults[s.id] = {};
+                if (s.existing_health) {
+                    initialResults[s.id].weight = s.existing_health.weight;
+                    initialResults[s.id].height = s.existing_health.height;
+                }
+                if (s.existing_fitness && testName && s.existing_fitness[testName]) {
+                    initialResults[s.id].result = s.existing_fitness[testName].result;
+                    initialResults[s.id].status = s.existing_fitness[testName].status;
+                }
+            });
+            setResults(initialResults);
         } catch (e: any) {
             alert(e?.message || "โหลดข้อมูลนักเรียนไม่สำเร็จ");
             setStudents([]);
@@ -157,43 +172,30 @@ export function FitnessFeature({ session }: { session: any }) {
             if (!res) return;
 
             // Save weight/height if present in weight_height OR all mode
-            if (recordType === "weight_height" || recordType === "all") {
-                if (res.weight) {
-                    payloads.push({
-                        student_id: s.id,
-                        teacher_id: session.id,
-                        test_name: "น้ำหนัก (Weight)",
-                        result_value: res.weight,
-                        standard_value: "-",
-                        status: "บันทึกข้อมูล",
-                        year,
-                        semester: typeof semester === "number" ? semester : 1,
-                    });
-                }
-                if (res.height) {
-                    payloads.push({
-                        student_id: s.id,
-                        teacher_id: session.id,
-                        test_name: "ส่วนสูง (Height)",
-                        result_value: res.height,
-                        standard_value: "-",
-                        status: "บันทึกข้อมูล",
-                        year,
-                        semester: typeof semester === "number" ? semester : 1,
-                    });
-                }
+            if ((recordType === "weight_height" || recordType === "all") && (res.weight || res.height)) {
+                payloads.push({
+                    record_type: 'health',
+                    student_id: s.id,
+                    teacher_id: session.id,
+                    weight: res.weight ? parseFloat(res.weight) : null,
+                    height: res.height ? parseFloat(res.height) : null,
+                    year,
+                    semester: typeof semester === "number" ? semester : 1,
+                });
             }
 
             // Save fitness if present in fitness OR all mode
             if (recordType === "fitness" || recordType === "all") {
                 if ((res.result || "").trim()) {
                     payloads.push({
+                        record_type: 'fitness',
                         student_id: s.id,
                         teacher_id: session.id,
                         test_name: testName,
                         result_value: res.result.trim(),
                         standard_value: (res.standard || "-").trim(),
                         status: (res.status || "ผ่าน").trim(),
+                        criteria_id: res.criteriaId || null,
                         year,
                         semester: typeof semester === "number" ? semester : 1,
                     });
@@ -305,7 +307,21 @@ export function FitnessFeature({ session }: { session: any }) {
                             value={testName}
                             onChange={(e) => {
                                 setTestName(e.target.value);
-                                setResults({});
+                                const newTest = e.target.value;
+                                setResults(prev => {
+                                    const next = { ...prev };
+                                    students.forEach(s => {
+                                        if (!next[s.id]) next[s.id] = {};
+                                        if (s.existing_fitness && s.existing_fitness[newTest]) {
+                                            next[s.id].result = s.existing_fitness[newTest].result;
+                                            next[s.id].status = s.existing_fitness[newTest].status;
+                                        } else {
+                                            next[s.id].result = undefined;
+                                            next[s.id].status = undefined;
+                                        }
+                                    });
+                                    return next;
+                                });
                             }}
                         >
                             {TEST_TYPES.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}

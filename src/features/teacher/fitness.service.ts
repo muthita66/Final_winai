@@ -10,7 +10,7 @@ function extractLevelNumber(value: string) {
  * It still resolves students by class/room so the page can be used for data entry UI.
  */
 export const TeacherFitnessService = {
-    async getStudentsForTest(teacher_id: number, classLevel?: string, room?: string) {
+    async getStudentsForTest(teacher_id: number, classLevel?: string, room?: string, year?: number, semester?: number) {
         // Find authorized classrooms first
         const advisorClassrooms = await prisma.classroom_advisors.findMany({
             where: { teacher_id },
@@ -82,7 +82,74 @@ export const TeacherFitnessService = {
             };
         });
 
-        return mapped.sort((a, b) => {
+        let recordsMap: Record<number, { weight?: number, height?: number, fitness: Record<string, any> }> = {};
+        
+        let semesterId: number | null = null;
+        if (year && semester) {
+            const semRes = await prisma.$queryRawUnsafe<any[]>(`
+                SELECT s.id 
+                FROM semesters s 
+                JOIN academic_years a ON s.academic_year_id = a.id 
+                WHERE a.year_name = $1 AND s.semester_number = $2
+            `, String(year), Number(semester));
+            if (semRes.length > 0) semesterId = semRes[0].id;
+        }
+
+        if (semesterId) {
+             const studentIds = mapped.map((s: any) => Number(s.id)).filter(id => !isNaN(id) && id > 0);
+             
+             if (studentIds.length > 0) {
+                 let healthRecords: any[] = [];
+                 let fitnessRecords: any[] = [];
+                 
+                 try {
+                     const idsStr = studentIds.join(',');
+                     healthRecords = await prisma.$queryRawUnsafe<any[]>(`
+                         SELECT student_id, weight, height 
+                         FROM student_health_checkups 
+                         WHERE semester_id = $1 AND student_id IN (${idsStr})
+                     `, semesterId);
+                 } catch (e) {
+                     console.error("Failed to fetch existing health records:", e);
+                 }
+                 
+                 try {
+                     const idsStr = studentIds.join(',');
+                     fitnessRecords = await prisma.$queryRawUnsafe<any[]>(`
+                         SELECT r.student_id, c.test_name, r.test_result, r.grade 
+                         FROM student_fitness_records r
+                         LEFT JOIN fitness_test_criteria c ON r.fitness_test_id = c.id
+                         WHERE r.semester_id = $1 AND r.student_id IN (${idsStr})
+                     `, semesterId);
+                 } catch (e) {
+                     console.error("Failed to fetch existing fitness records:", e);
+                 }
+                 
+                 healthRecords.forEach(h => {
+                     if (!recordsMap[h.student_id]) recordsMap[h.student_id] = { fitness: {} };
+                     recordsMap[h.student_id].weight = h.weight != null ? Number(h.weight) : undefined;
+                     recordsMap[h.student_id].height = h.height != null ? Number(h.height) : undefined;
+                 });
+                 
+                 fitnessRecords.forEach(f => {
+                     if (!recordsMap[f.student_id]) recordsMap[f.student_id] = { fitness: {} };
+                     if (f.test_name) {
+                         recordsMap[f.student_id].fitness[f.test_name] = {
+                             result: f.test_result != null ? Number(f.test_result) : undefined,
+                             status: f.grade || undefined
+                         };
+                     }
+                 });
+             }
+        }
+
+        const finalMapped = mapped.map((s: any) => ({
+            ...s,
+            existing_health: recordsMap[s.id] ? { weight: recordsMap[s.id].weight, height: recordsMap[s.id].height } : null,
+            existing_fitness: recordsMap[s.id]?.fitness || {},
+        }));
+
+        return finalMapped.sort((a, b) => {
             const aNum = a.roll_number != null ? Number(a.roll_number) : 999999;
             const bNum = b.roll_number != null ? Number(b.roll_number) : 999999;
             if (aNum !== bNum) return aNum - bNum;
@@ -240,7 +307,7 @@ export const TeacherFitnessService = {
         `, parseInt(id as any));
     },
     async saveFitnessTest(data: any) {
-        const { student_id, teacher_id, test_name, result_value, standard_value, status, year, semester } = data;
+        const { record_type, student_id, teacher_id, test_name, result_value, standard_value, status, year, semester, criteria_id, weight, height } = data;
 
         // 1. Authorization Check: Is this teacher an advisor for this student?
         const advisorClassrooms = await prisma.classroom_advisors.findMany({
@@ -261,48 +328,86 @@ export const TeacherFitnessService = {
             throw new Error('ไม่อนุญาตให้บันทึกข้อมูลนักเรียนที่ไม่ได้อยู่ในความดูแลของท่าน');
         }
 
-        // 2. Find or match criteria
-        const criteria = await this.getFitnessCriteria(test_name, '', year); // Basic match by name
-
-        // 3. Save to student_fitness_records
-        // Handle Weight/Height specially if needed, but the UI sends "น้ำหนัก (Weight)" as test_name
-        
-        // Find existing record for this term/test
-        const existing = await prisma.student_fitness_records.findFirst({
-            where: {
-                student_id,
-                academic_year: year,
-                semester,
-                OR: [
-                    { test_name: test_name },
-                    { fitness_test_id: criteria?.id }
-                ]
-            }
-        });
-
-        const recordData = {
-            student_id,
-            academic_year: year,
-            semester,
-            test_date: new Date(),
-            test_name,
-            test_result: parseFloat(result_value) || 0,
-            score: 0, // Could be calculated
-            grade: status,
-            is_passed: status === 'ผ่าน',
-            fitness_test_id: criteria?.id || null,
-            recorded_by: teacher_id
-        };
-
-        if (existing) {
-            return prisma.student_fitness_records.update({
-                where: { id: existing.id },
-                data: recordData
-            });
-        } else {
-            return prisma.student_fitness_records.create({
-                data: recordData
-            });
+        // Resolve semesterId
+        let semesterId: number | null = null;
+        if (year && semester) {
+            const semRes = await prisma.$queryRawUnsafe<any[]>(`
+                SELECT s.id 
+                FROM semesters s 
+                JOIN academic_years a ON s.academic_year_id = a.id 
+                WHERE a.year_name = $1 AND s.semester_number = $2
+            `, String(year), Number(semester));
+            if (semRes.length > 0) semesterId = semRes[0].id;
         }
+
+        if (!semesterId) {
+            throw new Error('ไม่พบข้อมูลปีการศึกษา/ภาคเรียนในระบบ');
+        }
+
+        // 2. Health Checkups
+        if (record_type === 'health' || test_name === "น้ำหนัก (Weight)" || test_name === "ส่วนสูง (Height)") {
+            const existingHealth = await prisma.$queryRawUnsafe<any[]>(`
+                SELECT id, weight, height FROM student_health_checkups
+                WHERE student_id = $1 AND semester_id = $2
+            `, student_id, semesterId);
+
+            let w = weight !== undefined && weight !== null ? Number(weight) : null;
+            let h = height !== undefined && height !== null ? Number(height) : null;
+
+            // Legacy fallback
+            if (test_name === "น้ำหนัก (Weight)") w = parseFloat(result_value) || 0;
+            if (test_name === "ส่วนสูง (Height)") h = parseFloat(result_value) || 0;
+
+            if (existingHealth.length > 0) {
+                // Retain old value if new value is not provided
+                if (w === null) w = existingHealth[0].weight ? Number(existingHealth[0].weight) : null;
+                if (h === null) h = existingHealth[0].height ? Number(existingHealth[0].height) : null;
+
+                await prisma.$executeRawUnsafe(`
+                    UPDATE student_health_checkups
+                    SET weight = $1, height = $2, checkup_date = CURRENT_TIMESTAMP, recorded_by = $3
+                    WHERE id = $4
+                `, w, h, teacher_id, existingHealth[0].id);
+            } else {
+                await prisma.$executeRawUnsafe(`
+                    INSERT INTO student_health_checkups (student_id, semester_id, checkup_date, weight, height, recorded_by)
+                    VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4, $5)
+                `, student_id, semesterId, w, h, teacher_id);
+            }
+            return { success: true };
+        }
+
+        // 3. Fitness Tests
+        let finalCriteriaId = criteria_id;
+        if (!finalCriteriaId && test_name) {
+            const criteria = await this.getFitnessCriteria(test_name, '', year);
+            finalCriteriaId = criteria?.id || null;
+        }
+
+        if (!finalCriteriaId) {
+            throw new Error('ไม่พบรหัสเกณฑ์การประเมิน (Criteria ID)');
+        }
+
+        const existingFitness = await prisma.$queryRawUnsafe<any[]>(`
+            SELECT id FROM student_fitness_records
+            WHERE student_id = $1 AND semester_id = $2 AND fitness_test_id = $3
+        `, student_id, semesterId, finalCriteriaId);
+
+        const resVal = parseFloat(result_value) || 0;
+        const isPassed = status === 'ผ่าน';
+
+        if (existingFitness.length > 0) {
+            await prisma.$executeRawUnsafe(`
+                UPDATE student_fitness_records
+                SET test_result = $1, grade = $2, is_passed = $3, test_date = CURRENT_TIMESTAMP, recorded_by = $4
+                WHERE id = $5
+            `, resVal, status, isPassed, teacher_id, existingFitness[0].id);
+        } else {
+            await prisma.$executeRawUnsafe(`
+                INSERT INTO student_fitness_records (student_id, semester_id, fitness_test_id, test_result, grade, is_passed, test_date, recorded_by)
+                VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7)
+            `, student_id, semesterId, finalCriteriaId, resVal, status, isPassed, teacher_id);
+        }
+        return { success: true };
     },
 };
