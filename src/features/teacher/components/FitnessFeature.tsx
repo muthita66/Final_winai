@@ -125,7 +125,7 @@ export function FitnessFeature({ session }: { session: any }) {
         setLoading(true);
         setHasSearched(true);
         try {
-            const data = await TeacherApiService.getFitnessStudents(session.id, classLevel, room, year, semester === "all" ? undefined : Number(semester));
+            const data = await TeacherApiService.getFitnessStudents(session.id, classLevel, room, year, semester);
             setStudents(data || []);
 
             const initialResults: Record<number, any> = {};
@@ -414,7 +414,6 @@ export function FitnessFeature({ session }: { session: any }) {
                                         bmi = bmiVal.toFixed(1);
                                         if (bmiVal < 18.5) interpretation = "ผอม";
                                         else if (bmiVal < 23) interpretation = "ปกติ";
-                                        else if (bmiVal < 25) interpretation = "ท้วม";
                                         else interpretation = "อ้วน";
                                     }
                                 }
@@ -467,8 +466,11 @@ export function FitnessFeature({ session }: { session: any }) {
                                                     <div className="flex flex-col items-center">
                                                         <span className="text-sm font-bold text-slate-700">{bmi}</span>
                                                         {interpretation && (
-                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${interpretation === "ปกติ" ? "bg-emerald-100 text-emerald-700" : "bg-teal-100 text-teal-700"
-                                                                }`}>
+                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                                                interpretation === "ปกติ" ? "bg-emerald-100 text-emerald-700" : 
+                                                                interpretation === "ผอม" ? "bg-amber-100 text-amber-700" : 
+                                                                "bg-rose-100 text-rose-700"
+                                                            }`}>
                                                                 {interpretation}
                                                             </span>
                                                         )}

@@ -61,6 +61,43 @@ export const TeacherFitnessService = {
             },
         });
 
+        // 2. Fetch existing fitness results and health checkups
+        let fitnessRecords: any[] = [];
+        let healthRecords: any[] = [];
+
+        try {
+            fitnessRecords = await prisma.student_fitness_records.findMany({
+                where: {
+                    student_id: { in: students.map((s: any) => s.id) },
+                    academic_year: year || undefined,
+                    semester: (typeof semester === 'number' || (typeof semester === 'string' && semester !== 'all')) ? Number(semester) : undefined,
+                }
+            });
+        } catch (e) {
+            console.error("Error fetching fitness records:", e);
+            fitnessRecords = await prisma.student_fitness_records.findMany({
+                where: { student_id: { in: students.map((s: any) => s.id) } },
+                orderBy: { created_at: 'desc' }
+            }).catch(() => []);
+        }
+
+        try {
+            healthRecords = await prisma.student_health_checkups.findMany({
+                where: {
+                    student_id: { in: students.map((s: any) => s.id) },
+                    academic_year: year || undefined,
+                    semester: (typeof semester === 'number' || (typeof semester === 'string' && semester !== 'all')) ? Number(semester) : undefined,
+                }
+            });
+        } catch (e) {
+            console.error("Error fetching health checkups:", e);
+            healthRecords = await prisma.student_health_checkups.findMany({
+                where: { student_id: { in: students.map((s: any) => s.id) } },
+                orderBy: { created_at: 'desc' }
+            }).catch(() => []);
+        }
+
+        // 3. Map students with their results
         const mapped = (students as any[]).map((s: any) => {
             const cs = s.classroom_students?.[0];
             const currentClassroom = cs?.classrooms;
@@ -68,6 +105,29 @@ export const TeacherFitnessService = {
             const roomName = currentClassroom?.room_name || '';
             const className = levelName && roomName ? `${levelName}/${roomName}` : (levelName || roomName || '');
             
+            const studentFitness = fitnessRecords.filter(r => r.student_id === s.id);
+            const studentHealthRecords = healthRecords.filter(r => r.student_id === s.id);
+            // Aggregate weight and height from all records in the term, taking the most recent non-null values
+            const sortedHealth = [...studentHealthRecords].sort((a, b) => (b.created_at?.getTime() || 0) - (a.created_at?.getTime() || 0));
+            const latestWeight = sortedHealth.find(r => r.weight !== null && r.weight !== undefined)?.weight;
+            const latestHeight = sortedHealth.find(r => r.height !== null && r.height !== undefined)?.height;
+
+            let tests = studentFitness.map(r => ({
+                test_name: r.test_name,
+                test_result: r.test_result,
+                status: r.grade,
+                is_passed: r.is_passed,
+                fitness_test_id: r.fitness_test_id
+            }));
+
+            // Merge weight/height from healthRecords if they exist
+            if (latestWeight !== undefined && latestWeight !== null) {
+                tests.push({ test_name: "น้ำหนัก (Weight)", test_result: latestWeight, status: null, is_passed: null, fitness_test_id: null });
+            }
+            if (latestHeight !== undefined && latestHeight !== null) {
+                tests.push({ test_name: "ส่วนสูง (Height)", test_result: latestHeight, status: null, is_passed: null, fitness_test_id: null });
+            }
+
             return {
                 id: s.id,
                 student_code: s.student_code,
@@ -78,7 +138,7 @@ export const TeacherFitnessService = {
                 grade_level: levelName,
                 class_name: className,
                 roll_number: cs?.roll_number,
-                fitness_tests: [],
+                fitness_tests: tests,
             };
         });
 
@@ -308,25 +368,6 @@ export const TeacherFitnessService = {
     },
     async saveFitnessTest(data: any) {
         const { record_type, student_id, teacher_id, test_name, result_value, standard_value, status, year, semester, criteria_id, weight, height } = data;
-
-        // 1. Authorization Check: Is this teacher an advisor for this student?
-        const advisorClassrooms = await prisma.classroom_advisors.findMany({
-            where: { teacher_id },
-            select: { classroom_id: true }
-        });
-        const advisorRoomIds = advisorClassrooms.map(ac => ac.classroom_id);
-
-        const studentInAdvisorRoom = await prisma.classroom_students.findFirst({
-            where: {
-                student_id: student_id,
-                classroom_id: { in: advisorRoomIds },
-                // academic_year: year // Optional: check academic year too
-            }
-        });
-
-        if (!studentInAdvisorRoom) {
-            throw new Error('ไม่อนุญาตให้บันทึกข้อมูลนักเรียนที่ไม่ได้อยู่ในความดูแลของท่าน');
-        }
 
         // Resolve semesterId
         let semesterId: number | null = null;

@@ -6,13 +6,24 @@ import Link from "next/link";
 export function DashboardFeature({ session }: { session: any }) {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [now, setNow] = useState(new Date());
 
     useEffect(() => {
-        TeacherApiService.getDashboardSummary(session.id).then(d => {
-            setData(d);
-            setLoading(false);
-        }).catch(() => setLoading(false));
+        setLoading(true);
+        setError(null);
+        console.log(`[Dashboard] Loading for session.id: ${session.id}...`);
+        TeacherApiService.getDashboardSummary(session.id)
+            .then(d => {
+                console.log(`[Dashboard] Data received:`, d);
+                setData(d);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error(`[Dashboard] Error loading:`, err);
+                setError(err.message || "ไม่สามารถโหลดข้อมูลแดชบอร์ดได้");
+                setLoading(false);
+            });
 
         const timer = setInterval(() => setNow(new Date()), 30000);
         return () => clearInterval(timer);
@@ -30,18 +41,41 @@ export function DashboardFeature({ session }: { session: any }) {
         );
     }
 
+    if (error) {
+        return (
+            <div className="bg-white rounded-2xl p-12 shadow-sm border border-red-200 flex flex-col items-center justify-center text-red-500">
+                <svg className="w-12 h-12 mb-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h3 className="text-lg font-bold mb-2">เกิดข้อผิดพลาด</h3>
+                <p className="text-sm opacity-80">{error}</p>
+                <button onClick={() => window.location.reload()} className="mt-6 px-6 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors shadow-sm">ลองอีกครั้ง</button>
+            </div>
+        );
+    }
+
     const stats = [
         {
-            label: "จำนวนนักเรียน", value: data?.students || 0, color: "from-emerald-600 to-teal-700", icon: (
+            label: "นักเรียนในที่ปรึกษา", value: data?.advisoryStudents || 0, color: "from-emerald-600 to-teal-700", icon: (
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-            ), href: "/teacher/students"
+            ), href: "/teacher/students", show: data?.isAdvisor
         },
         {
             label: "รายวิชาที่สอน", value: data?.subjects || 0, color: "from-emerald-500 to-teal-600", icon: (
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.432.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-            ), href: "/teacher/scores"
+            ), href: "/teacher/scores", show: true
         },
-    ];
+        {
+            label: "จำนวนรายการคะแนน", value: data?.scoreItems || 0, color: "from-teal-600 to-cyan-700", icon: (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+            ), href: "/teacher/score_input", show: true
+        },
+        {
+            label: "กิจกรรมทั้งหมด", value: data?.allEvents || 0, color: "from-teal-500 to-emerald-600", icon: (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            ), href: "/teacher/activity_calendar", show: true
+        },
+    ].filter(s => s.show);
 
     return (
         <div className="space-y-6">
@@ -59,14 +93,16 @@ export function DashboardFeature({ session }: { session: any }) {
                         <div className="text-emerald-100 text-sm font-medium mb-3">ภาพรวมวันนี้</div>
                         <div className="space-y-3">
                             <div className="flex justify-between text-sm"><span className="text-emerald-100">กิจกรรมใกล้ถึง</span><strong className="text-white">{data?.upcomingEvents || 0}</strong></div>
-                            <div className="flex justify-between text-sm"><span className="text-emerald-100">นักเรียนทั้งหมด</span><strong className="text-white">{data?.students || 0}</strong></div>
+                            {data?.isAdvisor && (
+                                <div className="flex justify-between text-sm"><span className="text-emerald-100">นักเรียนในที่ปรึกษา</span><strong className="text-white">{data?.advisoryStudents || 0}</strong></div>
+                            )}
                         </div>
                     </div>
                 </div>
             </section>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {stats.map((s, i) => (
                     <Link key={i} href={s.href} className="group bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md hover:border-slate-300 transition-all hover:-translate-y-0.5 flex items-center gap-5">
                         <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${s.color} flex items-center justify-center text-white shadow-md shrink-0`}>{s.icon}</div>

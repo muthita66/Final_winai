@@ -198,6 +198,14 @@ export const DirectorApiService = {
         const q = params.toString();
         return fetchApi<any[]>(`/api/director/evaluation${q ? `?${q}` : ''}`);
     },
+    async getEvaluationResults(year: number, semester: number, type: string, filters?: { subject_id?: number; class_level?: string; room?: string; department_id?: number }) {
+        const params = new URLSearchParams({ type, year: year.toString(), semester: semester.toString() });
+        if (filters?.subject_id) params.append('subject_id', filters.subject_id.toString());
+        if (filters?.department_id) params.append('department_id', filters.department_id.toString());
+        if (filters?.class_level) params.append('class_level', filters.class_level);
+        if (filters?.room) params.append('room', filters.room);
+        return fetchApi<any[]>(`/api/director/evaluation?${params.toString()}`);
+    },
 
     // --- Actors (Database Explorer) ---
     async getActors() {
@@ -215,4 +223,8 @@ export const DirectorApiService = {
     async getAcademicYears() {
         return fetchApi<any[]>('/api/director/lookups/academic-years');
     },
+    async getSubjectsLookup(search?: string) {
+        const q = search ? `?search=${encodeURIComponent(search)}` : '';
+        return fetchApi<any[]>(`/api/director/lookups/subjects${q}`);
+    }
 };

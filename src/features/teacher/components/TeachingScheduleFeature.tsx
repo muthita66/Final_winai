@@ -35,9 +35,10 @@ const DAY_COLORS: Record<number, { bg: string; text: string; border: string }> =
 
 export function TeachingScheduleFeature({ session }: { session: any }) {
     const [slots, setSlots] = useState<ScheduleSlot[]>([]);
+    const [allPeriods, setAllPeriods] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+    const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
 
     useEffect(() => {
         const load = async () => {
@@ -46,7 +47,8 @@ export function TeachingScheduleFeature({ session }: { session: any }) {
             try {
                 const res = await fetch(`/api/teacher/teaching-schedule?teacher_id=${session.id}`);
                 const json = await res.json();
-                setSlots(json?.data || []);
+                setSlots(json?.data?.slots || []);
+                setAllPeriods(json?.data?.periods || []);
             } catch (e: any) {
                 setError(e?.message || "โหลดตารางสอนไม่สำเร็จ");
             } finally {
@@ -63,11 +65,6 @@ export function TeachingScheduleFeature({ session }: { session: any }) {
         byDay[slot.day_id].push(slot);
     }
     const activeDays = Object.keys(byDay).map(Number).sort((a, b) => a - b);
-
-    // Get all unique periods sorted
-    const allPeriods = Array.from(
-        new Map(slots.map(s => [s.period_id, { period_id: s.period_id, period_name: s.period_name, start_time: s.start_time, end_time: s.end_time }])).values()
-    ).sort((a, b) => (a.period_id ?? 99) - (b.period_id ?? 99));
 
     // Helper to get classroom suffix (e.g., "1/2" -> "2")
     const getRoomSuffix = (roomStr: string) => roomStr.includes('/') ? roomStr.split('/').pop() || '-' : roomStr;
@@ -87,22 +84,18 @@ export function TeachingScheduleFeature({ session }: { session: any }) {
         const colors = DAY_COLORS[slot.day_id] ?? { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200" };
         return (
             <div key={`${slot.assignment_id}-${slot.period_id}-${idx}`}
-                className={`${colors.bg} ${colors.border} border rounded-lg p-2 text-xs space-y-0.5`}>
-                <div className={`font-bold text-sm ${colors.text} leading-tight`}>{slot.subject_name}</div>
-                <div className="text-slate-500">{slot.subject_code} • {slot.credit} หน่วยกิต</div>
-                <div className="flex flex-col gap-0.5 mt-0.5">
-                    <span className="bg-white/80 px-1.5 py-0.5 rounded-full border border-slate-200 text-slate-600 flex items-center gap-1 w-fit">
+                className={`${colors.bg} ${colors.border} border rounded-lg p-1.5 text-xs space-y-0.5 shadow-sm`}>
+                <div className={`font-bold text-[13px] ${colors.text} leading-tight`}>{slot.subject_name}</div>
+                <div className="text-slate-500 text-[10px]">{slot.subject_code} • {slot.credit} หน่วยกิต</div>
+                <div className="flex flex-col gap-0.5 mt-1">
+                    <span className="bg-white/90 px-1 py-0.5 rounded border border-slate-100 text-slate-600 flex items-center gap-1 w-fit text-[10px]">
                         <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                        {slot.class_level}/{slot.classroom.includes('/') ? slot.classroom.split('/').pop() : slot.classroom}
+                        {slot.class_level}/{getRoomSuffix(slot.classroom)}
                     </span>
-                    <span className="bg-white/80 px-1.5 py-0.5 rounded-full border border-slate-200 text-slate-600 flex items-center gap-1 w-fit">
+                    <span className="bg-white/90 px-1 py-0.5 rounded border border-slate-100 text-slate-600 flex items-center gap-1 w-fit text-[10px]">
                         <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                         ห้อง {slot.room.replace(/^(ห้องเรียน|ห้อง)\s*/, '')}
                     </span>
-                </div>
-                <div className="text-slate-500 pt-0.5 flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    {slot.start_time} – {slot.end_time}
                 </div>
             </div>
         );
@@ -156,8 +149,8 @@ export function TeachingScheduleFeature({ session }: { session: any }) {
         };
 
         // Calculate total table width to ensure equal column sizing
-        const dayColWidth = 80;
-        const periodColWidth = 140;
+        const dayColWidth = 70;
+        const periodColWidth = 120;
         const totalTableWidth = dayColWidth + (allPeriods.length * periodColWidth);
 
         return (

@@ -550,13 +550,16 @@ export const DirectorService = {
             orderBy: { title: 'asc' }
         });
     },
-    async getSubjects(filters?: { search?: string; level?: string; group?: string; category?: string }) {
+    async getSubjects(filters?: { search?: string; level?: string; group?: string; category?: string; department_id?: number }) {
         const where: any = {};
         if (filters?.search) {
             where.OR = [
                 { subject_code: { contains: filters.search, mode: 'insensitive' } },
                 { subject_name: { contains: filters.search, mode: 'insensitive' } },
             ];
+        }
+        if (filters?.department_id) {
+            where.learning_subject_group_id = Number(filters.department_id);
         }
         if (filters?.level) {
             // Regex-based fallback for level filtering (Thai school convention)
@@ -1459,145 +1462,210 @@ export const DirectorService = {
         });
     },
 
-    async getDetailedEvaluationResults(year?: number, semester?: number, type: 'teaching' | 'advisor' | 'activity' = 'teaching') {
-        const semesterFilter: any = {};
+    async getDetailedEvaluationResults(
+        year?: number, 
+        semester?: number, 
+        type: 'student_teaching' | 'student_advisor' | 'teacher_subject' | 'teacher_advisor' = 'student_teaching',
+        filters?: { subject_id?: number; class_level?: string; room?: string; department_id?: number }
+    ) {
+        // Resolve semester_id
+        let semesterId: number | null = null;
         if (year && semester) {
             const sem = await prisma.semesters.findFirst({
-                where: {
-                    semester_number: semester,
-                    academic_years: { year_name: String(year) }
-                },
+                where: { semester_number: semester, academic_years: { year_name: String(year) } },
                 select: { id: true }
             });
-            if (sem) semesterFilter.semester_id = sem.id;
+            semesterId = sem?.id ?? null;
         }
+        const semWhere = semesterId ? `AND er.semester_id = ${semesterId}` : '';
 
-        if (type === 'teaching') {
-            // Student Evaluating Teacher
-            const rows = await prisma.evaluation_responses.findMany({
-                where: {
-                    ...semesterFilter,
-                    target_teacher_id: { not: null },
-                    target_subject_id: { not: null }
-                },
-                include: {
-                    evaluation_answers: { select: { score_value: true } },
-                    teachers: { select: { first_name: true, last_name: true, teacher_code: true } },
-                    subjects: { select: { subject_name: true, subject_code: true } }
-                } as any
-            });
+        if (type === 'student_teaching') {
+            // Student rates Teacher by subject:
+            // target_subject_id = teaching_assignment_id (section), target_teacher_id = null
+            let subjectFilter = '';
+            let deptFilter = '';
+            if (filters?.subject_id) {
+                subjectFilter = `AND ta.subject_id = ${Number(filters.subject_id)}`;
+            }
+            if (filters?.department_id) {
+                deptFilter = `AND s.learning_subject_group_id = ${Number(filters.department_id)}`;
+            }
 
-            const groups = new Map<string, any>();
-            rows.forEach(r => {
-                const key = `${r.target_teacher_id}-${r.target_subject_id}`;
-                if (!groups.has(key)) {
-                    groups.set(key, {
-                        id: key,
-                        teacher_name: `${(r as any).teachers?.first_name} ${(r as any).teachers?.last_name}`,
-                        subject_name: `[${(r as any).subjects?.subject_code}] ${(r as any).subjects?.subject_name}`,
-                        total_score: 0,
-                        count: 0,
-                        responses: 0
-                    });
-                }
-                const g = groups.get(key);
-                g.responses++;
-                ((r as any).evaluation_answers || []).forEach((a: any) => {
-                    if (a.score_value != null) {
-                        g.total_score += Number(a.score_value);
-                        g.count++;
-                    }
-                });
-            });
+            const rows: any[] = await prisma.$queryRawUnsafe(`
+                SELECT 
+                    ta.id as section_id,
+                    ta.teacher_id,
+                    t.first_name, t.last_name, t.teacher_code,
+                    s.subject_code, s.subject_name,
+                    COUNT(DISTINCT er.id)::int as responses_count,
+                    AVG(ea.score_value::float) as avg_score,
+                    (SELECT COUNT(*)::int FROM enrollments en WHERE en.teaching_assignment_id = ta.id) as total_expected
+                FROM evaluation_responses er
+                JOIN teaching_assignments ta ON er.target_subject_id = ta.id
+                JOIN teachers t ON ta.teacher_id = t.id
+                JOIN subjects s ON ta.subject_id = s.id
+                LEFT JOIN evaluation_answers ea ON ea.response_id = er.id AND ea.score_value IS NOT NULL
+                WHERE er.target_subject_id IS NOT NULL
+                  AND er.target_teacher_id IS NULL
+                  AND er.target_student_id IS NULL
+                  AND er.target_activity_id IS NULL
+                  ${semWhere}
+                  ${subjectFilter}
+                  ${deptFilter}
+                GROUP BY ta.id, ta.teacher_id, t.first_name, t.last_name, t.teacher_code, s.subject_code, s.subject_name
+                ORDER BY t.first_name, t.last_name, s.subject_code
+            `);
 
-            return Array.from(groups.values()).map(g => ({
-                id: g.id,
-                name: `${g.teacher_name} - ${g.subject_name}`,
-                avg_score: g.count > 0 ? (g.total_score / g.count) : 0,
-                responses_count: g.responses
+            return rows.map((r: any) => ({
+                id: `${r.teacher_id}-${r.section_id}`,
+                name: `${r.first_name} ${r.last_name}`,
+                sub_name: `[${r.subject_code}] ${r.subject_name}`,
+                avg_score: r.avg_score ? Number(Number(r.avg_score).toFixed(2)) : 0,
+                responses_count: Number(r.responses_count || 0),
+                total_expected: Number(r.total_expected || 0)
             }));
-        } else if (type === 'advisor') {
-            // Teacher Evaluating Student
-            const rows = await prisma.evaluation_responses.findMany({
-                where: {
-                    ...semesterFilter,
-                    target_student_id: { not: null }
-                },
-                include: {
-                    evaluation_answers: { select: { score_value: true } },
-                    students: { select: { first_name: true, last_name: true, student_code: true } }
-                } as any
-            });
 
-            const groups = new Map<number, any>();
-            rows.forEach(r => {
-                const sid = r.target_student_id!;
-                if (!groups.has(sid)) {
-                    groups.set(sid, {
-                        id: sid,
-                        student_name: `${(r as any).students?.first_name} ${(r as any).students?.last_name}`,
-                        student_code: (r as any).students?.student_code,
-                        total_score: 0,
-                        count: 0,
-                        responses: 0
-                    });
-                }
-                const g = groups.get(sid);
-                g.responses++;
-                ((r as any).evaluation_answers || []).forEach((a: any) => {
-                    if (a.score_value != null) {
-                        g.total_score += Number(a.score_value);
-                        g.count++;
-                    }
-                });
-            });
+        } else if (type === 'student_advisor') {
+            // Student rates Advisor Teacher:
+            // target_teacher_id = teacher_id
+            let classLevelFilter = '';
+            let roomFilter = '';
+            if (filters?.class_level) {
+                classLevelFilter = `AND lv.name = '${filters.class_level.replace(/'/g, "''")}'`;
+            }
+            if (filters?.room) {
+                roomFilter = `AND cr.room_name LIKE '%${filters.room.replace(/'/g, "''")}%'`;
+            }
 
-            return Array.from(groups.values()).map(g => ({
-                id: g.id,
-                name: `[${g.student_code}] ${g.student_name}`,
-                avg_score: g.count > 0 ? (g.total_score / g.count) : 0,
-                responses_count: g.responses
+            const rows: any[] = await prisma.$queryRawUnsafe(`
+                SELECT 
+                    t.id as teacher_id,
+                    t.first_name, t.last_name, t.teacher_code,
+                    MAX(lv.name) as class_level,
+                    MAX(cr.room_name) as room_name,
+                    COUNT(DISTINCT er.id)::int as responses_count,
+                    AVG(ea.score_value::float) as avg_score,
+                    (
+                        SELECT COUNT(*)::int 
+                        FROM classroom_students cs2
+                        JOIN classrooms cr2 ON cr2.id = cs2.classroom_id
+                        WHERE cr2.advisor_teacher_id = t.id
+                    ) as total_expected
+                FROM evaluation_responses er
+                JOIN teachers t ON er.target_teacher_id = t.id
+                JOIN classrooms cr ON cr.advisor_teacher_id = t.id
+                JOIN levels lv ON lv.id = cr.level_id
+                LEFT JOIN evaluation_answers ea ON ea.response_id = er.id AND ea.score_value IS NOT NULL
+                WHERE er.target_teacher_id IS NOT NULL
+                  AND er.target_student_id IS NULL
+                  AND er.target_activity_id IS NULL
+                  ${semWhere}
+                  ${classLevelFilter}
+                  ${roomFilter}
+                GROUP BY t.id, t.first_name, t.last_name, t.teacher_code
+                ORDER BY t.first_name, t.last_name
+            `);
+
+            return rows.map((r: any) => ({
+                id: r.teacher_id,
+                name: `${r.first_name} ${r.last_name}`,
+                sub_name: `${r.class_level || ''} ${r.room_name || ''}`.trim() || (r.teacher_code ? `[${r.teacher_code}]` : ''),
+                avg_score: r.avg_score ? Number(Number(r.avg_score).toFixed(2)) : 0,
+                responses_count: Number(r.responses_count || 0),
+                total_expected: Number(r.total_expected || 0)
             }));
-        } else if (type === 'activity') {
-            // Activity Evaluation
-            const rows = await prisma.evaluation_responses.findMany({
-                where: {
-                    ...semesterFilter,
-                    target_activity_id: { not: null }
-                },
-                include: {
-                    evaluation_answers: { select: { score_value: true } },
-                    events: { select: { title: true } }
-                } as any
-            });
 
-            const groups = new Map<number, any>();
-            rows.forEach(r => {
-                const aid = r.target_activity_id!;
-                if (!groups.has(aid)) {
-                    groups.set(aid, {
-                        id: aid,
-                        title: (r as any).events?.title || 'Unknown Activity',
-                        total_score: 0,
-                        count: 0,
-                        responses: 0
-                    });
-                }
-                const g = groups.get(aid);
-                g.responses++;
-                ((r as any).evaluation_answers || []).forEach((a: any) => {
-                    if (a.score_value != null) {
-                        g.total_score += Number(a.score_value);
-                        g.count++;
-                    }
-                });
-            });
+        } else if (type === 'teacher_subject') {
+            // Teacher rates Student by subject:
+            // target_student_id = student_id, target_subject_id = section_id
+            let subjectFilter = '';
+            let deptFilter = '';
+            if (filters?.subject_id) {
+                subjectFilter = `AND ta.subject_id = ${Number(filters.subject_id)}`;
+            }
+            if (filters?.department_id) {
+                deptFilter = `AND s.learning_subject_group_id = ${Number(filters.department_id)}`;
+            }
 
-            return Array.from(groups.values()).map(g => ({
-                id: g.id,
-                name: g.title,
-                avg_score: g.count > 0 ? (g.total_score / g.count) : 0,
-                responses_count: g.responses
+            const rows: any[] = await prisma.$queryRawUnsafe(`
+                SELECT 
+                    ta.id as section_id,
+                    s.subject_code, s.subject_name,
+                    COUNT(DISTINCT er.target_student_id)::int as responses_count,
+                    AVG(ea.score_value::float) as avg_score,
+                    (SELECT COUNT(*)::int FROM enrollments en WHERE en.teaching_assignment_id = ta.id) as total_expected
+                FROM evaluation_responses er
+                JOIN teaching_assignments ta ON er.target_subject_id = ta.id
+                JOIN subjects s ON ta.subject_id = s.id
+                LEFT JOIN evaluation_answers ea ON ea.response_id = er.id AND ea.score_value IS NOT NULL
+                WHERE er.target_student_id IS NOT NULL
+                  AND er.target_subject_id IS NOT NULL
+                  AND er.target_activity_id IS NULL
+                  AND er.target_teacher_id IS NULL
+                  ${semWhere}
+                  ${subjectFilter}
+                  ${deptFilter}
+                GROUP BY ta.id, s.subject_code, s.subject_name
+                ORDER BY s.subject_code
+            `);
+
+            return rows.map((r: any) => ({
+                id: `section-${r.section_id}`,
+                name: `[${r.subject_code}] ${r.subject_name}`,
+                sub_name: '',
+                avg_score: r.avg_score ? Number(Number(r.avg_score).toFixed(2)) : 0,
+                responses_count: Number(r.responses_count || 0),
+                total_expected: Number(r.total_expected || 0)
+            }));
+
+        } else if (type === 'teacher_advisor') {
+            // Teacher rates Student (advisory role):
+            // target_student_id = student_id, target_subject_id = null, target_teacher_id = null
+            let classLevelFilter = '';
+            let roomFilter = '';
+            if (filters?.class_level) {
+                classLevelFilter = `AND lv.name = '${filters.class_level.replace(/'/g, "''")}'`;
+            }
+            if (filters?.room) {
+                roomFilter = `AND cr.room_name LIKE '%${filters.room.replace(/'/g, "''")}%'`;
+            }
+
+            const rows: any[] = await prisma.$queryRawUnsafe(`
+                SELECT 
+                    cr.id as classroom_id,
+                    lv.name as class_level,
+                    cr.room_name as room,
+                    COUNT(DISTINCT er.target_student_id)::int as responses_count,
+                    AVG(ea.score_value::float) as avg_score,
+                    (SELECT COUNT(*)::int FROM classroom_students cs2 WHERE cs2.classroom_id = cr.id) as total_expected
+                FROM evaluation_responses er
+                JOIN students st ON er.target_student_id = st.id
+                LEFT JOIN (
+                    SELECT DISTINCT ON (student_id) student_id, classroom_id
+                    FROM classroom_students
+                    ORDER BY student_id, academic_year DESC
+                ) cs ON cs.student_id = st.id
+                LEFT JOIN classrooms cr ON cr.id = cs.classroom_id
+                LEFT JOIN levels lv ON lv.id = cr.level_id
+                LEFT JOIN evaluation_answers ea ON ea.response_id = er.id AND ea.score_value IS NOT NULL
+                WHERE er.target_student_id IS NOT NULL
+                  AND er.target_subject_id IS NULL
+                  AND er.target_activity_id IS NULL
+                  AND er.target_teacher_id IS NULL
+                  ${semWhere}
+                  ${classLevelFilter}
+                  ${roomFilter}
+                GROUP BY cr.id, lv.name, cr.room_name
+                ORDER BY lv.name, cr.room_name
+            `);
+
+            return rows.map((r: any) => ({
+                id: `room-${r.classroom_id}`,
+                name: `${r.class_level || ''} ${r.room || ''}`.trim(),
+                sub_name: '',
+                avg_score: r.avg_score ? Number(Number(r.avg_score).toFixed(2)) : 0,
+                responses_count: Number(r.responses_count || 0),
+                total_expected: Number(r.total_expected || 0)
             }));
         }
 
@@ -1626,6 +1694,7 @@ export const DirectorService = {
 
         return Array.from(rooms).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     },
+
 
     async getAcademicYears() {
         return prisma.academic_years.findMany({
