@@ -924,10 +924,10 @@ async function getHealthSummary(studentWhere: any) {
     }
 
     // 2. Fetch Latest Health Checkups for these students
-    const checkups = await (prisma as any).student_health_checkups.findMany({
-        where: { student_id: { in: studentIds } },
-        orderBy: { checkup_date: 'desc' }
-    });
+    const idsString = studentIds.join(',');
+    const checkups = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT * FROM student_health_checkups WHERE student_id IN (${idsString}) ORDER BY checkup_date DESC`
+    );
 
     // Get only the latest checkup for each student
     const latestCheckups = new Map<number, any>();
@@ -982,10 +982,9 @@ async function getHealthSummary(studentWhere: any) {
     });
 
     // 5. Fitness Records (Latest result per test per student)
-    const fitnessRecords = await (prisma as any).student_fitness_records.findMany({
-        where: { student_id: { in: studentIds } },
-        orderBy: { test_date: 'desc' }
-    });
+    const fitnessRecords = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT * FROM student_fitness_records WHERE student_id IN (${idsString}) ORDER BY test_date DESC`
+    );
     const fitnessSummaryMap = new Map<string, { total: number, passed: number }>();
     fitnessRecords.forEach((r: any) => {
         if (!r.test_name) return;
