@@ -83,7 +83,22 @@ export async function GET(request: Request) {
         // Sort by day_id then period_id
         slots.sort((a, b) => (a.day_id ?? 99) - (b.day_id ?? 99) || (a.period_id ?? 99) - (b.period_id ?? 99));
 
-        return successResponse(slots);
+        // Get all periods for the master list
+        const allPeriods = await prisma.periods.findMany({
+            orderBy: { id: 'asc' }
+        });
+
+        const periodsData = allPeriods.map(p => ({
+            period_id: p.id,
+            period_name: p.period_name ?? `คาบที่ ${p.id}`,
+            start_time: p.start_time ? new Date(p.start_time).toISOString().substring(11, 16) : '-',
+            end_time: p.end_time ? new Date(p.end_time).toISOString().substring(11, 16) : '-',
+        }));
+
+        return successResponse({
+            slots,
+            periods: periodsData
+        });
     } catch (error: any) {
         return errorResponse('Failed to load teaching schedule', 500, error.message);
     }

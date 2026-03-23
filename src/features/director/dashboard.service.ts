@@ -164,8 +164,9 @@ export const DirectorDashboardService = {
                 }
             }),
             prisma.employment_types.findMany(),
-            getProjectsSummary()
-        ]) as unknown as [number, number, number, number, any[], any[], any[], any[], any, any, any[], any, any[], any[], any[], any, any[], any[], any];
+            getProjectsSummary(),
+            getHealthSummary(studentWhere)
+        ]) as unknown as [number, number, number, number, any[], any[], any[], any[], any, any, any[], any, any[], any[], any[], any, any[], any[], any, any];
 
         // --- Process Distributions in Memory ---
         const genderDistribution = genderRaw.map(gr => ({
@@ -253,11 +254,46 @@ export const DirectorDashboardService = {
         const evalResponses = evalCountResult[0]?.count || 0;
 
         let evalAvg = 0;
+        let evalByCat: any[] = [];
         if (evalResponses > 0) {
             const avgResult: any[] = await prisma.$queryRaw`SELECT AVG(score_value) as avg FROM evaluation_answers`;
             evalAvg = Number(avgResult[0]?.avg || 0);
+
+            // Fetch Advisor evaluations
+            const advisorEval: any[] = await prisma.$queryRaw`
+                SELECT 
+                    'ครูที่ปรึกษา' as label, 
+                    AVG(ans.score_value)::float as value
+                FROM evaluation_answers ans
+                JOIN evaluation_responses res ON ans.response_id = res.id
+                JOIN evaluation_forms form ON res.form_id = form.id
+                JOIN evaluation_categories cat ON form.category_id = cat.id
+                WHERE (cat.target_type = 'advisor' OR cat.name LIKE '%ที่ปรึกษา%')
+                GROUP BY cat.name
+            `;
+
+            // Fetch Subject evaluations grouped by All Learning Areas (using LEFT JOIN)
+            const subjectEvalByDept: any[] = await prisma.$queryRaw`
+                SELECT 
+                    lsg.group_name as label, 
+                    COALESCE(AVG(ans.score_value), 0)::float as value
+                FROM learning_subject_groups lsg
+                LEFT JOIN subjects s ON s.learning_subject_group_id = lsg.id
+                LEFT JOIN evaluation_responses res ON res.target_subject_id = s.id
+                LEFT JOIN evaluation_answers ans ON ans.response_id = res.id
+                GROUP BY lsg.group_name, lsg.id
+                ORDER BY lsg.id ASC
+            `;
+
+            evalByCat = [...advisorEval, ...subjectEvalByDept];
         } else {
             evalAvg = 4.2; // Sample score for demo if no real responses
+            evalByCat = [
+                { label: 'การจัดการเรียนรู้', value: 4.5 },
+                { label: 'พฤติกรรมและการแต่งกาย', value: 4.2 },
+                { label: 'ความตรงต่อเวลา', value: 3.8 },
+                { label: 'การจัดบรรยากาศชั้นเรียน', value: 4.3 }
+            ];
         }
 
         // --- Process HR Stats ---
@@ -402,16 +438,14 @@ export const DirectorDashboardService = {
                 byEmpType,
                 byAcademicRank,
                 ageGroups,
+                evalByCat,
                 avgSections: teacherCount > 0 ? Math.round((subjectCount / teacherCount) * 10) / 10 : 0,
                 advisorStats: [
                     { name: 'มาครบ', count: Math.ceil(teacherCount * 0.9) },
                     { name: 'สาย/ลา', count: Math.floor(teacherCount * 0.1) },
                 ],
             },
-            health: {
-                totalStudents: studentCount,
-                healthIssues: [], // TODO: Implementation later if needed
-            },
+            health: arguments[19], // getHealthSummary result
             curriculum: await getCurriculumSummary(subjectWhere, classroomWhere),
             evaluation: {},
             projects: projectSummary,
@@ -861,5 +895,172 @@ async function getProjectsSummary() {
         budgetUsed,
         items,
         byDept
+    };
+}
+
+// --- Helper: Health Summary ---
+async function getHealthSummary(studentWhere: any) {
+    // 1. Fetch Students in the cohort
+    const students = await (prisma as any).students.findMany({
+        where: studentWhere,
+        select: { id: true }
+    });
+    const studentIds = students.map((s: any) => s.id);
+    const totalStudents = studentIds.length;
+
+    if (totalStudents === 0) {
+        return {
+            checkedCount: 0,
+            totalStudents: 0,
+            bmiNormalCount: 0,
+            allergyCount: 0,
+            diseaseCount: 0,
+            visionIssueCount: 0,
+            bmiDistribution: [],
+            bloodTypeDistribution: [],
+            fitnessSummary: [],
+            vaccineDistribution: []
+        };
+    }
+
+    // 2. Fetch Latest Health Checkups for these students
+    const checkups = await (prisma as any).student_health_checkups.findMany({
+        where: { student_id: { in: studentIds } },
+        orderBy: { checkup_date: 'desc' }
+    });
+
+    // Get only the latest checkup for each student
+    const latestCheckups = new Map<number, any>();
+    checkups.forEach((c: any) => {
+        if (!latestCheckups.has(c.student_id)) {
+            latestCheckups.set(c.student_id, c);
+        }
+    });
+
+    const checkedStudents = latestCheckups.size;
+    
+    let bmiNormal = 0;
+    const bmiCounts = { 'ผอม': 0, 'ปกติ': 0, 'อ้วน': 0 };
+    let visionIssues = 0;
+
+    latestCheckups.forEach(c => {
+        const bmiVal = Number(c.bmi || 0);
+        if (bmiVal > 0) {
+            if (bmiVal < 18.5) bmiCounts['ผอม']++;
+            else if (bmiVal < 23) {
+                bmiCounts['ปกติ']++;
+                bmiNormal++;
+            }
+            else bmiCounts['อ้วน']++;
+        }
+
+        if (c.needs_glasses === true) visionIssues++;
+    });
+
+    // 3. Allergies & Diseases (Count unique students)
+    const [allergyStudents, diseaseStudents] = await Promise.all([
+        (prisma as any).student_allergies.groupBy({
+            by: ['student_id'],
+            where: { student_id: { in: studentIds } }
+        }),
+        (prisma as any).student_diseases.groupBy({
+            by: ['student_id'],
+            where: { student_id: { in: studentIds } }
+        })
+    ]);
+
+    // 4. Blood Type Distribution
+    const bloodProfiles = await (prisma as any).student_health_profiles.findMany({
+        where: { student_id: { in: studentIds } },
+        select: { blood_type: true }
+    });
+    const bloodTypeMap = new Map<string, number>();
+    bloodProfiles.forEach((p: any) => {
+        if (p.blood_type) {
+            bloodTypeMap.set(p.blood_type, (bloodTypeMap.get(p.blood_type) || 0) + 1);
+        }
+    });
+
+    // 5. Fitness Records (Latest result per test per student)
+    const fitnessRecords = await (prisma as any).student_fitness_records.findMany({
+        where: { student_id: { in: studentIds } },
+        orderBy: { test_date: 'desc' }
+    });
+    const fitnessSummaryMap = new Map<string, { total: number, passed: number }>();
+    fitnessRecords.forEach((r: any) => {
+        if (!r.test_name) return;
+        const current = fitnessSummaryMap.get(r.test_name) || { total: 0, passed: 0 };
+        current.total++;
+        if (r.is_passed) current.passed++;
+        fitnessSummaryMap.set(r.test_name, current);
+    });
+
+    // 6. Vaccination Records
+    const vaccinations = await (prisma as any).vaccination_records.findMany({
+        where: { student_id: { in: studentIds } },
+        include: { vaccines: true }
+    });
+    const vaccineMap = new Map<string, number>();
+    vaccinations.forEach((v: any) => {
+        if (v.vaccines?.name) {
+            vaccineMap.set(v.vaccines.name, (vaccineMap.get(v.vaccines.name) || 0) + 1);
+        }
+    });
+
+    // 7. Detailed Health Issues List (Allergies + Diseases)
+    // Fetch students with their relations for the list
+    const studentsWithIssues = await (prisma as any).students.findMany({
+        where: {
+            id: { in: studentIds },
+            OR: [
+                { student_allergies: { some: {} } },
+                { student_diseases: { some: {} } }
+            ]
+        },
+        include: {
+            name_prefixes: true,
+            classroom_students: {
+                include: { classrooms: { include: { levels: true } } },
+                orderBy: { academic_year: 'desc' },
+                take: 1
+            },
+            student_allergies: { include: { allergens: true } },
+            student_diseases: { include: { diseases: true } }
+        }
+    });
+
+    const healthIssues = studentsWithIssues.map((s: any) => {
+        const issues: string[] = [];
+        s.student_allergies.forEach((a: any) => issues.push(`แพ้${a.allergens?.name || 'ไม่ระบุ'}`));
+        s.student_diseases.forEach((d: any) => issues.push(d.diseases?.name || 'ไม่ระบุ'));
+
+        return {
+            studentCode: s.student_code,
+            prefix: s.name_prefixes?.prefix_name || '',
+            firstName: s.first_name,
+            lastName: s.last_name,
+            classLevel: s.classroom_students?.[0]?.classrooms?.levels?.name || '',
+            room: s.classroom_students?.[0]?.classrooms?.room_name || '',
+            issues
+        };
+    });
+
+    return {
+        checkedCount: checkedStudents,
+        totalStudents,
+        bmiNormalCount: bmiNormal,
+        allergyCount: (allergyStudents as any[]).length,
+        diseaseCount: (diseaseStudents as any[]).length,
+        visionIssueCount: visionIssues,
+        bmiDistribution: Object.entries(bmiCounts).map(([label, value]) => ({ label, value })),
+        bloodTypeDistribution: Array.from(bloodTypeMap.entries()).map(([label, value]) => ({ label, value })),
+        healthIssues,
+        fitnessSummary: Array.from(fitnessSummaryMap.entries()).map(([name, stats]) => ({
+            name,
+            total: stats.total,
+            passed: stats.passed,
+            passRate: stats.total > 0 ? Math.round((stats.passed / stats.total) * 100) : 0
+        })),
+        vaccineDistribution: Array.from(vaccineMap.entries()).map(([label, value]) => ({ label, value }))
     };
 }

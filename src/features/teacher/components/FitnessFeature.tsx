@@ -124,8 +124,35 @@ export function FitnessFeature({ session }: { session: any }) {
         setLoading(true);
         setHasSearched(true);
         try {
-            const data = await TeacherApiService.getFitnessStudents(session.id, classLevel, room);
+            const data = await TeacherApiService.getFitnessStudents(session.id, classLevel, room, year, semester);
             setStudents(data || []);
+
+            // Initialize results from existing data
+            const initialResults: Record<number, any> = {};
+            (data || []).forEach((s: any) => {
+                const res: any = {};
+                (s.fitness_tests || []).forEach((t: any) => {
+                    if (t.test_name === "น้ำหนัก (Weight)") {
+                        res.weight = String(t.test_result);
+                    } else if (t.test_name === "ส่วนสูง (Height)") {
+                        res.height = String(t.test_result);
+                    } else if (recordType === "fitness" && t.test_name === testName) {
+                        res.result = String(t.test_result);
+                        res.standard = t.standard_value || ""; // Standard value might not be in fitness_tests, will be updated by fetchCriteria
+                        res.status = t.status || "";
+                    } else if (recordType === "all") {
+                        // In "all" mode, if we are looking at a specific testName, or just want to show weight/height
+                        if (t.test_name === testName) {
+                            res.result = String(t.test_result);
+                            res.status = t.status || "";
+                        }
+                    }
+                });
+                if (Object.keys(res).length > 0) {
+                    initialResults[s.id] = res;
+                }
+            });
+            setResults(initialResults);
         } catch (e: any) {
             alert(e?.message || "โหลดข้อมูลนักเรียนไม่สำเร็จ");
             setStudents([]);
@@ -398,7 +425,6 @@ export function FitnessFeature({ session }: { session: any }) {
                                         bmi = bmiVal.toFixed(1);
                                         if (bmiVal < 18.5) interpretation = "ผอม";
                                         else if (bmiVal < 23) interpretation = "ปกติ";
-                                        else if (bmiVal < 25) interpretation = "ท้วม";
                                         else interpretation = "อ้วน";
                                     }
                                 }
@@ -451,8 +477,11 @@ export function FitnessFeature({ session }: { session: any }) {
                                                     <div className="flex flex-col items-center">
                                                         <span className="text-sm font-bold text-slate-700">{bmi}</span>
                                                         {interpretation && (
-                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${interpretation === "ปกติ" ? "bg-emerald-100 text-emerald-700" : "bg-teal-100 text-teal-700"
-                                                                }`}>
+                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                                                interpretation === "ปกติ" ? "bg-emerald-100 text-emerald-700" : 
+                                                                interpretation === "ผอม" ? "bg-amber-100 text-amber-700" : 
+                                                                "bg-rose-100 text-rose-700"
+                                                            }`}>
                                                                 {interpretation}
                                                             </span>
                                                         )}

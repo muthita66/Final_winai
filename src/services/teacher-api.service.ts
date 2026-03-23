@@ -292,8 +292,11 @@ export const TeacherApiService = {
             body: JSON.stringify({ action: 'delete-criteria', id })
         });
     },
-    async getFitnessStudents(teacher_id: number, class_level: string, room: string) {
-        return fetchApi<any[]>(`/api/teacher/fitness?action=students&teacher_id=${teacher_id}&class_level=${class_level}&room=${room}`);
+    async getFitnessStudents(teacher_id: number, class_level: string, room: string, year?: number, semester?: number | string) {
+        const params = new URLSearchParams({ action: 'students', teacher_id: String(teacher_id), class_level, room });
+        if (year) params.set('year', String(year));
+        if (semester && semester !== 'all') params.set('semester', String(semester));
+        return fetchApi<any[]>(`/api/teacher/fitness?${params.toString()}`);
     },
     async saveFitnessTest(data: any) {
         return fetchApi<any>('/api/teacher/fitness', {

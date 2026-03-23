@@ -70,10 +70,6 @@ function formatRoomLabel(section: SectionLike) {
     return room || level || "-";
 }
 
-function getTermKey(section: SectionLike) {
-    return `${getAcademicYearValue(section)}|${txt(section?.semester)}`;
-}
-
 function formatTermLabel(section: SectionLike) {
     return `ปีการศึกษา ${getAcademicYearValue(section) || "-"} ภาคเรียน ${txt(section?.semester) || "-"}`;
 }
@@ -86,6 +82,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
 
     /* ─── state ─── */
     const [sections, setSections] = useState<any[]>([]);
+    const [academicYears, setAcademicYears] = useState<any[]>([]);
     const [sectionInfo, setSectionInfo] = useState<any | null>(null);
     const [headers, setHeaders] = useState<any[]>([]);
     const [students, setStudents] = useState<any[]>([]);
@@ -147,8 +144,8 @@ export function ScoreInputFeature({ session }: { session: any }) {
     const filledCount = students.filter((s) => {
         const studentScores = scoreMap[s.id] || {};
         const passScores = isPassedMap[s.id] || {};
-        return Object.values(studentScores).some(v => v !== "") || 
-               Object.values(passScores).some(v => v !== null && v !== undefined);
+        return Object.values(studentScores).some(v => v !== "") ||
+            Object.values(passScores).some(v => v !== null && v !== undefined);
     }).length;
 
     const isPassFail = sectionInfo?.subjects?.evaluation_type_id === 2 || sectionInfo?.subjects?.subject_categories_id === 3;
@@ -202,7 +199,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
             // Weighted Grade Calculation
             const studentScores = scoreMap[s.id] || {};
             let finalPct = 0;
-            
+
             const totalWeightPercent = categories.reduce((acc, cat) => acc + toNum(cat.weight_percent), 0);
 
             if (categories.length > 0 && totalWeightPercent > 0) {
@@ -211,7 +208,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                     const catHeaders = headers.filter(h => h.category_id === cat.id);
                     const catMax = catHeaders.reduce((acc, h) => acc + toNum(h.max_score), 0);
                     const catRaw = catHeaders.reduce((acc, h) => acc + toNum(studentScores[h.id]), 0);
-                    
+
                     if (catMax > 0) {
                         const catPct = (catRaw / catMax) * 100;
                         const weightedContrib = (catPct / 100) * toNum(cat.weight_percent);
@@ -233,22 +230,29 @@ export function ScoreInputFeature({ session }: { session: any }) {
     }, [students, headers, scoreMap, isPassFail, categories, isPassedMap]);
 
     const subjectOptions = useMemo(() => {
+        if (!selectedYearKey || !selectedTermKey) return [];
         const map = new Map<string, string>();
-        sections.forEach((s) => {
-            const key = getSubjectKey(s);
-            if (!key) return;
-            if (!map.has(key)) map.set(key, formatSubjectLabel(s));
-        });
+        sections
+            .filter((s) => getYearKey(s) === selectedYearKey && txt(s?.semester) === selectedTermKey)
+            .forEach((s) => {
+                const key = getSubjectKey(s);
+                if (!key) return;
+                if (!map.has(key)) map.set(key, formatSubjectLabel(s));
+            });
         return Array.from(map.entries())
             .map(([value, label]) => ({ value, label }))
             .sort((a, b) => a.label.localeCompare(b.label, "th"));
-    }, [sections]);
+    }, [sections, selectedYearKey, selectedTermKey]);
 
     const roomOptions = useMemo(() => {
-        if (!selectedSubjectKey) return [];
+        if (!selectedYearKey || !selectedTermKey || !selectedSubjectKey) return [];
         const map = new Map<string, string>();
         sections
-            .filter((s) => getSubjectKey(s) === selectedSubjectKey)
+            .filter((s) =>
+                getYearKey(s) === selectedYearKey &&
+                txt(s?.semester) === selectedTermKey &&
+                getSubjectKey(s) === selectedSubjectKey
+            )
             .forEach((s) => {
                 const key = getRoomKey(s);
                 if (!key) return;
@@ -263,63 +267,32 @@ export function ScoreInputFeature({ session }: { session: any }) {
                 if (gDiff !== 0) return gDiff;
                 return Number(aR) - Number(bR);
             });
-    }, [sections, selectedSubjectKey]);
+    }, [sections, selectedYearKey, selectedTermKey, selectedSubjectKey]);
 
     const yearOptions = useMemo(() => {
-        if (!selectedSubjectKey || !selectedRoomKey) return [];
-        const map = new Map<string, string>();
-        sections
-            .filter((s) => getSubjectKey(s) === selectedSubjectKey && getRoomKey(s) === selectedRoomKey)
-            .forEach((s) => {
-                const key = getYearKey(s);
-                if (!key) return;
-                if (!map.has(key)) map.set(key, formatYearLabel(s));
-            });
-        return Array.from(map.entries())
-            .map(([value, label]) => ({ value, label }))
-            .sort((a, b) => Number(b.value) - Number(a.value));
-    }, [sections, selectedSubjectKey, selectedRoomKey]);
+        return academicYears.map(ay => ({
+            value: String(ay.year_name),
+            label: String(ay.year_name),
+            is_active: ay.is_active
+        }));
+    }, [academicYears]);
 
     const semesterOptions = useMemo(() => {
-        if (!selectedSubjectKey || !selectedRoomKey || !selectedYearKey) return [];
-        const map = new Map<string, string>();
-        sections
-            .filter((s) => getSubjectKey(s) === selectedSubjectKey && getRoomKey(s) === selectedRoomKey && getYearKey(s) === selectedYearKey)
-            .forEach((s) => {
-                const sem = txt(s?.semester);
-                if (!sem) return;
-                if (!map.has(sem)) map.set(sem, `ภาคเรียนที่ ${sem}`);
-            });
-        return Array.from(map.entries())
-            .map(([value, label]) => ({ value, label }))
-            .sort((a, b) => Number(a.value) - Number(b.value));
-    }, [sections, selectedSubjectKey, selectedRoomKey, selectedYearKey]);
+        if (!selectedYearKey) return [];
+        const ay = academicYears.find(y => String(y.year_name) === selectedYearKey);
+        if (!ay) return [];
+        return (ay.semesters || []).map((s: any) => ({
+            value: String(s.semester_number),
+            label: `ภาคเรียนที่ ${s.semester_number}`,
+            is_active: s.is_active
+        }));
+    }, [academicYears, selectedYearKey]);
 
-    const termOptions = useMemo(() => {
-        if (!selectedSubjectKey || !selectedRoomKey || !selectedYearKey || !selectedTermKey) return [];
-        const map = new Map<string, string>();
-        sections
-            .filter((s) => getSubjectKey(s) === selectedSubjectKey && getRoomKey(s) === selectedRoomKey && getYearKey(s) === selectedYearKey)
-            .forEach((s) => {
-                const key = getTermKey(s);
-                if (!key) return;
-                if (!map.has(key)) map.set(key, formatTermLabel(s));
-            });
-        return Array.from(map.entries())
-            .map(([value, label]) => ({ value, label }))
-            .sort((a, b) => {
-                const [aYear = "0", aSem = "0"] = a.value.split("|");
-                const [bYear = "0", bSem = "0"] = b.value.split("|");
-                const yearDiff = Number(bYear) - Number(aYear);
-                if (yearDiff !== 0) return yearDiff;
-                return Number(bSem) - Number(aSem);
-            });
-    }, [sections, selectedSubjectKey, selectedRoomKey, selectedYearKey, selectedTermKey]);
 
-    const selectedSubjectLabel = subjectOptions.find((o) => o.value === selectedSubjectKey)?.label || "-";
-    const selectedRoomLabel = roomOptions.find((o) => o.value === selectedRoomKey)?.label || "-";
-    const selectedYearLabel = yearOptions.find((o) => o.value === selectedYearKey)?.label || "-";
-    const selectedTermLabel = termOptions.find((o) => o.value === selectedTermKey)?.label || "-";
+    const selectedSubjectLabel = subjectOptions.find((o: any) => o.value === selectedSubjectKey)?.label || "-";
+    const selectedRoomLabel = roomOptions.find((o: any) => o.value === selectedRoomKey)?.label || "-";
+    const selectedYearLabel = yearOptions.find((o: any) => o.value === selectedYearKey)?.label || "-";
+    const selectedTermLabel = semesterOptions.find((o: any) => o.value === selectedTermKey)?.label || "-";
     const selectionReady = !!(selectedSubjectKey && selectedRoomKey && selectedYearKey && selectedTermKey);
 
     /* ─── loaders ─── */
@@ -334,10 +307,25 @@ export function ScoreInputFeature({ session }: { session: any }) {
 
     const loadSections = useCallback(async () => {
         try {
-            const data = await TeacherApiService.getTeacherSubjects(session.id);
-            setSections(Array.isArray(data) ? data : []);
-        } catch { setSections([]); }
-    }, [session.id]);
+            const [subjData, yearData] = await Promise.all([
+                TeacherApiService.getTeacherSubjects(session.id),
+                TeacherApiService.getAcademicYears()
+            ]);
+            setSections(Array.isArray(subjData) ? subjData : []);
+            setAcademicYears(Array.isArray(yearData) ? yearData : []);
+
+            // Set default year/semester if not already explicitly set by sectionId
+            if (!hasSection && yearData?.length > 0) {
+                const activeYear = yearData.find((y: any) => y.is_active) || yearData[0];
+                setSelectedYearKey(String(activeYear.year_name));
+                const activeSem = activeYear.semesters?.find((s: any) => s.is_active) || activeYear.semesters?.[0];
+                if (activeSem) setSelectedTermKey(String(activeSem.semester_number));
+            }
+        } catch {
+            setSections([]);
+            setAcademicYears([]);
+        }
+    }, [session.id, hasSection]);
 
     const loadSectionData = useCallback(async () => {
         if (!hasSection) { setLoading(false); return; }
@@ -432,7 +420,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
         setCategories(prev => prev.filter(c => c.id !== id));
         setCategorySaving(true);
         setDeletingId(null);
-        
+
         try {
             console.log("Deleting category ID:", id);
             await TeacherApiService.deleteScoreCategory(id);
@@ -519,17 +507,17 @@ export function ScoreInputFeature({ session }: { session: any }) {
         setSelectedSubjectKey(getSubjectKey(found));
         setSelectedRoomKey(getRoomKey(found));
         setSelectedYearKey(getYearKey(found));
-        setSelectedTermKey(getTermKey(found));
+        setSelectedTermKey(txt(found?.semester));
     }, [hasSection, sectionId, sections]);
 
     useEffect(() => {
         if (!selectedSubjectKey || !selectedRoomKey || !selectedYearKey || !selectedTermKey) return;
         const matched = sections.find(
             (s) =>
-                getSubjectKey(s) === selectedSubjectKey &&
-                getRoomKey(s) === selectedRoomKey &&
                 getYearKey(s) === selectedYearKey &&
-                getTermKey(s) === selectedTermKey
+                txt(s?.semester) === selectedTermKey &&
+                getSubjectKey(s) === selectedSubjectKey &&
+                getRoomKey(s) === selectedRoomKey
         );
         const nextId = Number(matched?.id);
         if (!Number.isFinite(nextId) || nextId <= 0 || nextId === sectionId) return;
@@ -541,46 +529,28 @@ export function ScoreInputFeature({ session }: { session: any }) {
         setSelectedRoomKey(roomOptions[0].value);
     }, [selectedSubjectKey, selectedRoomKey, roomOptions]);
 
-    useEffect(() => {
-        if (!selectedSubjectKey || !selectedRoomKey || selectedYearKey || yearOptions.length === 0) return;
-        setSelectedYearKey(yearOptions[0].value);
-    }, [selectedSubjectKey, selectedRoomKey, selectedYearKey, yearOptions]);
-
-    useEffect(() => {
-        if (!selectedSubjectKey || !selectedRoomKey || !selectedYearKey || selectedTermKey || semesterOptions.length === 0) return;
-        // auto-select term key from first semesterOption
-        const firstSem = semesterOptions[0].value;
-        const matched = sections.find(
-            (s) => getSubjectKey(s) === selectedSubjectKey && getRoomKey(s) === selectedRoomKey && getYearKey(s) === selectedYearKey && txt(s?.semester) === firstSem
-        );
-        if (matched) setSelectedTermKey(getTermKey(matched));
-    }, [selectedSubjectKey, selectedRoomKey, selectedYearKey, selectedTermKey, semesterOptions, sections]);
 
     /* ─── handlers ─── */
+    const handleYearSelect = (value: string) => {
+        setSelectedYearKey(value);
+        setSelectedTermKey("");
+        setSelectedSubjectKey("");
+        setSelectedRoomKey("");
+    };
+
+    const handleSemesterSelect = (value: string) => {
+        setSelectedTermKey(value);
+        setSelectedSubjectKey("");
+        setSelectedRoomKey("");
+    };
+
     const handleSubjectSelect = (value: string) => {
         setSelectedSubjectKey(value);
         setSelectedRoomKey("");
-        setSelectedYearKey("");
-        setSelectedTermKey("");
     };
 
     const handleRoomSelect = (value: string) => {
         setSelectedRoomKey(value);
-        setSelectedYearKey("");
-        setSelectedTermKey("");
-    };
-
-    const handleYearSelect = (value: string) => {
-        setSelectedYearKey(value);
-        setSelectedTermKey("");
-    };
-
-    const handleSemesterSelect = (value: string) => {
-        // find the section that matches and derive term key
-        const matched = sections.find(
-            (s) => getSubjectKey(s) === selectedSubjectKey && getRoomKey(s) === selectedRoomKey && getYearKey(s) === selectedYearKey && txt(s?.semester) === value
-        );
-        setSelectedTermKey(matched ? getTermKey(matched) : "");
     };
 
     const handleAddHeader = async () => {
@@ -590,14 +560,14 @@ export function ScoreInputFeature({ session }: { session: any }) {
         setAddingHeader(true);
         try {
             const created = await TeacherApiService.addScoreHeader(
-                sectionId, 
-                title, 
-                isPassFail ? 0 : toNum(newMax), 
+                sectionId,
+                title,
+                isPassFail ? 0 : toNum(newMax),
                 [],
                 newCategoryId || undefined
             );
-            setNewTitle(""); 
-            setNewMax(100); 
+            setNewTitle("");
+            setNewMax(100);
             setNewCategoryId(null);
             setShowAddHeader(false);
             await loadSectionData();
@@ -621,9 +591,9 @@ export function ScoreInputFeature({ session }: { session: any }) {
         setUpdatingHeader(true);
         try {
             await TeacherApiService.updateScoreHeader(
-                editingHeaderId, 
-                title, 
-                isPassFail ? 0 : toNum(editMax), 
+                editingHeaderId,
+                title,
+                isPassFail ? 0 : toNum(editMax),
                 [],
                 editCategoryId || undefined
             );
@@ -836,6 +806,57 @@ export function ScoreInputFeature({ session }: { session: any }) {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {/* Academic Year */}
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                                <svg className="h-4 w-4 text-emerald-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                ปีการศึกษา
+                            </label>
+                            <div className="relative group">
+                                <select
+                                    value={selectedYearKey}
+                                    onChange={(e) => handleYearSelect(e.target.value)}
+                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-emerald-400 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 cursor-pointer appearance-none"
+                                >
+                                    <option value="">เลือกปีการศึกษา...</option>
+                                    {yearOptions.map((option: any) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label} {(option as any).is_active}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-emerald-500 transition-colors">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Semester */}
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                                <svg className="h-4 w-4 text-teal-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                                ภาคเรียน
+                            </label>
+                            <div className="relative group">
+                                <select
+                                    disabled={!selectedYearKey}
+                                    value={selectedTermKey}
+                                    onChange={(e) => handleSemesterSelect(e.target.value)}
+                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-teal-400 focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 disabled:opacity-40 cursor-pointer appearance-none"
+                                >
+                                    <option value="">เลือกภาคเรียน...</option>
+                                    {semesterOptions.map((option: any) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label} {(option as any).is_active}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-teal-500 transition-colors">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Subject */}
                         <div className="space-y-2">
                             <label className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
@@ -844,9 +865,10 @@ export function ScoreInputFeature({ session }: { session: any }) {
                             </label>
                             <div className="relative group">
                                 <select
+                                    disabled={!selectedYearKey || !selectedTermKey}
                                     value={selectedSubjectKey}
                                     onChange={(e) => handleSubjectSelect(e.target.value)}
-                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-emerald-400 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 cursor-pointer appearance-none"
+                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-emerald-400 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 disabled:opacity-40 cursor-pointer appearance-none"
                                 >
                                     <option value="">เลือกวิชา...</option>
                                     {subjectOptions.map((o) => (
@@ -875,58 +897,6 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                     <option value="">เลือกห้อง...</option>
                                     {roomOptions.map((o) => (
                                         <option key={o.value} value={o.value}>{o.label}</option>
-                                    ))}
-                                </select>
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-teal-500 transition-colors">
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Academic Year */}
-                        <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                                <svg className="h-4 w-4 text-emerald-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                ปีการศึกษา
-                            </label>
-                            <div className="relative group">
-                                <select
-                                    disabled={!selectedRoomKey}
-                                    value={selectedYearKey}
-                                    onChange={(e) => handleYearSelect(e.target.value)}
-                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-emerald-400 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 disabled:opacity-40 cursor-pointer appearance-none"
-                                >
-                                    <option value="">เลือกปีการศึกษา...</option>
-                                    {yearOptions.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-emerald-500 transition-colors">
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Semester */}
-                        <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                                <svg className="h-4 w-4 text-teal-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-                                ภาคเรียน
-                            </label>
-                            <div className="relative group">
-                                <select
-                                    value={selectedTermKey ? txt(sections.find(s => getTermKey(s) === selectedTermKey)?.semester) : ""}
-                                    onChange={(e) => handleSemesterSelect(e.target.value)}
-                                    disabled={!selectedYearKey}
-                                    className="w-full h-12 rounded-2xl border border-slate-200 bg-slate-50/50 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all group-hover:bg-white group-hover:border-teal-400 focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 disabled:opacity-40 cursor-pointer appearance-none"
-                                >
-                                    <option value="">{selectedYearKey ? "เลือกภาคเรียน..." : "เลือกปีก่อน"}</option>
-                                    {semesterOptions.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
                                     ))}
                                 </select>
                                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 group-hover:text-teal-500 transition-colors">
@@ -1042,10 +1012,10 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                             </tr>
                                         )}
                                         <tr className="bg-slate-50/80 border-b border-slate-200">
-                                            <th className="sticky left-0 z-10 bg-slate-50 px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-12 border-r border-slate-200">#</th>
-                                            <th className="sticky left-12 z-10 bg-slate-50 px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[100px] border-r border-slate-200">รหัส</th>
-                                            <th className="sticky left-[148px] z-10 bg-slate-50 px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[180px] border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">ชื่อ-นามสกุล</th>
-                                            
+                                            <th className="sticky left-0 z-10 bg-slate-50 px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-16 border-r border-slate-200">เลขที่</th>
+                                            <th className="sticky left-16 z-10 bg-slate-50 px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[100px] border-r border-slate-200">รหัส</th>
+                                            <th className="sticky left-[152px] z-10 bg-slate-50 px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[180px] border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">ชื่อ-นามสกุล</th>
+
                                             {/* Sorted by Category */}
                                             {[...categories.map(c => headers.filter(h => h.category_id === c.id)).flat(), ...headers.filter(h => !h.category_id)].map(h => (
                                                 <th key={h.id}
@@ -1067,9 +1037,9 @@ export function ScoreInputFeature({ session }: { session: any }) {
 
                                             return (
                                                 <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
-                                                    <td className="sticky left-0 z-10 bg-white group-hover:bg-slate-50 px-4 py-2 text-xs text-slate-400 border-r border-slate-100">{i + 1}</td>
-                                                    <td className="sticky left-12 z-10 bg-white group-hover:bg-slate-50 px-4 py-2 text-[15px] font-bold font-mono text-slate-600 border-r border-slate-100 tracking-tight">{s.student_code}</td>
-                                                    <td className="sticky left-[148px] z-10 bg-white group-hover:bg-slate-50 px-4 py-2 text-sm font-medium text-slate-800 border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                                                    <td className="sticky left-0 z-10 bg-white group-hover:bg-slate-50 px-4 py-2 text-sm text-slate-500 border-r border-slate-100">{i + 1}</td>
+                                                    <td className="sticky left-16 z-10 bg-white group-hover:bg-slate-50 px-4 py-2 text-[15px] font-medium text-slate-600 border-r border-slate-100 tracking-tight">{s.student_code}</td>
+                                                    <td className="sticky left-[152px] z-10 bg-white group-hover:bg-slate-50 px-4 py-2 text-sm font-medium text-slate-800 border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                                                         {s.prefix}{s.first_name} {s.last_name}
                                                     </td>
 
@@ -1079,7 +1049,7 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                         const n = raw === "" ? null : Number(raw);
                                                         const hMax = toNum(h.max_score);
                                                         const invalid = !isPassFail && raw !== "" && (!Number.isFinite(n) || (n as number) < 0 || (hMax > 0 && (n as number) > hMax));
-                                                        
+
                                                         const passRaw = (isPassedMap[s.id] || {})[h.id];
                                                         const originalPassRaw = (originalIsPassedMap[s.id] || {})[h.id];
                                                         const changed = isPassFail ? passRaw !== originalPassRaw : raw !== originalRaw;
@@ -1102,22 +1072,22 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                                         </span>
                                                                     </label>
                                                                 ) : (
-                                                                <input
-                                                                    ref={(el) => {
-                                                                        scoreInputRefs.current[`${s.id}-${h.id}`] = el;
-                                                                    }}
-                                                                    type="number"
-                                                                    value={raw}
-                                                                    onFocus={() => setSelectedHeaderId(h.id)}
-                                                                    onChange={(e) => setScoreMap((prev) => ({
-                                                                        ...prev,
-                                                                        [s.id]: { ...(prev[s.id] || {}), [h.id]: e.target.value }
-                                                                    }))}
-                                                                    onKeyDown={(e) => handleScoreInputEnter(e, i, h.id)}
-                                                                    className={`w-16 rounded-lg border px-2 py-1.5 text-center text-sm outline-none transition-all focus:ring-2 ${invalid ? "border-rose-300 bg-rose-50 text-rose-700 focus:ring-rose-400 cursor-help"
-                                                                        : changed ? "border-teal-300 bg-teal-50 text-teal-800 focus:ring-teal-400"
-                                                                            : "border-slate-200 focus:border-emerald-400 focus:ring-emerald-400/20"
-                                                                        }`}
+                                                                    <input
+                                                                        ref={(el) => {
+                                                                            scoreInputRefs.current[`${s.id}-${h.id}`] = el;
+                                                                        }}
+                                                                        type="number"
+                                                                        value={raw}
+                                                                        onFocus={() => setSelectedHeaderId(h.id)}
+                                                                        onChange={(e) => setScoreMap((prev) => ({
+                                                                            ...prev,
+                                                                            [s.id]: { ...(prev[s.id] || {}), [h.id]: e.target.value }
+                                                                        }))}
+                                                                        onKeyDown={(e) => handleScoreInputEnter(e, i, h.id)}
+                                                                        className={`w-16 rounded-lg border px-2 py-1.5 text-center text-sm outline-none transition-all focus:ring-2 ${invalid ? "border-rose-300 bg-rose-50 text-rose-700 focus:ring-rose-400 cursor-help"
+                                                                            : changed ? "border-teal-300 bg-teal-50 text-teal-800 focus:ring-teal-400"
+                                                                                : "border-slate-200 focus:border-emerald-400 focus:ring-emerald-400/20"
+                                                                            }`}
                                                                     />
                                                                 )}
                                                             </td>
@@ -1178,381 +1148,381 @@ export function ScoreInputFeature({ session }: { session: any }) {
             {showManageModal && (
                 <Portal>
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
-                            <div>
-                                <h3 className="text-lg font-bold text-slate-800">จัดการหัวข้อคะแนน</h3>
-                                <p className="text-xs text-slate-500 mt-0.5">{headers.length} หัวข้อคะแนนทั้งหมด</p>
+                        <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-800">จัดการหัวข้อคะแนน</h3>
+                                    <p className="text-xs text-slate-500 mt-0.5">{headers.length} หัวข้อคะแนนทั้งหมด</p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setShowManageModal(false);
+                                        setShowAddHeader(false);
+                                        setEditingHeaderId(null);
+                                    }}
+                                    className="p-2 rounded-xl text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
                             </div>
-                            <button
-                                onClick={() => {
-                                    setShowManageModal(false);
-                                    setShowAddHeader(false);
-                                    setEditingHeaderId(null);
-                                }}
-                                className="p-2 rounded-xl text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
-                            >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                        </div>
 
-                        <div className="p-6 max-h-[60vh] overflow-y-auto">
-                            <div className="space-y-3">
-                                {headers.map((h) => {
-                                    const isEditing = editingHeaderId === h.id;
-                                    if (isEditing) {
+                            <div className="p-6 max-h-[60vh] overflow-y-auto">
+                                <div className="space-y-3">
+                                    {headers.map((h) => {
+                                        const isEditing = editingHeaderId === h.id;
+                                        if (isEditing) {
+                                            return (
+                                                <div key={h.id} className="flex items-center gap-3 p-3 rounded-2xl border-2 border-teal-400 bg-teal-50 animate-in slide-in-from-top-2">
+                                                    <div className="flex-1 space-y-2">
+                                                        <input
+                                                            value={editTitle}
+                                                            onChange={(e) => setEditTitle(e.target.value)}
+                                                            className="w-full rounded-xl border border-teal-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-400"
+                                                            placeholder="ชื่อหัวข้อ"
+                                                        />
+                                                        {!isPassFail && (
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-xs text-slate-500 font-medium">คะแนนเต็ม:</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={editMax}
+                                                                        onChange={(e) => setEditMax(Number(e.target.value))}
+                                                                        className="w-20 rounded-xl border border-teal-200 px-3 py-1.5 text-sm text-center outline-none focus:ring-2 focus:ring-teal-400"
+                                                                    />
+                                                                </div>
+                                                                <div className="flex items-center gap-2 flex-1">
+                                                                    <span className="text-xs text-slate-500 font-medium">หมวดหมู่:</span>
+                                                                    <select
+                                                                        value={editCategoryId || ""}
+                                                                        onChange={(e) => setEditCategoryId(e.target.value ? Number(e.target.value) : null)}
+                                                                        className="flex-1 rounded-xl border border-teal-200 px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+                                                                    >
+                                                                        <option value="">(ไม่ระบุ)</option>
+                                                                        {categories.map(cat => (
+                                                                            <option key={cat.id} value={cat.id}>{cat.grade_category_types?.type_name || "(ไม่มีชื่อ)"}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <button onClick={handleUpdateHeader} disabled={updatingHeader} className="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-bold hover:bg-teal-600 disabled:opacity-50">บันทึก</button>
+                                                        <button onClick={() => setEditingHeaderId(null)} className="px-4 py-2 rounded-xl bg-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-300">ยกเลิก</button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
                                         return (
-                                            <div key={h.id} className="flex items-center gap-3 p-3 rounded-2xl border-2 border-teal-400 bg-teal-50 animate-in slide-in-from-top-2">
-                                                <div className="flex-1 space-y-2">
-                                                    <input
-                                                        value={editTitle}
-                                                        onChange={(e) => setEditTitle(e.target.value)}
-                                                        className="w-full rounded-xl border border-teal-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-400"
-                                                        placeholder="ชื่อหัวข้อ"
-                                                    />
-                                                    {!isPassFail && (
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-xs text-slate-500 font-medium">คะแนนเต็ม:</span>
-                                                                <input
-                                                                    type="number"
-                                                                    value={editMax}
-                                                                    onChange={(e) => setEditMax(Number(e.target.value))}
-                                                                    className="w-20 rounded-xl border border-teal-200 px-3 py-1.5 text-sm text-center outline-none focus:ring-2 focus:ring-teal-400"
-                                                                />
-                                                            </div>
-                                                            <div className="flex items-center gap-2 flex-1">
-                                                                <span className="text-xs text-slate-500 font-medium">หมวดหมู่:</span>
-                                                                <select
-                                                                    value={editCategoryId || ""}
-                                                                    onChange={(e) => setEditCategoryId(e.target.value ? Number(e.target.value) : null)}
-                                                                    className="flex-1 rounded-xl border border-teal-200 px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-400 bg-white"
-                                                                >
-                                                                    <option value="">(ไม่ระบุ)</option>
-                                                                    {categories.map(cat => (
-                                                                    <option key={cat.id} value={cat.id}>{cat.grade_category_types?.type_name || "(ไม่มีชื่อ)"}</option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
+                                            <div key={h.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 bg-white hover:border-emerald-200 hover:shadow-md transition-all group">
+                                                <div>
+                                                    <div className="font-bold text-slate-700">{h.title}</div>
+                                                    {!isPassFail && <div className="text-xs text-slate-400 font-medium mt-1">เต็ม {toNum(h.max_score)} คะแนน</div>}
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {deletingHeaderId === h.id ? (
+                                                        <div className="flex items-center gap-1.5 animate-in slide-in-from-right-2 duration-200">
+                                                            <button
+                                                                onClick={() => handleDeleteHeader(h.id)}
+                                                                className="bg-rose-600 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-rose-700 shadow-sm"
+                                                            >ยืนยัน</button>
+                                                            <button
+                                                                onClick={() => setDeletingHeaderId(null)}
+                                                                className="bg-slate-200 text-slate-600 px-2 py-1 rounded text-[10px] font-bold hover:bg-slate-300"
+                                                            >ยกเลิก</button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-1">
+                                                            <button
+                                                                onClick={() => {
+                                                                    handleStartEdit(h);
+                                                                    setDeletingHeaderId(null);
+                                                                }}
+                                                                className="p-2 rounded-lg text-slate-400 hover:bg-emerald-100 hover:text-emerald-600 transition-colors"
+                                                                title="แก้ไข"
+                                                            >
+                                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setDeletingHeaderId(h.id)}
+                                                                className="p-2 rounded-lg text-slate-400 hover:bg-rose-100 hover:text-rose-600 transition-colors"
+                                                                title="ลบ"
+                                                            >
+                                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                            </button>
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="flex flex-col gap-2">
-                                                    <button onClick={handleUpdateHeader} disabled={updatingHeader} className="px-4 py-2 rounded-xl bg-teal-500 text-white text-sm font-bold hover:bg-teal-600 disabled:opacity-50">บันทึก</button>
-                                                    <button onClick={() => setEditingHeaderId(null)} className="px-4 py-2 rounded-xl bg-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-300">ยกเลิก</button>
-                                                </div>
                                             </div>
                                         );
-                                    }
-                                    return (
-                                        <div key={h.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 bg-white hover:border-emerald-200 hover:shadow-md transition-all group">
-                                            <div>
-                                                <div className="font-bold text-slate-700">{h.title}</div>
-                                                {!isPassFail && <div className="text-xs text-slate-400 font-medium mt-1">เต็ม {toNum(h.max_score)} คะแนน</div>}
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {deletingHeaderId === h.id ? (
-                                                    <div className="flex items-center gap-1.5 animate-in slide-in-from-right-2 duration-200">
-                                                        <button 
-                                                            onClick={() => handleDeleteHeader(h.id)}
-                                                            className="bg-rose-600 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-rose-700 shadow-sm"
-                                                        >ยืนยัน</button>
-                                                        <button 
-                                                            onClick={() => setDeletingHeaderId(null)}
-                                                            className="bg-slate-200 text-slate-600 px-2 py-1 rounded text-[10px] font-bold hover:bg-slate-300"
-                                                        >ยกเลิก</button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-1">
-                                                        <button 
-                                                            onClick={() => {
-                                                                handleStartEdit(h);
-                                                                setDeletingHeaderId(null);
-                                                            }} 
-                                                            className="p-2 rounded-lg text-slate-400 hover:bg-emerald-100 hover:text-emerald-600 transition-colors" 
-                                                            title="แก้ไข"
-                                                        >
-                                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => setDeletingHeaderId(h.id)} 
-                                                            className="p-2 rounded-lg text-slate-400 hover:bg-rose-100 hover:text-rose-600 transition-colors" 
-                                                            title="ลบ"
-                                                        >
-                                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                        </button>
+                                    })}
+
+                                    {showAddHeader ? (
+                                        <div className="p-4 rounded-2xl border-2 border-dashed border-emerald-400 bg-emerald-50 space-y-3 animate-in fade-in zoom-in-95">
+                                            <input
+                                                value={newTitle}
+                                                onChange={(e) => setNewTitle(e.target.value)}
+                                                className="w-full rounded-xl border border-emerald-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400"
+                                                placeholder="กรอกชื่อหัวข้อใหม่ (เช่น เก็บหลังเรียนบทที่ 1)"
+                                                autoFocus
+                                            />
+                                            <div className="flex items-center gap-4">
+                                                {!isPassFail && (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs text-slate-500 font-medium">คะแนนเต็ม:</span>
+                                                        <input
+                                                            type="number"
+                                                            value={newMax}
+                                                            onChange={(e) => setNewMax(Number(e.target.value))}
+                                                            className="w-20 rounded-xl border border-emerald-200 px-3 py-1.5 text-sm text-center outline-none focus:ring-2 focus:ring-emerald-400"
+                                                        />
                                                     </div>
                                                 )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-
-                                {showAddHeader ? (
-                                    <div className="p-4 rounded-2xl border-2 border-dashed border-emerald-400 bg-emerald-50 space-y-3 animate-in fade-in zoom-in-95">
-                                        <input
-                                            value={newTitle}
-                                            onChange={(e) => setNewTitle(e.target.value)}
-                                            className="w-full rounded-xl border border-emerald-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400"
-                                            placeholder="กรอกชื่อหัวข้อใหม่ (เช่น เก็บหลังเรียนบทที่ 1)"
-                                            autoFocus
-                                        />
-                                        <div className="flex items-center gap-4">
-                                            {!isPassFail && (
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs text-slate-500 font-medium">คะแนนเต็ม:</span>
-                                                    <input
-                                                        type="number"
-                                                        value={newMax}
-                                                        onChange={(e) => setNewMax(Number(e.target.value))}
-                                                        className="w-20 rounded-xl border border-emerald-200 px-3 py-1.5 text-sm text-center outline-none focus:ring-2 focus:ring-emerald-400"
-                                                    />
+                                                <div className="flex items-center gap-2 flex-1">
+                                                    <span className="text-xs text-slate-500 font-medium">หมวดหมู่:</span>
+                                                    <select
+                                                        value={newCategoryId || ""}
+                                                        onChange={(e) => setNewCategoryId(e.target.value ? Number(e.target.value) : null)}
+                                                        className="flex-1 rounded-xl border border-emerald-200 px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
+                                                    >
+                                                        <option value="">(ไม่ระบุ)</option>
+                                                        {categories.map(cat => (
+                                                            <option key={cat.id} value={cat.id}>{cat.grade_category_types?.type_name || "(ไม่มีชื่อ)"}</option>
+                                                        ))}
+                                                    </select>
                                                 </div>
-                                            )}
-                                            <div className="flex items-center gap-2 flex-1">
-                                                <span className="text-xs text-slate-500 font-medium">หมวดหมู่:</span>
-                                                <select
-                                                    value={newCategoryId || ""}
-                                                    onChange={(e) => setNewCategoryId(e.target.value ? Number(e.target.value) : null)}
-                                                    className="flex-1 rounded-xl border border-emerald-200 px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
-                                                >
-                                                    <option value="">(ไม่ระบุ)</option>
-                                                    {categories.map(cat => (
-                                                        <option key={cat.id} value={cat.id}>{cat.grade_category_types?.type_name || "(ไม่มีชื่อ)"}</option>
-                                                    ))}
-                                                </select>
+                                            </div>
+                                            <div className="flex gap-2 ml-auto">
+                                                <button onClick={handleAddHeader} disabled={addingHeader} className="px-4 py-2 rounded-xl bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 disabled:opacity-50">เพิ่ม</button>
+                                                <button onClick={() => { setShowAddHeader(false); setNewTitle(""); }} className="px-4 py-2 rounded-xl bg-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-300">ยกเลิก</button>
                                             </div>
                                         </div>
-                                        <div className="flex gap-2 ml-auto">
-                                            <button onClick={handleAddHeader} disabled={addingHeader} className="px-4 py-2 rounded-xl bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 disabled:opacity-50">เพิ่ม</button>
-                                            <button onClick={() => { setShowAddHeader(false); setNewTitle(""); }} className="px-4 py-2 rounded-xl bg-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-300">ยกเลิก</button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={() => setShowAddHeader(true)}
-                                        className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                                        <span className="font-bold">เพิ่มหัวข้อใหม่</span>
-                                    </button>
-                                )}
+                                    ) : (
+                                        <button
+                                            onClick={() => setShowAddHeader(true)}
+                                            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                            <span className="font-bold">เพิ่มหัวข้อใหม่</span>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+                                <button
+                                    onClick={() => {
+                                        setShowManageModal(false);
+                                        setShowAddHeader(false);
+                                        setEditingHeaderId(null);
+                                    }}
+                                    className="px-6 py-2 rounded-xl bg-slate-800 text-white text-sm font-bold hover:bg-slate-700 transition-all hover:shadow-lg active:scale-95"
+                                >
+                                    ตกลง
+                                </button>
                             </div>
                         </div>
-
-                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
-                            <button
-                                onClick={() => {
-                                    setShowManageModal(false);
-                                    setShowAddHeader(false);
-                                    setEditingHeaderId(null);
-                                }}
-                                className="px-6 py-2 rounded-xl bg-slate-800 text-white text-sm font-bold hover:bg-slate-700 transition-all hover:shadow-lg active:scale-95"
-                            >
-                                ตกลง
-                            </button>
-                        </div>
                     </div>
-                </div>
-            </Portal>
-        )}
+                </Portal>
+            )}
             {/* ── Manage Categories Modal ── */}
             {showCategoryManageModal && (
                 <Portal>
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-emerald-50/50">
-                            <div>
-                                <h3 className="text-lg font-bold text-emerald-900">จัดการสัดส่วนคะแนน</h3>
-                                <p className="text-xs text-emerald-600 mt-0.5">กำหนดหมวดหมู่และน้ำหนักคะแนน (รวมควรเป็น 100%)</p>
-                            </div>
-                            <button onClick={() => setShowCategoryManageModal(false)} className="p-2 rounded-xl text-emerald-400 hover:bg-emerald-100 hover:text-emerald-600 transition-colors">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                        </div>
-                        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-                            <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl space-y-4">
+                        <div className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-emerald-50/50">
                                 <div>
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700 mb-2">1. จัดการรายการประเภทคะแนน</h4>
-                                    <div className="flex gap-2 mb-4">
-                                        <input 
-                                            value={newCategoryTypeName}
-                                            onChange={(e) => setNewCategoryTypeName(e.target.value)}
-                                            placeholder="ชื่อประเภทเช่น จิตพิสัย, พฤติกรรม"
-                                            className="flex-1 rounded-xl border border-emerald-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400"
-                                        />
-                                        <button 
-                                            onClick={handleAddCategoryType}
-                                            disabled={addingCategoryType || !newCategoryTypeName.trim()}
-                                            className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 shadow-sm"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                                            {addingCategoryType ? "..." : "เพิ่มใหม่"}
-                                        </button>
-                                    </div>
+                                    <h3 className="text-lg font-bold text-emerald-900">จัดการสัดส่วนคะแนน</h3>
+                                    <p className="text-xs text-emerald-600 mt-0.5">กำหนดหมวดหมู่และน้ำหนักคะแนน (รวมควรเป็น 100%)</p>
+                                </div>
+                                <button onClick={() => setShowCategoryManageModal(false)} className="p-2 rounded-xl text-emerald-400 hover:bg-emerald-100 hover:text-emerald-600 transition-colors">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                                <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl space-y-4">
+                                    <div>
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700 mb-2">1. จัดการรายการประเภทคะแนน</h4>
+                                        <div className="flex gap-2 mb-4">
+                                            <input
+                                                value={newCategoryTypeName}
+                                                onChange={(e) => setNewCategoryTypeName(e.target.value)}
+                                                placeholder="ชื่อประเภทเช่น จิตพิสัย, พฤติกรรม"
+                                                className="flex-1 rounded-xl border border-emerald-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400"
+                                            />
+                                            <button
+                                                onClick={handleAddCategoryType}
+                                                disabled={addingCategoryType || !newCategoryTypeName.trim()}
+                                                className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                                {addingCategoryType ? "..." : "เพิ่มใหม่"}
+                                            </button>
+                                        </div>
 
-                                    {/* Scrollable list of existing types */}
-                                    <div className="max-h-40 overflow-y-auto pr-1 space-y-2 mb-4 custom-scrollbar">
-                                        {categoryTypes.map(t => (
-                                            <div key={t.id} className="flex items-center gap-2 bg-white border border-emerald-100 p-2 rounded-xl group transition-all hover:border-emerald-300">
-                                                {editingCategoryTypeId === t.id ? (
-                                                    <div className="flex-1 flex gap-2">
-                                                        <input 
-                                                            autoFocus
-                                                            value={editCategoryTypeName}
-                                                            onChange={(e) => setEditCategoryTypeName(e.target.value)}
-                                                            className="flex-1 text-sm border-b-2 border-emerald-400 outline-none px-1"
-                                                        />
-                                                        <button 
-                                                            onClick={() => handleUpdateCategoryType(t.id, editCategoryTypeName)}
-                                                            className="text-emerald-600 font-bold text-xs"
-                                                        >บันทึก</button>
-                                                        <button 
-                                                            onClick={() => setEditingCategoryTypeId(null)}
-                                                            className="text-slate-400 font-bold text-xs"
+                                        {/* Scrollable list of existing types */}
+                                        <div className="max-h-40 overflow-y-auto pr-1 space-y-2 mb-4 custom-scrollbar">
+                                            {categoryTypes.map(t => (
+                                                <div key={t.id} className="flex items-center gap-2 bg-white border border-emerald-100 p-2 rounded-xl group transition-all hover:border-emerald-300">
+                                                    {editingCategoryTypeId === t.id ? (
+                                                        <div className="flex-1 flex gap-2">
+                                                            <input
+                                                                autoFocus
+                                                                value={editCategoryTypeName}
+                                                                onChange={(e) => setEditCategoryTypeName(e.target.value)}
+                                                                className="flex-1 text-sm border-b-2 border-emerald-400 outline-none px-1"
+                                                            />
+                                                            <button
+                                                                onClick={() => handleUpdateCategoryType(t.id, editCategoryTypeName)}
+                                                                className="text-emerald-600 font-bold text-xs"
+                                                            >บันทึก</button>
+                                                            <button
+                                                                onClick={() => setEditingCategoryTypeId(null)}
+                                                                className="text-slate-400 font-bold text-xs"
+                                                            >ยกเลิก</button>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <span className="flex-1 text-sm font-semibold text-slate-700">{t.type_name}</span>
+                                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                {deletingCategoryTypeId === t.id ? (
+                                                                    <div className="flex items-center gap-1.5 animate-in slide-in-from-right-2 duration-200">
+                                                                        <button
+                                                                            onClick={() => handleDeleteCategoryType(t.id)}
+                                                                            className="bg-rose-600 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-rose-700 shadow-sm"
+                                                                        >ยืนยัน</button>
+                                                                        <button
+                                                                            onClick={() => setDeletingCategoryTypeId(null)}
+                                                                            className="bg-slate-200 text-slate-600 px-2 py-1 rounded text-[10px] font-bold hover:bg-slate-300"
+                                                                        >ยกเลิก</button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <>
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                setEditingCategoryTypeId(t.id);
+                                                                                setEditCategoryTypeName(t.type_name);
+                                                                                setDeletingCategoryTypeId(null);
+                                                                            }}
+                                                                            className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+                                                                            title="แก้ไขชื่อนี้"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => setDeletingCategoryTypeId(t.id)}
+                                                                            className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                                                            title="ลบประเภทนี้"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v2m3 4h.01" /></svg>
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="pt-3 border-t border-emerald-100">
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700 mb-2">2. เลือกประเภทคะแนนลงในตาราง (กดเพื่อเพิ่ม)</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {categoryTypes.map(t => (
+                                                <button
+                                                    key={t.id}
+                                                    onClick={() => {
+                                                        handleAddCategory("", 0, t.id);
+                                                    }}
+                                                    className="px-3 py-1.5 rounded-xl border border-emerald-200 bg-white text-emerald-700 text-sm font-bold hover:bg-emerald-50 hover:border-emerald-400 hover:shadow-sm transition-all flex items-center gap-1.5 active:scale-95"
+                                                >
+                                                    <svg className="w-4 h-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                                                    </svg>
+                                                    {t.type_name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="space-y-3">
+                                    {categories.map(cat => (
+                                        <div key={cat.id} className="flex items-center gap-3 p-3 rounded-2xl border border-slate-100 bg-white group">
+                                            <div className="flex-1 flex flex-col">
+                                                <span className="font-bold text-slate-700">{cat.grade_category_types?.type_name || "(ไม่มีชื่อ)"}</span>
+                                                {cat.category_type_id && (
+                                                    <span className="text-[10px] text-slate-400 uppercase tracking-widest">Predefined Type</span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <input
+                                                    type="number"
+                                                    value={cat.weight_percent}
+                                                    onChange={(e) => handleUpdateCategory(cat.id, "", Number(e.target.value), cat.category_type_id)}
+                                                    className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm text-center outline-none focus:ring-2 focus:ring-emerald-400"
+                                                />
+                                                <span className="text-xs text-slate-400">%</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {deletingId === cat.id ? (
+                                                    <div className="flex items-center gap-2 bg-rose-50 px-2 py-1 rounded-lg border border-rose-100">
+                                                        <span className="text-[10px] font-bold text-rose-600 uppercase">ลบ?</span>
+                                                        <button
+                                                            onClick={() => handleDeleteCategory(cat.id)}
+                                                            className="text-[10px] bg-rose-600 text-white px-2 py-1 rounded font-bold hover:bg-rose-700"
+                                                        >ยืนยัน</button>
+                                                        <button
+                                                            onClick={() => setDeletingId(null)}
+                                                            className="text-[10px] bg-slate-200 text-slate-600 px-2 py-1 rounded font-bold hover:bg-slate-300"
                                                         >ยกเลิก</button>
                                                     </div>
                                                 ) : (
-                                                    <>
-                                                        <span className="flex-1 text-sm font-semibold text-slate-700">{t.type_name}</span>
-                                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            {deletingCategoryTypeId === t.id ? (
-                                                                <div className="flex items-center gap-1.5 animate-in slide-in-from-right-2 duration-200">
-                                                                    <button 
-                                                                        onClick={() => handleDeleteCategoryType(t.id)}
-                                                                        className="bg-rose-600 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-rose-700 shadow-sm"
-                                                                    >ยืนยัน</button>
-                                                                    <button 
-                                                                        onClick={() => setDeletingCategoryTypeId(null)}
-                                                                        className="bg-slate-200 text-slate-600 px-2 py-1 rounded text-[10px] font-bold hover:bg-slate-300"
-                                                                    >ยกเลิก</button>
-                                                                </div>
-                                                            ) : (
-                                                                <>
-                                                                    <button 
-                                                                        onClick={() => {
-                                                                            setEditingCategoryTypeId(t.id);
-                                                                            setEditCategoryTypeName(t.type_name);
-                                                                            setDeletingCategoryTypeId(null);
-                                                                        }}
-                                                                        className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
-                                                                        title="แก้ไขชื่อนี้"
-                                                                    >
-                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                                    </button>
-                                                                    <button 
-                                                                        onClick={() => setDeletingCategoryTypeId(t.id)}
-                                                                        className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                                                                        title="ลบประเภทนี้"
-                                                                    >
-                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v2m3 4h.01" /></svg>
-                                                                    </button>
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    </>
+                                                    <button
+                                                        onClick={() => setDeletingId(cat.id)}
+                                                        className="p-2 text-slate-400 hover:text-rose-500 transition-all flex-shrink-0"
+                                                        title="ลบหมวดหมู่นี้"
+                                                    >
+                                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v2m3 4h.01" />
+                                                        </svg>
+                                                    </button>
                                                 )}
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ))}
                                 </div>
-                                <div className="pt-3 border-t border-emerald-100">
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700 mb-2">2. เลือกประเภทคะแนนลงในตาราง (กดเพื่อเพิ่ม)</h4>
-                                    <div className="flex flex-wrap gap-2">
-                                        {categoryTypes.map(t => (
-                                            <button
-                                                key={t.id}
-                                                onClick={() => {
-                                                    handleAddCategory("", 0, t.id);
-                                                }}
-                                                className="px-3 py-1.5 rounded-xl border border-emerald-200 bg-white text-emerald-700 text-sm font-bold hover:bg-emerald-50 hover:border-emerald-400 hover:shadow-sm transition-all flex items-center gap-1.5 active:scale-95"
-                                            >
-                                                <svg className="w-4 h-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                                                </svg>
-                                                {t.type_name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
+                                {categories.length > 0 && (() => {
+                                    const totalWeight = categories.reduce((a, b) => a + Number(b.weight_percent || 0), 0);
+                                    const isOverweight = totalWeight > 100;
+                                    return (
+                                        <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-slate-500">รวมทั้งหมด:</span>
+                                                {isOverweight && <span className="text-[10px] text-rose-500 font-bold">* ห้ามเกิน 100%</span>}
+                                            </div>
+                                            <span className={`text-lg font-black ${isOverweight ? "text-rose-600 animate-pulse" : totalWeight === 100 ? "text-emerald-600" : "text-teal-500"}`}>
+                                                {totalWeight}%
+                                            </span>
+                                        </div>
+                                    );
+                                })()}
                             </div>
-                            <div className="space-y-3">
-                                {categories.map(cat => (
-                                    <div key={cat.id} className="flex items-center gap-3 p-3 rounded-2xl border border-slate-100 bg-white group">
-                                        <div className="flex-1 flex flex-col">
-                                            <span className="font-bold text-slate-700">{cat.grade_category_types?.type_name || "(ไม่มีชื่อ)"}</span>
-                                            {cat.category_type_id && (
-                                                <span className="text-[10px] text-slate-400 uppercase tracking-widest">Predefined Type</span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <input 
-                                                type="number" 
-                                                value={cat.weight_percent} 
-                                                onChange={(e) => handleUpdateCategory(cat.id, "", Number(e.target.value), cat.category_type_id)}
-                                                className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm text-center outline-none focus:ring-2 focus:ring-emerald-400"
-                                            />
-                                            <span className="text-xs text-slate-400">%</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {deletingId === cat.id ? (
-                                                <div className="flex items-center gap-2 bg-rose-50 px-2 py-1 rounded-lg border border-rose-100">
-                                                    <span className="text-[10px] font-bold text-rose-600 uppercase">ลบ?</span>
-                                                    <button 
-                                                        onClick={() => handleDeleteCategory(cat.id)}
-                                                        className="text-[10px] bg-rose-600 text-white px-2 py-1 rounded font-bold hover:bg-rose-700"
-                                                    >ยืนยัน</button>
-                                                    <button 
-                                                        onClick={() => setDeletingId(null)}
-                                                        className="text-[10px] bg-slate-200 text-slate-600 px-2 py-1 rounded font-bold hover:bg-slate-300"
-                                                    >ยกเลิก</button>
-                                                </div>
-                                            ) : (
-                                                <button 
-                                                    onClick={() => setDeletingId(cat.id)} 
-                                                    className="p-2 text-slate-400 hover:text-rose-500 transition-all flex-shrink-0"
-                                                    title="ลบหมวดหมู่นี้"
-                                                >
-                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v2m3 4h.01" />
-                                                    </svg>
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
+                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                                <button onClick={() => setShowCategoryManageModal(false)} className="px-6 py-2 rounded-xl bg-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-300 transition-colors">ยกเลิก</button>
+                                <button
+                                    onClick={handleSaveCategories}
+                                    disabled={categorySaving || categories.reduce((a, b) => a + Number(b.weight_percent || 0), 0) > 100}
+                                    className="px-8 py-2 rounded-xl bg-emerald-600 text-white text-sm font-black hover:bg-emerald-700 shadow-lg shadow-emerald-100 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none"
+                                >
+                                    {categorySaving && <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />}
+                                    บันทึกทั้งหมด
+                                </button>
                             </div>
-                            {categories.length > 0 && (() => {
-                                const totalWeight = categories.reduce((a, b) => a + Number(b.weight_percent || 0), 0);
-                                const isOverweight = totalWeight > 100;
-                                return (
-                                    <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-bold text-slate-500">รวมทั้งหมด:</span>
-                                            {isOverweight && <span className="text-[10px] text-rose-500 font-bold">* ห้ามเกิน 100%</span>}
-                                        </div>
-                                        <span className={`text-lg font-black ${isOverweight ? "text-rose-600 animate-pulse" : totalWeight === 100 ? "text-emerald-600" : "text-teal-500"}`}>
-                                            {totalWeight}%
-                                        </span>
-                                    </div>
-                                );
-                            })()}
-                        </div>
-                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                            <button onClick={() => setShowCategoryManageModal(false)} className="px-6 py-2 rounded-xl bg-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-300 transition-colors">ยกเลิก</button>
-                            <button 
-                                onClick={handleSaveCategories} 
-                                disabled={categorySaving || categories.reduce((a, b) => a + Number(b.weight_percent || 0), 0) > 100}
-                                className="px-8 py-2 rounded-xl bg-emerald-600 text-white text-sm font-black hover:bg-emerald-700 shadow-lg shadow-emerald-100 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none"
-                            >
-                                {categorySaving && <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />}
-                                บันทึกทั้งหมด
-                            </button>
                         </div>
                     </div>
-                </div>
-            </Portal>
-        )}
+                </Portal>
+            )}
         </div>
     );
 }

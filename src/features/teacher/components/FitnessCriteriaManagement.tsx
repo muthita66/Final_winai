@@ -231,18 +231,18 @@ export const FitnessCriteriaManagement: React.FC<Props> = ({ isOpen, onClose, cu
     return (
         <Portal>
             <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-slate-900/80 backdrop-blur-md transition-all duration-500">
-                <div className="bg-slate-50 rounded-[2.5rem] shadow-2xl w-full max-w-[98vw] xl:max-w-[1550px] overflow-hidden flex flex-col h-[94vh] max-h-[94vh] border border-white/20 animate-in zoom-in-95 duration-300">
-                    {/* Modern Header */}
-                    <div className="px-10 py-8 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
-                        <div className="flex items-center gap-6">
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-200 border border-white/20">
-                                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="bg-slate-50 rounded-[2rem] shadow-2xl w-full max-w-[95vw] lg:max-w-[1200px] xl:max-w-[1300px] overflow-hidden flex flex-col h-[85vh] max-h-[85vh] border border-white/20 animate-in zoom-in-95 duration-300">
+                    {/* Modern Header - Reduced padding */}
+                    <div className="px-8 py-5 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-5">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-200 border border-white/20">
+                                <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                             </div>
                             <div>
-                                <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none mb-1">จัดการเกณฑ์มาตรฐาน</h2>
-                                <p className="text-slate-400 text-sm font-bold uppercase tracking-widest">Fitness Assessment Standards Center</p>
+                                <h2 className="text-2xl font-bold text-slate-800 leading-none mb-1">จัดการเกณฑ์มาตรฐาน</h2>
+                                <p className="text-slate-400 text-[10px] font-medium uppercase tracking-wider">Fitness Assessment Standards Center</p>
                             </div>
                         </div>
                         
@@ -269,8 +269,8 @@ export const FitnessCriteriaManagement: React.FC<Props> = ({ isOpen, onClose, cu
                                 showForm ? 'translate-x-0 w-full lg:w-[450px] opacity-100' : '-translate-x-full lg:w-0 opacity-0'
                             }`}
                         >
-                            <div className="p-8 border-b border-slate-100 flex items-center justify-between shrink-0">
-                                <h3 className="text-xl font-black text-slate-800 tracking-tight">
+                            <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+                                <h3 className="text-lg font-bold text-slate-800">
                                     {Object.keys(editingIds).length > 0 ? 'แก้ไขข้อมูลเกณฑ์' : 'เพิ่มข้อมูลใหม่'}
                                 </h3>
                                 <button onClick={() => { setShowForm(false); setEditingIds({}); }} className="lg:hidden text-slate-400">
@@ -278,102 +278,102 @@ export const FitnessCriteriaManagement: React.FC<Props> = ({ isOpen, onClose, cu
                                 </button>
                             </div>
                             
-                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                                 <form id="criteria-form" onSubmit={handleSubmit} className="space-y-6">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">ชื่อรายการทดสอบ</label>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">ชื่อรายการทดสอบ</label>
                                         <input 
                                             required 
                                             value={formData.test_name}
                                             onChange={e => setFormData({...formData, test_name: e.target.value})}
-                                            className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50 text-slate-800 text-sm font-bold outline-none focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 transition-all"
+                                            className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 bg-slate-50 text-slate-800 text-sm font-medium outline-none focus:border-emerald-400 focus:bg-white transition-all"
                                             placeholder="เช่น วิ่ง 50 เมตร, ลุก-นั่ง"
                                         />
                                     </div>
 
                                     <div className="grid grid-cols-1 gap-4">
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">ระดับชั้น</label>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">ระดับชั้น</label>
                                             <select 
                                                 required
                                                 value={formData.grade_level}
                                                 onChange={e => setFormData({...formData, grade_level: e.target.value})}
-                                                className="w-full px-4 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50 text-sm font-bold outline-none focus:border-emerald-400 focus:bg-white transition-all appearance-none cursor-pointer"
+                                                className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 bg-slate-50 text-sm font-medium outline-none focus:border-emerald-400 focus:bg-white transition-all appearance-none cursor-pointer"
                                             >
                                                 <option value="">เลือกชั้น...</option>
                                                 {GRADE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                             </select>
                                         </div>
                                         
-                                        <div className="p-1 bg-slate-100 rounded-2xl flex gap-1">
+                                        <div className="p-1 bg-slate-100 rounded-xl flex gap-1">
                                             <button 
                                                 type="button"
                                                 onClick={() => setFormData({...formData, use_separate_gender: false})}
-                                                className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${!formData.use_separate_gender ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}
+                                                className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all ${!formData.use_separate_gender ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}
                                             >ใช้เกณฑ์เดียวกัน</button>
                                             <button 
                                                 type="button"
                                                 onClick={() => setFormData({...formData, use_separate_gender: true})}
-                                                className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${formData.use_separate_gender ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}
+                                                className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all ${formData.use_separate_gender ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}
                                             >แยกตามเพศ</button>
                                         </div>
                                     </div>
 
                                     {formData.use_separate_gender ? (
                                         <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-black text-teal-500 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-bold text-teal-500 uppercase ml-1 flex items-center gap-1.5">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-teal-500" />เกณฑ์ผ่าน (ชาย)
                                                 </label>
                                                 <input 
                                                     type="number" step="0.01" required
                                                     value={formData.male_threshold}
                                                     onChange={e => setFormData({...formData, male_threshold: e.target.value})}
-                                                    className="w-full px-5 py-4 rounded-2xl border-2 border-teal-50 bg-teal-50/30 text-sm font-bold outline-none focus:border-teal-400 focus:bg-white transition-all shadow-sm shadow-teal-500/5 placeholder:text-teal-200"
+                                                    className="w-full px-4 py-3 rounded-xl border-2 border-teal-50 bg-teal-50/30 text-sm font-medium outline-none focus:border-teal-400 focus:bg-white transition-all shadow-sm"
                                                     placeholder="0.00"
                                                 />
                                             </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-black text-emerald-500 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-bold text-emerald-500 uppercase ml-1 flex items-center gap-1.5">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />เกณฑ์ผ่าน (หญิง)
                                                 </label>
                                                 <input 
                                                     type="number" step="0.01" required
                                                     value={formData.female_threshold}
                                                     onChange={e => setFormData({...formData, female_threshold: e.target.value})}
-                                                    className="w-full px-5 py-4 rounded-2xl border-2 border-emerald-50 bg-emerald-50/30 text-sm font-bold outline-none focus:border-emerald-400 focus:bg-white transition-all shadow-sm shadow-emerald-500/5 placeholder:text-emerald-200"
+                                                    className="w-full px-4 py-3 rounded-xl border-2 border-emerald-50 bg-emerald-50/30 text-sm font-medium outline-none focus:border-emerald-400 focus:bg-white transition-all shadow-sm"
                                                     placeholder="0.00"
                                                 />
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">เกณฑ์ผ่าน (ชาย/หญิง)</label>
+                                        <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">เกณฑ์ผ่าน (ชาย/หญิง)</label>
                                             <input 
                                                 type="number" step="0.01" required
                                                 value={formData.both_threshold}
                                                 onChange={e => setFormData({...formData, both_threshold: e.target.value})}
-                                                className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50 text-sm font-bold outline-none focus:border-emerald-400 focus:bg-white transition-all shadow-sm placeholder:text-slate-300"
+                                                className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 bg-slate-50 text-sm font-medium outline-none focus:border-emerald-400 focus:bg-white transition-all shadow-sm"
                                                 placeholder="0.00"
                                             />
                                         </div>
                                     )}
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">หน่วยข้อมูล</label>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">หน่วยข้อมูล</label>
                                             <input 
                                                 value={formData.unit}
                                                 onChange={e => setFormData({...formData, unit: e.target.value})}
-                                                className="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50 text-sm font-bold outline-none focus:border-emerald-400 focus:bg-white transition-all"
+                                                className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 bg-slate-50 text-sm font-medium outline-none focus:border-emerald-400 focus:bg-white transition-all"
                                                 placeholder="วินาที, ครั้ง..."
                                             />
                                         </div>
 
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">ตัวดำเนินการเปรียบเทียบ</label>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">ตัวดำเนินการเปรียบเทียบ</label>
                                         <select 
                                             value={formData.comparison_type}
                                             onChange={e => setFormData({...formData, comparison_type: e.target.value})}
-                                            className="w-full px-4 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50 text-sm font-bold outline-none focus:border-emerald-400 focus:bg-white transition-all appearance-none cursor-pointer"
+                                            className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 bg-slate-50 text-sm font-medium outline-none focus:border-emerald-400 focus:bg-white transition-all appearance-none cursor-pointer"
                                         >
                                             {COMPARISON_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                         </select>
@@ -399,37 +399,37 @@ export const FitnessCriteriaManagement: React.FC<Props> = ({ isOpen, onClose, cu
 
                         {/* Main Content Area */}
                         <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden relative">
-                            {/* Filters Bar */}
-                            <div className="p-6 bg-white/50 backdrop-blur-sm border-b border-slate-200 shrink-0">
-                                <div className="flex flex-col xl:flex-row gap-4">
+                            {/* Filters Bar - Reduced padding */}
+                            <div className="p-4 bg-white/50 backdrop-blur-sm border-b border-slate-200 shrink-0">
+                                <div className="flex flex-col xl:flex-row gap-3">
                                     <div className="relative flex-1 min-w-[200px] group">
-                                        <svg className="w-5 h-5 absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                        <svg className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                         <input 
                                             value={searchTerm}
                                             onChange={e => setSearchTerm(e.target.value)}
                                             placeholder="ค้นหาชื่อการทดสอบ..."
-                                            className="w-full bg-white border-2 border-transparent rounded-[1.25rem] pl-14 pr-6 py-4 text-sm font-bold text-slate-700 outline-none shadow-sm focus:border-emerald-200 focus:ring-4 focus:ring-emerald-500/5 transition-all"
+                                            className="w-full bg-white border-2 border-transparent rounded-xl pl-11 pr-4 py-2.5 text-sm font-medium text-slate-700 outline-none shadow-sm focus:border-emerald-200 transition-all font-sans"
                                         />
                                     </div>
-                                    <div className="flex flex-wrap gap-2 p-1.5 bg-slate-100 rounded-[1.25rem] overflow-x-auto no-scrollbar">
+                                    <div className="flex flex-wrap gap-1.5 p-1 bg-slate-100 rounded-xl overflow-x-auto no-scrollbar">
                                         <button 
                                             onClick={() => setFilterGrade('ทั้งหมด')}
-                                            className={`px-5 py-2.5 rounded-2xl text-xs font-black transition-all whitespace-nowrap ${filterGrade === 'ทั้งหมด' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                        >ระดับชั้น: ทั้งหมด</button>
+                                            className={`px-4 py-2 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap ${filterGrade === 'ทั้งหมด' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                        >ชั้น: ทั้งหมด</button>
                                         {GRADE_OPTIONS.map(o => (
                                             <button 
                                                 key={o.value}
                                                 onClick={() => setFilterGrade(o.value)}
-                                                className={`px-5 py-2.5 rounded-2xl text-xs font-black transition-all whitespace-nowrap ${filterGrade === o.value ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                                className={`px-4 py-2 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap ${filterGrade === o.value ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                             >{o.label}</button>
                                         ))}
                                     </div>
-                                    <div className="flex gap-2 p-1.5 bg-slate-100 rounded-[1.25rem] overflow-x-auto no-scrollbar">
+                                    <div className="flex gap-1.5 p-1 bg-slate-100 rounded-xl overflow-x-auto no-scrollbar">
                                         {['ทั้งหมด', 'ชาย', 'หญิง'].map(g => (
                                             <button 
                                                 key={g}
                                                 onClick={() => setFilterGender(g)}
-                                                className={`px-5 py-2.5 rounded-2xl text-xs font-black transition-all whitespace-nowrap ${filterGender === g ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                                className={`px-4 py-2 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap ${filterGender === g ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                             >เพศ: {g}</button>
                                         ))}
                                     </div>
@@ -452,77 +452,77 @@ export const FitnessCriteriaManagement: React.FC<Props> = ({ isOpen, onClose, cu
                                         <p className="text-slate-400 font-medium max-w-xs">ลองใช้คำค้นหาอื่น หรือเลือกหมวดหมู่อื่นจากแถบเมนูด้านบน</p>
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-1 gap-6">
+                                    <div className="grid grid-cols-1 gap-4">
                                         {groupedList.map((group) => (
-                                            <div key={group.groupKey} className="group bg-white hover:bg-white p-6 rounded-[2.25rem] border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 hover:border-emerald-300 transition-all duration-500 flex flex-col md:flex-row items-center gap-6">
-                                                {/* Left Info */}
-                                                <div className="flex items-center gap-6 flex-1 min-w-0 w-full">
-                                                    <div className="w-16 h-16 rounded-2xl bg-slate-50 group-hover:bg-emerald-50 flex flex-col items-center justify-center shrink-0 border border-slate-100 transition-colors">
-                                                        <span className="text-[10px] font-black text-slate-300 uppercase leading-none mb-0.5">ชั้น</span>
-                                                        <span className="text-xl font-black text-slate-800 group-hover:text-emerald-600">
+                                            <div key={group.groupKey} className="group bg-white hover:bg-white p-4 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 hover:border-emerald-300 transition-all duration-300 flex flex-col md:flex-row items-center gap-5">
+                                                {/* Left Info - More compact */}
+                                                <div className="flex items-center gap-4 flex-1 min-w-0 w-full">
+                                                    <div className="w-12 h-12 rounded-xl bg-slate-50 group-hover:bg-emerald-50 flex flex-col items-center justify-center shrink-0 border border-slate-100 transition-colors">
+                                                        <span className="text-[9px] font-bold text-slate-300 uppercase leading-none mb-0.5 font-sans">ชั้น</span>
+                                                        <span className="text-lg font-bold text-slate-800 group-hover:text-emerald-600 font-sans">
                                                             {group.grade_level?.match(/\d+/)?.[0] || 'A'}
                                                         </span>
                                                     </div>
                                                     
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-3 mb-1.5">
-                                                            <h3 className="text-xl font-black text-slate-800 line-clamp-1">{group.test_name}</h3>
-                                                            <div className="flex gap-1.5">
-                                                                <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-slate-100 text-slate-500 border border-slate-200">ปี {group.academic_year}</span>
+                                                        <div className="flex items-center gap-2 mb-1 font-sans">
+                                                            <h3 className="text-lg font-bold text-slate-800 line-clamp-1">{group.test_name}</h3>
+                                                            <div className="flex gap-1">
+                                                                <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-slate-100 text-slate-500 border border-slate-200">ปี {group.academic_year}</span>
                                                             </div>
                                                         </div>
-                                                        <div className="flex items-center gap-3 text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                                                            <span className="flex items-center gap-2 px-2.5 py-1 bg-slate-50 rounded-lg">{group.grade_level}</span>
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-slate-200"></span>
-                                                            <span className="flex items-center gap-2">เกณฑ์ {group.comparison_type}</span>
+                                                        <div className="flex items-center gap-2 text-slate-400 text-[10px] font-medium font-sans">
+                                                            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-50 rounded-lg">{group.grade_level}</span>
+                                                            <span className="w-1 h-1 rounded-full bg-slate-200"></span>
+                                                            <span className="flex items-center gap-1.5">เกณฑ์ {group.comparison_type}</span>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                {/* Center/Thresholds Area */}
-                                                <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-50/50 p-2 rounded-[1.75rem] border border-slate-100 group-hover:bg-white transition-colors w-full md:w-auto">
+                                                {/* Center/Thresholds Area - More compact */}
+                                                <div className="flex flex-col sm:flex-row items-center gap-3 bg-slate-50/50 p-1.5 rounded-2xl border border-slate-100 group-hover:bg-white transition-colors w-full md:w-auto">
                                                     {group.both ? (
-                                                        <div className="px-8 py-3 bg-white rounded-2xl shadow-sm border border-slate-100 text-center min-w-[200px]">
-                                                            <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-0.5">ชาย และ หญิง</div>
-                                                            <div className="flex items-baseline justify-center gap-2">
-                                                                <span className="text-3xl font-black text-slate-800 tracking-tighter">{group.both.passing_threshold}</span>
-                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{group.unit}</span>
+                                                        <div className="px-6 py-2 bg-white rounded-xl shadow-sm border border-slate-100 text-center min-w-[160px]">
+                                                            <div className="text-[8px] font-bold text-slate-300 uppercase mb-0.5 font-sans">ชาย และ หญิง</div>
+                                                            <div className="flex items-baseline justify-center gap-1.5 font-sans">
+                                                                <span className="text-2xl font-bold text-slate-800">{group.both.passing_threshold}</span>
+                                                                <span className="text-[10px] font-bold text-slate-400">{group.unit}</span>
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        <div className="flex gap-3 w-full sm:w-auto">
-                                                            <div className="flex-1 sm:flex-none px-6 py-3 bg-white rounded-2xl shadow-sm border-l-4 border-teal-400 border-t border-b border-r border-slate-100 text-center min-w-[120px]">
-                                                                <div className="text-[9px] font-black text-teal-500/60 uppercase tracking-widest mb-0.5">ชาย</div>
-                                                                <div className="flex items-baseline justify-center gap-1.5">
-                                                                    <span className="text-2xl font-black text-teal-600 tracking-tighter">{group.male?.passing_threshold || '-'}</span>
-                                                                    <span className="text-[9px] font-black text-slate-400 uppercase">{group.unit}</span>
+                                                        <div className="flex gap-2 w-full sm:w-auto">
+                                                            <div className="flex-1 sm:flex-none px-5 py-2 bg-white rounded-xl shadow-sm border-l-4 border-teal-400 border-t border-b border-r border-slate-100 text-center min-w-[100px]">
+                                                                <div className="text-[8px] font-bold text-teal-500/60 uppercase mb-0.5 font-sans">ชาย</div>
+                                                                <div className="flex items-baseline justify-center gap-1 font-sans">
+                                                                    <span className="text-xl font-bold text-teal-600">{group.male?.passing_threshold || '-'}</span>
+                                                                    <span className="text-[9px] font-bold text-slate-400">{group.unit}</span>
                                                                 </div>
                                                             </div>
-                                                            <div className="flex-1 sm:flex-none px-6 py-3 bg-white rounded-2xl shadow-sm border-l-4 border-emerald-400 border-t border-b border-r border-slate-100 text-center min-w-[120px]">
-                                                                <div className="text-[9px] font-black text-emerald-500/60 uppercase tracking-widest mb-0.5">หญิง</div>
-                                                                <div className="flex items-baseline justify-center gap-1.5">
-                                                                    <span className="text-2xl font-black text-emerald-600 tracking-tighter">{group.female?.passing_threshold || '-'}</span>
-                                                                    <span className="text-[9px] font-black text-slate-400 uppercase">{group.unit}</span>
+                                                            <div className="flex-1 sm:flex-none px-5 py-2 bg-white rounded-xl shadow-sm border-l-4 border-emerald-400 border-t border-b border-r border-slate-100 text-center min-w-[100px]">
+                                                                <div className="text-[8px] font-bold text-emerald-500/60 uppercase mb-0.5 font-sans">หญิง</div>
+                                                                <div className="flex items-baseline justify-center gap-1 font-sans">
+                                                                    <span className="text-xl font-bold text-emerald-600">{group.female?.passing_threshold || '-'}</span>
+                                                                    <span className="text-[9px] font-bold text-slate-400">{group.unit}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     )}
                                                 </div>
 
-                                                {/* Right Actions */}
-                                                <div className="flex md:flex-col gap-2 shrink-0 w-full md:w-auto mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 md:border-l border-slate-100 pl-0 md:pl-6">
+                                                {/* Right Actions - More compact */}
+                                                <div className="flex md:flex-row gap-2 shrink-0 w-full md:w-auto mt-3 md:mt-0 pt-3 md:pt-0 border-t md:border-t-0 md:border-l border-slate-100 pl-0 md:pl-5 font-sans">
                                                     <button 
                                                         onClick={() => handleEditGroup(group)}
-                                                        className="flex-1 md:flex-none h-11 px-4 flex items-center justify-center gap-2 rounded-xl text-slate-400 bg-white border border-slate-200 hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 transition-all font-black text-[10px] uppercase tracking-widest"
+                                                        className="flex-1 md:flex-none h-10 px-3 flex items-center justify-center gap-1.5 rounded-lg text-slate-400 bg-white border border-slate-200 hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 transition-all font-bold text-[10px] uppercase"
                                                     >
-                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                                         <span>แก้ไข</span>
                                                     </button>
                                                     <button 
                                                         onClick={() => handleDeleteGroup(group)}
-                                                        className="flex-1 md:flex-none h-11 px-4 flex items-center justify-center gap-2 rounded-xl text-slate-400 bg-white border border-slate-200 hover:text-rose-500 hover:bg-rose-50 hover:border-rose-100 transition-all font-black text-[10px] uppercase tracking-widest"
+                                                        className="flex-1 md:flex-none h-10 px-3 flex items-center justify-center gap-1.5 rounded-lg text-slate-400 bg-white border border-slate-200 hover:text-rose-500 hover:bg-rose-50 hover:border-rose-100 transition-all font-bold text-[10px] uppercase"
                                                     >
-                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v2m3 4h.01" /></svg>
+                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v2m3 4h.01" /></svg>
                                                         <span>ลบ</span>
                                                     </button>
                                                 </div>

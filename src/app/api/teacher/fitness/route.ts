@@ -41,7 +41,10 @@ export async function GET(request: Request) {
             if (!class_level) return errorResponse('class_level required', 400);
             if (!room) return errorResponse('room required', 400);
 
-            const data = await TeacherFitnessService.getStudentsForTest(teacher_id, class_level, room);
+            const year = Number(searchParams.get('year')) || undefined;
+            const semester = Number(searchParams.get('semester')) || undefined;
+
+            const data = await TeacherFitnessService.getStudentsForTest(teacher_id, class_level, room, year, semester);
             return successResponse(data);
         }
 

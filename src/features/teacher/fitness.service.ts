@@ -10,7 +10,7 @@ function extractLevelNumber(value: string) {
  * It still resolves students by class/room so the page can be used for data entry UI.
  */
 export const TeacherFitnessService = {
-    async getStudentsForTest(teacher_id: number, classLevel?: string, room?: string) {
+    async getStudentsForTest(teacher_id: number, classLevel?: string, room?: string, year?: number, semester?: number) {
         // Find authorized classrooms first
         const advisorClassrooms = await prisma.classroom_advisors.findMany({
             where: { teacher_id },
@@ -61,6 +61,43 @@ export const TeacherFitnessService = {
             },
         });
 
+        // 2. Fetch existing fitness results and health checkups
+        let fitnessRecords: any[] = [];
+        let healthRecords: any[] = [];
+
+        try {
+            fitnessRecords = await prisma.student_fitness_records.findMany({
+                where: {
+                    student_id: { in: students.map((s: any) => s.id) },
+                    academic_year: year || undefined,
+                    semester: (typeof semester === 'number' || (typeof semester === 'string' && semester !== 'all')) ? Number(semester) : undefined,
+                }
+            });
+        } catch (e) {
+            console.error("Error fetching fitness records:", e);
+            fitnessRecords = await prisma.student_fitness_records.findMany({
+                where: { student_id: { in: students.map((s: any) => s.id) } },
+                orderBy: { created_at: 'desc' }
+            }).catch(() => []);
+        }
+
+        try {
+            healthRecords = await prisma.student_health_checkups.findMany({
+                where: {
+                    student_id: { in: students.map((s: any) => s.id) },
+                    academic_year: year || undefined,
+                    semester: (typeof semester === 'number' || (typeof semester === 'string' && semester !== 'all')) ? Number(semester) : undefined,
+                }
+            });
+        } catch (e) {
+            console.error("Error fetching health checkups:", e);
+            healthRecords = await prisma.student_health_checkups.findMany({
+                where: { student_id: { in: students.map((s: any) => s.id) } },
+                orderBy: { created_at: 'desc' }
+            }).catch(() => []);
+        }
+
+        // 3. Map students with their results
         const mapped = (students as any[]).map((s: any) => {
             const cs = s.classroom_students?.[0];
             const currentClassroom = cs?.classrooms;
@@ -68,6 +105,29 @@ export const TeacherFitnessService = {
             const roomName = currentClassroom?.room_name || '';
             const className = levelName && roomName ? `${levelName}/${roomName}` : (levelName || roomName || '');
             
+            const studentFitness = fitnessRecords.filter(r => r.student_id === s.id);
+            const studentHealthRecords = healthRecords.filter(r => r.student_id === s.id);
+            // Aggregate weight and height from all records in the term, taking the most recent non-null values
+            const sortedHealth = [...studentHealthRecords].sort((a, b) => (b.created_at?.getTime() || 0) - (a.created_at?.getTime() || 0));
+            const latestWeight = sortedHealth.find(r => r.weight !== null && r.weight !== undefined)?.weight;
+            const latestHeight = sortedHealth.find(r => r.height !== null && r.height !== undefined)?.height;
+
+            let tests = studentFitness.map(r => ({
+                test_name: r.test_name,
+                test_result: r.test_result,
+                status: r.grade,
+                is_passed: r.is_passed,
+                fitness_test_id: r.fitness_test_id
+            }));
+
+            // Merge weight/height from healthRecords if they exist
+            if (latestWeight !== undefined && latestWeight !== null) {
+                tests.push({ test_name: "น้ำหนัก (Weight)", test_result: latestWeight, status: null, is_passed: null, fitness_test_id: null });
+            }
+            if (latestHeight !== undefined && latestHeight !== null) {
+                tests.push({ test_name: "ส่วนสูง (Height)", test_result: latestHeight, status: null, is_passed: null, fitness_test_id: null });
+            }
+
             return {
                 id: s.id,
                 student_code: s.student_code,
@@ -78,7 +138,7 @@ export const TeacherFitnessService = {
                 grade_level: levelName,
                 class_name: className,
                 roll_number: cs?.roll_number,
-                fitness_tests: [],
+                fitness_tests: tests,
             };
         });
 
@@ -240,63 +300,83 @@ export const TeacherFitnessService = {
         `, parseInt(id as any));
     },
     async saveFitnessTest(data: any) {
-        const { student_id, teacher_id, test_name, result_value, standard_value, status, year, semester } = data;
+        const { student_id, teacher_id, test_name, result_value, status, year, semester } = data;
+        const aYear = year ? parseInt(year as any) : undefined;
+        const sem = (typeof semester === 'number' || (typeof semester === 'string' && semester !== 'all')) ? Number(semester) : undefined;
 
-        // 1. Authorization Check: Is this teacher an advisor for this student?
-        const advisorClassrooms = await prisma.classroom_advisors.findMany({
-            where: { teacher_id },
-            select: { classroom_id: true }
-        });
-        const advisorRoomIds = advisorClassrooms.map(ac => ac.classroom_id);
+        // If it's Weight or Height, save to student_health_checkups
+        if (test_name === "น้ำหนัก (Weight)" || test_name === "ส่วนสูง (Height)") {
+            const existing = await prisma.student_health_checkups.findFirst({
+                where: {
+                    student_id,
+                    academic_year: aYear,
+                    semester: sem,
+                },
+                orderBy: { created_at: 'desc' }
+            }).catch(() => null);
 
-        const studentInAdvisorRoom = await prisma.classroom_students.findFirst({
-            where: {
-                student_id: student_id,
-                classroom_id: { in: advisorRoomIds },
-                // academic_year: year // Optional: check academic year too
+            const resultVal = parseFloat(result_value) || 0;
+            
+            if (existing) {
+                // Update existing record, preserving the other value (weight or height)
+                const updateData: any = {
+                    checkup_date: new Date(),
+                    recorded_by: teacher_id
+                };
+                if (test_name === "น้ำหนัก (Weight)") updateData.weight = resultVal;
+                if (test_name === "ส่วนสูง (Height)") updateData.height = resultVal;
+
+                return prisma.student_health_checkups.update({
+                    where: { id: existing.id },
+                    data: updateData
+                });
+            } else {
+                // Create new record
+                const createData: any = {
+                    student_id,
+                    academic_year: aYear,
+                    semester: sem,
+                    checkup_date: new Date(),
+                    recorded_by: teacher_id
+                };
+                if (test_name === "น้ำหนัก (Weight)") createData.weight = resultVal;
+                if (test_name === "ส่วนสูง (Height)") createData.height = resultVal;
+
+                return prisma.student_health_checkups.create({
+                    data: createData
+                });
             }
-        });
-
-        if (!studentInAdvisorRoom) {
-            throw new Error('ไม่อนุญาตให้บันทึกข้อมูลนักเรียนที่ไม่ได้อยู่ในความดูแลของท่าน');
         }
 
-        // 2. Find or match criteria
-        const criteria = await this.getFitnessCriteria(test_name, '', year); // Basic match by name
-
-        // 3. Save to student_fitness_records
-        // Handle Weight/Height specially if needed, but the UI sends "น้ำหนัก (Weight)" as test_name
+        // Otherwise save to student_fitness_records
+        const criteria = await this.getFitnessCriteria(test_name, '', year).catch(() => null);
         
         // Find existing record for this term/test
-        const existing = await prisma.student_fitness_records.findFirst({
+        const existingFitness = await prisma.student_fitness_records.findFirst({
             where: {
                 student_id,
-                academic_year: year,
-                semester,
-                OR: [
-                    { test_name: test_name },
-                    { fitness_test_id: criteria?.id }
-                ]
+                academic_year: aYear,
+                semester: sem,
+                test_name: test_name
             }
-        });
+        }).catch(() => null);
 
         const recordData = {
             student_id,
-            academic_year: year,
-            semester,
+            academic_year: aYear,
+            semester: sem,
             test_date: new Date(),
             test_name,
             test_result: parseFloat(result_value) || 0,
-            score: 0, // Could be calculated
             grade: status,
             is_passed: status === 'ผ่าน',
             fitness_test_id: criteria?.id || null,
             recorded_by: teacher_id
         };
 
-        if (existing) {
+        if (existingFitness) {
             return prisma.student_fitness_records.update({
-                where: { id: existing.id },
+                where: { id: existingFitness.id },
                 data: recordData
             });
         } else {

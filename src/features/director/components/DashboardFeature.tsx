@@ -62,17 +62,17 @@ function BarChart({ data, height = 140 }: { data: { label: string; value: number
     );
 }
 
-function DonutChart({ data }: { data: { label: string; value: number; color: string }[] }) {
+function DonutChart({ data, vertical = false }: { data: { label: string; value: number; color: string }[]; vertical?: boolean }) {
     const total = data.reduce((s, d) => s + d.value, 0) || 1;
     let cumPct = 0;
     const segments = data.map(d => { const pct = (d.value / total) * 100; const start = cumPct; cumPct += pct; return { ...d, pct, start }; });
     const gradient = segments.map(s => `${s.color} ${s.start}% ${s.start + s.pct}%`).join(', ');
     return (
-        <div className="flex items-center gap-6">
-            <div className="w-32 h-32 rounded-full relative shrink-0" style={{ background: `conic-gradient(${gradient})` }}>
+        <div className={`flex ${vertical ? 'flex-col' : 'items-center'} gap-6`}>
+            <div className="w-32 h-32 rounded-full relative shrink-0 mx-auto" style={{ background: `conic-gradient(${gradient})` }}>
                 <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center"><span className="text-2xl font-medium text-slate-700">{total.toLocaleString()}</span></div>
             </div>
-            <div className="space-y-3 min-w-0">{segments.map((s, i) => (
+            <div className={`space-y-3 min-w-0 ${vertical ? 'w-full' : ''}`}>{segments.map((s, i) => (
                 <div key={i} className="flex items-center gap-3 text-base"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: s.color }} /><span className="text-slate-600 truncate">{s.label}</span><span className="font-medium text-slate-800 ml-auto">{s.value.toLocaleString()}</span></div>
             ))}</div>
         </div>
@@ -413,8 +413,8 @@ export function DashboardFeature({ session }: { session: any }) {
                     {/* AT-RISK STUDENTS PANEL (PREDICTIVE MATRIX) */}
                     {renderAtRiskPanel()}
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 lg:col-span-1">
                             <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2 text-lg">
                                 <UserGroupIcon className="w-5 h-5 text-slate-400" />
                                 สัดส่วนเพศ
@@ -425,7 +425,7 @@ export function DashboardFeature({ session }: { session: any }) {
                                 { label: 'ไม่ระบุ', value: Math.max(0, (s.totalStudents || 0) - (s.male || 0) - (s.female || 0)), color: '#cbd5e1' },
                             ].filter(x => x.value > 0)} />
                         </div>
-                        <Link href="/director/projects" className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 block hover:shadow-md hover:-translate-y-0.5 transition-all">
+                        <Link href="/director/projects" className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 block hover:shadow-md hover:-translate-y-0.5 transition-all lg:col-span-2">
                             <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2 text-lg">
                                 <CurrencyDollarIcon className="w-5 h-5 text-slate-400" />
                                 โครงการและงบประมาณ
@@ -534,9 +534,9 @@ export function DashboardFeature({ session }: { session: any }) {
                         <div className="mt-3 flex items-center gap-2">
                             <span className="text-sm text-slate-600">อัตราเข้าเรียน:</span>
                             <span className={`text-lg font-bold ${att.rate >= 95 ? 'text-green-600' : att.rate >= 80 ? 'text-amber-600' : 'text-red-600'}`}>{att.rate || 0}%</span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${att.rate >= 95 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                {att.rate >= 95 ? <ShieldCheckIcon className="w-3 h-3 inline mr-1" /> : <ExclamationTriangleIcon className="w-3 h-3 inline mr-1" />}
-                                {att.rate >= 95 ? 'ผ่าน' : 'ต่ำ'}
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${att.rate >= 95 ? 'bg-green-100 text-green-700' : att.rate >= 80 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                                {att.rate >= 80 ? <ShieldCheckIcon className="w-3 h-3 inline mr-1" /> : <ExclamationTriangleIcon className="w-3 h-3 inline mr-1" />}
+                                {att.rate >= 95 ? 'ดีเยี่ยม' : att.rate >= 80 ? 'ผ่าน' : 'ต่ำ'}
                             </span>
                         </div>
                     </div>
@@ -544,11 +544,27 @@ export function DashboardFeature({ session }: { session: any }) {
                     {/* Charts row */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                <ChartBarIcon className="w-5 h-5 text-emerald-500" />
-                                จำนวนแยกระดับชั้น
-                            </h3>
-                            <BarChart data={(d.studentsByLevel || []).map((l: any) => ({ label: l.level || '-', value: l.count, color: '#10b981' }))} height={150} />
+                            {filters.class_level ? (
+                                <>
+                                    <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2 text-lg">
+                                        <UserGroupIcon className="w-5 h-5 text-slate-400" />
+                                        สัดส่วนเพศ ({filters.room ? `ห้อง ${filters.room}` : filters.class_level})
+                                    </h3>
+                                    <DonutChart data={[
+                                        { label: 'ชาย', value: s.male || 0, color: '#059669' },
+                                        { label: 'หญิง', value: s.female || 0, color: '#ec4899' },
+                                        { label: 'ไม่ระบุ', value: Math.max(0, (s.totalStudents || 0) - (s.male || 0) - (s.female || 0)), color: '#cbd5e1' },
+                                    ].filter(x => x.value > 0)} />
+                                </>
+                            ) : (
+                                <>
+                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                        <ChartBarIcon className="w-5 h-5 text-emerald-500" />
+                                        จำนวนแยกระดับชั้น
+                                    </h3>
+                                    <BarChart data={(d.studentsByLevel || []).map((l: any) => ({ label: l.level || '-', value: l.count, color: '#10b981' }))} height={150} />
+                                </>
+                            )}
                         </div>
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
                             <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
@@ -613,13 +629,13 @@ export function DashboardFeature({ session }: { session: any }) {
             {tab === 'hr' && (
                 <div className="space-y-5">
                     {/* KPI Cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                         {[
                             { l: "ครูทั้งหมด", v: s.totalTeachers, ic: UserIcon, g: "from-emerald-600 to-teal-700", href: "/director/teachers" },
-                            { l: "ครู:นักเรียน", v: `1:${hr.ratio}`, ic: UserGroupIcon, g: "from-emerald-500 to-teal-600" },
-                            { l: "Section/ครู", v: hr.avgSections, ic: BookOpenIcon, g: "from-amber-500 to-orange-600" },
+                            { l: "ครู:นักเรียน", v: `1:${Number(hr.ratio || 0).toFixed(2)}`, ic: UserGroupIcon, g: "from-emerald-500 to-teal-600" },
+                            { l: "จำนวนคาบที่สอน/ครู", v: Number(hr.avgSections || 0).toFixed(2), ic: BookOpenIcon, g: "from-amber-500 to-orange-600" },
                             { l: "ใกล้เกษียณ", v: hr.nearRetirement, ic: CalendarDaysIcon, g: "from-red-500 to-rose-600" },
-                            { l: "ผลประเมิน", v: `${hr.evalAvg || 0}/5`, ic: ClipboardDocumentCheckIcon, g: "from-purple-500 to-pink-600", href: "/director/evaluation" },
+                            { l: "ผลประเมิน", v: `${Number(hr.evalAvg || 0).toFixed(2)}/5`, ic: ClipboardDocumentCheckIcon, g: "from-purple-500 to-pink-600", href: "/director/evaluation" },
                         ].map((c, i) => c.href ? (
                             <Link key={i} href={c.href} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 block hover:shadow-md hover:-translate-y-0.5 transition-all">
                                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${c.g} flex items-center justify-center text-xl mb-3`}>
@@ -704,43 +720,102 @@ export function DashboardFeature({ session }: { session: any }) {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                        {/* Employment Type */}
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                <DocumentTextIcon className="w-4 h-4 text-slate-400" />
-                                ประเภทการจ้าง
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+                        {/* Eval by Category List (Moved up and wider) */}
+                        <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                            <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2">
+                                <ClipboardDocumentCheckIcon className="w-5 h-5 text-emerald-500" />
+                                ผลประเมินเฉลี่ยแยกตามกลุ่มสาระและที่ปรึกษา
                             </h3>
-                            <BarChart data={(hr.byEmpType || []).map((t: any, i: number) => ({ label: t.type || '', value: t.count, color: `hsl(${200 + i * 40}, 60%, 50%)` }))} height={140} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                                {(hr.evalByCat || []).length > 0 ? (
+                                    (hr.evalByCat || []).map((c: any, i: number) => (
+                                        <div key={i} className="flex flex-col gap-1.5">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-sm font-semibold text-slate-700">{c.label}</span>
+                                                <span className="text-base font-bold text-emerald-600">
+                                                    {Number(c.value || 0).toFixed(2)}
+                                                </span>
+                                            </div>
+                                            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                <div 
+                                                    className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                                                    style={{ width: `${Math.min((Number(c.value || 0) / 5) * 100, 100)}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="md:col-span-2 py-8 flex flex-col items-center justify-center text-slate-400 text-sm italic gap-2">
+                                        <DocumentTextIcon className="w-8 h-8 opacity-20" />
+                                        ไม่มีข้อมูลผลประเมินที่ส่งจากนักเรียน
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        {/* Academic Rank */}
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                <AcademicCapIcon className="w-4 h-4 text-slate-400" />
-                                วิทยฐานะ
-                            </h3>
-                            <BarChart data={(hr.byAcademicRank || []).map((r: any, i: number) => ({ label: r.rank || '', value: r.count, color: `hsl(${280 + i * 30}, 60%, 50%)` }))} height={140} />
+
+                        {/* Employment Type (Donut) */}
+                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                            <div className="flex justify-between items-center mb-5">
+                                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                    <DocumentTextIcon className="w-5 h-5 text-sky-500" />
+                                    ประเภทการจ้าง
+                                </h3>
+                                <span className="text-xs font-semibold px-2 py-0.5 bg-sky-50 text-sky-600 rounded-full">
+                                    {(hr.byEmpType || []).reduce((acc: number, curr: any) => acc + curr.count, 0)} คน
+                                </span>
+                            </div>
+                            <DonutChart vertical data={(hr.byEmpType || []).map((t: any, i: number) => ({ 
+                                label: t.type || '', 
+                                value: t.count, 
+                                color: i === 0 ? '#0ea5e9' : i === 1 ? '#6366f1' : '#a855f7'
+                            }))} />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                        {/* Age Distribution */}
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                <ChartBarIcon className="w-4 h-4 text-slate-400" />
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+                        {/* Academic Rank (Now horizontal bars for better fit) */}
+                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                            <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2">
+                                <AcademicCapIcon className="w-5 h-5 text-indigo-500" />
+                                วิทยฐานะ
+                            </h3>
+                            <div className="space-y-3.5">
+                                {(hr.byAcademicRank || []).map((r: any, i: number) => {
+                                    const maxVal = Math.max(...(hr.byAcademicRank || []).map((x: any) => x.count), 1);
+                                    return (
+                                        <div key={i} className="flex items-center gap-4">
+                                            <span className="text-sm font-medium text-slate-600 w-28 truncate" title={r.rank}>{r.rank || 'ไม่ระบุ'}</span>
+                                            <div className="flex-1 h-2.5 bg-slate-50 rounded-full overflow-hidden">
+                                                <div 
+                                                    className="h-full rounded-full transition-all duration-700"
+                                                    style={{ 
+                                                        width: `${(r.count / maxVal) * 100}%`,
+                                                        background: `hsl(${260 + i * 20}, 70%, 55%)`
+                                                    }}
+                                                />
+                                            </div>
+                                            <span className="text-sm font-bold text-slate-700 min-w-[24px] text-right">{r.count}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Age Distribution (Refined BarChart) */}
+                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                            <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2">
+                                <ChartBarIcon className="w-5 h-5 text-amber-500" />
                                 กลุ่มอายุบุคลากร
                             </h3>
-                            <BarChart data={(hr.ageGroups || []).map((g: any) => ({
-                                label: g.group, value: g.count,
-                                color: g.group === '56-60' ? '#ef4444' : g.group === '51-55' ? '#f59e0b' : '#10b981'
-                            }))} height={140} />
-                        </div>
-                        {/* Eval Gauge */}
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col items-center justify-center gap-4">
-                            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                <ClipboardDocumentCheckIcon className="w-5 h-5 text-emerald-500" />
-                                ผลประเมินการสอนเฉลี่ย
-                            </h3>
+                            <BarChart data={(hr.ageGroups || []).map((g: any) => {
+                                const ageStart = parseInt(g.group.replace(/[^0-9]/g, '')) || 0;
+                                return {
+                                    label: g.group, 
+                                    value: g.count,
+                                    color: ageStart >= 55 ? '#f43f5e' : ageStart >= 45 ? '#f59e0b' : '#10b981'
+                                };
+                            })} height={160} />
                         </div>
                     </div>
 
@@ -813,11 +888,11 @@ export function DashboardFeature({ session }: { session: any }) {
                     {/* Health KPI Cards */}
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                         {[
-                            { l: "ตรวจสุขภาพแล้ว", v: `${health.totalChecked || 0}/${health.totalStudents || 0}`, ic: PresentationChartBarIcon, g: "from-emerald-500 to-teal-600" },
-                            { l: "BMI ปกติ", v: health.bmi?.normal || 0, ic: ShieldCheckIcon, g: "from-green-500 to-emerald-600" },
+                            { l: "ตรวจสุขภาพแล้ว", v: `${health.checkedCount || 0}/${health.totalStudents || 0}`, ic: PresentationChartBarIcon, g: "from-emerald-500 to-teal-600" },
+                            { l: "BMI ปกติ", v: health.bmiNormalCount || 0, ic: ShieldCheckIcon, g: "from-green-500 to-emerald-600" },
                             { l: "มีอาการแพ้", v: health.allergyCount || 0, ic: LifebuoyIcon, g: "from-amber-500 to-orange-600" },
-                            { l: "โรคประจำตัว", v: health.chronicCount || 0, ic: ClipboardDocumentCheckIcon, g: "from-red-500 to-rose-600" },
-                            { l: "ปัญหาสายตา", v: health.visionIssues || 0, ic: EyeIcon, g: "from-purple-500 to-violet-600" },
+                            { l: "โรคประจำตัว", v: health.diseaseCount || 0, ic: ClipboardDocumentCheckIcon, g: "from-red-500 to-rose-600" },
+                            { l: "ปัญหาสายตา", v: health.visionIssueCount || 0, ic: EyeIcon, g: "from-purple-500 to-violet-600" },
                         ].map((c, i) => (
                             <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
                                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${c.g} flex items-center justify-center text-xl mb-3`}>
@@ -835,14 +910,12 @@ export function DashboardFeature({ session }: { session: any }) {
                                 <ChartBarIcon className="w-4 h-4 text-slate-400" />
                                 ดัชนีมวลกาย (BMI)
                             </h3>
-                            {health.bmi ? (
-                                <DonutChart data={[
-                                    { label: `ผอม (${health.bmi.underweight})`, value: health.bmi.underweight || 0, color: '#60a5fa' },
-                                    { label: `ปกติ (${health.bmi.normal})`, value: health.bmi.normal || 0, color: '#34d399' },
-                                    { label: `น้ำหนักเกิน (${health.bmi.overweight})`, value: health.bmi.overweight || 0, color: '#fbbf24' },
-                                    { label: `อ้วน (${health.bmi.obese})`, value: health.bmi.obese || 0, color: '#f87171' },
-                                    { label: `ไม่มีข้อมูล (${health.bmi.noData})`, value: health.bmi.noData || 0, color: '#cbd5e1' },
-                                ].filter(x => x.value > 0)} />
+                            {health.bmiDistribution ? (
+                                <DonutChart data={(health.bmiDistribution || []).map((b: any) => ({
+                                    label: `${b.label} (${b.value})`,
+                                    value: b.value,
+                                    color: b.label === 'ปกติ' ? '#10b981' : b.label === 'ผอม' ? '#f59e0b' : '#f43f5e'
+                                }))} />
                             ) : <p className="text-sm text-slate-500">ไม่มีข้อมูล</p>}
                         </div>
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
@@ -850,10 +923,10 @@ export function DashboardFeature({ session }: { session: any }) {
                                 <LifebuoyIcon className="w-4 h-4 text-slate-400" />
                                 หมู่เลือด
                             </h3>
-                            {(health.bloodTypes || []).length > 0 ? (
-                                <BarChart data={(health.bloodTypes || []).map((b: any, i: number) => ({
-                                    label: b.type || '-', value: b.count,
-                                    color: b.type === 'A' ? '#ef4444' : b.type === 'B' ? '#3b82f6' : b.type === 'AB' ? '#8b5cf6' : b.type === 'O' ? '#f59e0b' : '#94a3b8'
+                            {(health.bloodTypeDistribution || []).length > 0 ? (
+                                <BarChart data={(health.bloodTypeDistribution || []).map((b: any) => ({
+                                    label: b.label || '-', value: b.value,
+                                    color: b.label === 'A' ? '#ef4444' : b.label === 'B' ? '#3b82f6' : b.label === 'AB' ? '#8b5cf6' : b.label === 'O' ? '#f59e0b' : '#94a3b8'
                                 }))} height={150} />
                             ) : <p className="text-sm text-slate-500">ไม่มีข้อมูล</p>}
                         </div>
@@ -946,23 +1019,22 @@ export function DashboardFeature({ session }: { session: any }) {
                                 <PresentationChartBarIcon className="w-5 h-5 text-indigo-500" />
                                 ผลสมรรถภาพทางกาย
                             </h3>
-                            {(health.fitnessTests || []).length > 0 ? (
+                            {(health.fitnessSummary || []).length > 0 ? (
                                 <div className="space-y-2">
-                                    {(health.fitnessTests || []).map((ft: any, i: number) => {
-                                        const passRate = ft.total > 0 ? Math.round((ft.passed / ft.total) * 100) : 0;
+                                    {(health.fitnessSummary || []).map((ft: any, i: number) => {
                                         return (
                                             <div key={i} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                                                 <div className="flex justify-between items-center mb-1.5">
-                                                    <span className="text-xs font-medium text-slate-800 truncate" title={ft.test_name}>{(ft.test_name || '').substring(0, 25)}</span>
+                                                    <span className="text-xs font-medium text-slate-800 truncate" title={ft.name}>{(ft.name || '').substring(0, 25)}</span>
                                                     <div className="flex gap-1 shrink-0">
                                                         <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-100 text-green-700">ผ่าน {ft.passed}</span>
-                                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700">ไม่ผ่าน {ft.failed}</span>
+                                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700">ไม่ผ่าน {ft.total - ft.passed}</span>
                                                     </div>
                                                 </div>
                                                 <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                                                    <div className={`h-full rounded-full transition-all ${passRate >= 80 ? 'bg-green-500' : passRate >= 60 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${passRate}%` }} />
+                                                    <div className={`h-full rounded-full transition-all ${ft.passRate >= 80 ? 'bg-green-500' : ft.passRate >= 60 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${ft.passRate}%` }} />
                                                 </div>
-                                                <div className="text-[9px] text-slate-500 mt-0.5 text-right">{passRate}% ผ่าน ({ft.total} คน)</div>
+                                                <div className="text-[9px] text-slate-500 mt-0.5 text-right">{ft.passRate}% ผ่าน ({ft.total} คน)</div>
                                             </div>
                                         );
                                     })}
@@ -976,15 +1048,15 @@ export function DashboardFeature({ session }: { session: any }) {
                                 <LifebuoyIcon className="w-5 h-5 text-indigo-500" />
                                 ข้อมูลวัคซีน
                             </h3>
-                            {(health.vaccinations || []).length > 0 ? (
+                            {(health.vaccineDistribution || []).length > 0 ? (
                                 <div className="space-y-2">
-                                    {(health.vaccinations || []).map((v: any, i: number) => {
-                                        const rate = v.student_count > 0 ? Math.round((v.completed / v.student_count) * 100) : 0;
+                                    {(health.vaccineDistribution || []).map((v: any, i: number) => {
+                                        const rate = health.totalStudents > 0 ? Math.round((v.value / health.totalStudents) * 100) : 0;
                                         return (
                                             <div key={i} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                                                 <div className="flex justify-between items-center mb-1.5">
-                                                    <span className="text-xs font-medium text-slate-800">{v.vaccine_name}</span>
-                                                    <span className="text-[10px] text-slate-500">{v.completed}/{v.student_count} คน</span>
+                                                    <span className="text-xs font-medium text-slate-800">{v.label}</span>
+                                                    <span className="text-[10px] text-slate-500">{v.value}/{health.totalStudents} คน</span>
                                                 </div>
                                                 <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
                                                     <div className={`h-full rounded-full transition-all ${rate >= 90 ? 'bg-emerald-500' : rate >= 70 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${rate}%` }} />
