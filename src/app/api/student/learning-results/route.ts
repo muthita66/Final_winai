@@ -43,6 +43,18 @@ export async function GET(request: Request) {
             return successResponse(results, "Subject evaluation retrieved");
         }
 
+        if (action === 'sdq_evaluation') {
+            const yearParsed = parseIntegerParam(searchParams.get('year'), { required: true, min: 1 });
+            if (!yearParsed.ok) return errorResponse("Invalid parameter: year", 400, yearParsed.error);
+            const semesterParsed = parseIntegerParam(searchParams.get('semester'), { required: true, min: 1 });
+            if (!semesterParsed.ok) return errorResponse("Invalid parameter: semester", 400, semesterParsed.error);
+            const year = yearParsed.value!;
+            const semester = semesterParsed.value!;
+
+            const results = await LearningResultsService.getSdqEvaluation(student_id, year, semester);
+            return successResponse(results, "SDQ evaluation retrieved");
+        }
+
         return errorResponse("Invalid action parameter", 400);
     } catch (error: any) {
         return errorResponse("Failed to retrieve learning results data", 500, error.message);

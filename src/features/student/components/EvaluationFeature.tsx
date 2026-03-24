@@ -264,7 +264,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
             return val === undefined || val === null || val === -1;
         });
         if (unanswered.length > 0) {
-            toast.error("กรุณาตอบแบบประเมินให้ครบทุกข้อ");
+            toast.error("กรุณากรอกข้อมูลให้ครบ");
             return;
         }
 
@@ -399,7 +399,7 @@ export function EvaluationFeature({ session }: EvaluationFeatureProps) {
         const unanswered = requiredTopics.filter((t: string) => advisorScores[t] === undefined || advisorScores[t] === null);
 
         if (unanswered.length > 0) {
-            toast.error("กรุณาตอบแบบประเมินให้ครบทุกข้อ");
+            toast.error("กรุณากรอกข้อมูลให้ครบ");
             return;
         }
 

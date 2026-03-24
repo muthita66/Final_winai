@@ -17,6 +17,7 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
     currentYear: number;
+    onRefresh?: () => void;
 }
 
 const COMPARISON_OPTIONS = [
@@ -42,7 +43,7 @@ const GRADE_OPTIONS = [
     { value: 'มัธยมศึกษาปีที่ 6', label: 'ม.6' },
 ];
 
-export const FitnessCriteriaManagement: React.FC<Props> = ({ isOpen, onClose, currentYear }) => {
+export const FitnessCriteriaManagement: React.FC<Props> = ({ isOpen, onClose, currentYear, onRefresh }) => {
     const [criteria, setCriteria] = useState<FitnessCriteria[]>([]);
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -89,9 +90,9 @@ export const FitnessCriteriaManagement: React.FC<Props> = ({ isOpen, onClose, cu
             test_name: group.test_name,
             grade_level: group.grade_level || '',
             use_separate_gender: isSeparate,
-            male_threshold: group.male?.passing_threshold?.toString() || '',
-            female_threshold: group.female?.passing_threshold?.toString() || '',
-            both_threshold: group.both?.passing_threshold?.toString() || '',
+            male_threshold: (group.male?.passing_threshold && group.male.passing_threshold !== 0) ? group.male.passing_threshold.toString() : '',
+            female_threshold: (group.female?.passing_threshold && group.female.passing_threshold !== 0) ? group.female.passing_threshold.toString() : '',
+            both_threshold: (group.both?.passing_threshold && group.both.passing_threshold !== 0) ? group.both.passing_threshold.toString() : '',
             unit: group.unit || '',
             comparison_type: group.comparison_type || '>=',
             academic_year: group.academic_year?.toString() || currentYear.toString()
@@ -110,6 +111,7 @@ export const FitnessCriteriaManagement: React.FC<Props> = ({ isOpen, onClose, cu
             const idsToDelete = [group.male?.id, group.female?.id, group.both?.id].filter(id => id != null);
             await Promise.all(idsToDelete.map(id => TeacherApiService.deleteFitnessCriteria(id!)));
             fetchCriteria();
+            onRefresh?.();
         } catch (error) {
             alert('ลบไม่สำเร็จ');
         }
@@ -180,6 +182,7 @@ export const FitnessCriteriaManagement: React.FC<Props> = ({ isOpen, onClose, cu
                 academic_year: currentYear.toString()
             });
             fetchCriteria();
+            onRefresh?.();
         } catch (error) {
             alert('บันทึกไม่สำเร็จ');
         }

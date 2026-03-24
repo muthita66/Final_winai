@@ -14,10 +14,14 @@ export const HealthService = {
         });
 
         // 2. Latest Checkup (Weight, Height, Vision)
-        const checkup = await (prisma as any).student_health_checkups.findFirst({
-            where: { student_id },
-            orderBy: { checkup_date: 'desc' }
-        });
+        const checkups = await prisma.$queryRaw<any[]>`
+            SELECT id, weight, height, vision_left, vision_right, checkup_date
+            FROM student_health_checkups
+            WHERE student_id = ${student_id}
+            ORDER BY checkup_date DESC
+            LIMIT 1
+        `;
+        const checkup = checkups[0] || null;
 
         // 3. Allergies
         const allergiesList = await (prisma as any).student_allergies.findMany({
@@ -46,15 +50,18 @@ export const HealthService = {
         }));
 
         // 6. Fitness Records
-        const fitnessList = await (prisma as any).student_fitness_records.findMany({
-            where: { student_id },
-            include: { fitness_test_criteria: true },
-            orderBy: { test_date: 'desc' }
-        });
-        const fitness = (fitnessList as any[]).map((f: any) => ({
-            test_name: f.test_name || f.fitness_test_criteria?.test_name || 'ไม่ระบุ',
+        const fitnessList = await prisma.$queryRaw<any[]>`
+            SELECT f.id, f.student_id, f.test_date, f.test_result, f.is_passed, f.fitness_test_id,
+                   c.test_name as criteria_test_name, c.passing_threshold as criteria_passing_threshold
+            FROM student_fitness_records f
+            LEFT JOIN fitness_test_criteria c ON f.fitness_test_id = c.id
+            WHERE f.student_id = ${student_id}
+            ORDER BY f.test_date DESC
+        `;
+        const fitness = fitnessList.map((f: any) => ({
+            test_name: f.criteria_test_name || 'ไม่ระบุ',
             result_value: Number(f.test_result) || 0,
-            standard_value: Number(f.fitness_test_criteria?.passing_threshold) || 0,
+            standard_value: Number(f.criteria_passing_threshold) || 0,
             status: f.is_passed ? 'ผ่าน' : 'ไม่ผ่าน'
         }));
 
@@ -92,15 +99,14 @@ export const HealthService = {
             const endOfDay = new Date(today);
             endOfDay.setHours(23, 59, 59, 999);
 
-            const existing = await (prisma as any).student_health_checkups.findFirst({
-                where: {
-                    student_id,
-                    checkup_date: {
-                        gte: startOfDay,
-                        lt: endOfDay
-                    }
-                }
-            });
+            const existingRecords = await prisma.$queryRaw<any[]>`
+                SELECT id FROM student_health_checkups
+                WHERE student_id = ${student_id}
+                AND checkup_date >= ${startOfDay}
+                AND checkup_date < ${endOfDay}
+                LIMIT 1
+            `;
+            const existing = existingRecords[0] || null;
 
             const updateFields = {
                 weight: data.weight ? Number(data.weight) : undefined,
@@ -110,22 +116,21 @@ export const HealthService = {
             };
 
             if (existing) {
-                await (prisma as any).student_health_checkups.update({
-                    where: { id: existing.id },
-                    data: updateFields
-                });
+                await prisma.$executeRaw`
+                    UPDATE student_health_checkups
+                    SET weight = ${updateFields.weight},
+                        height = ${updateFields.height},
+                        vision_left = ${updateFields.vision_left},
+                        vision_right = ${updateFields.vision_right}
+                    WHERE id = ${existing.id}
+                `;
             } else {
-                await (prisma as any).student_health_checkups.create({
-                    data: {
-                        student_id,
-                        checkup_date: new Date(),
-                        weight: data.weight ? Number(data.weight) : null,
-                        height: data.height ? Number(data.height) : null,
-                        vision_left: data.vision_left || null,
-                        vision_right: data.vision_right || null,
-                        recorded_by: student_id
-                    }
-                });
+                await prisma.$executeRaw`
+                    INSERT INTO student_health_checkups 
+                        (student_id, checkup_date, weight, height, vision_left, vision_right, recorded_by)
+                    VALUES 
+                        (${student_id}, ${new Date()}, ${data.weight ? Number(data.weight) : null}, ${data.height ? Number(data.height) : null}, ${data.vision_left || null}, ${data.vision_right || null}, ${student_id})
+                `;
             }
         }
 

@@ -263,4 +263,95 @@ export const LearningResultsService = {
 
         return results;
     },
+
+    async getSdqEvaluation(student_id: number, year: number, semester: number) {
+        if (!student_id) return null;
+
+        const user_id = await prisma.students.findUnique({
+            where: { id: student_id },
+            select: { user_id: true }
+        }).then(s => s?.user_id);
+
+        if (!user_id) return null;
+
+        const semester_id = await resolveSemesterId(year, semester);
+
+        // Find SDQ form response
+        const sdqResponse = await (prisma.evaluation_responses as any).findFirst({
+            where: {
+                evaluator_user_id: user_id,
+                evaluation_forms: {
+                    evaluation_sections: {
+                        some: { id: { in: [12, 13, 14, 15, 16] } }
+                    }
+                },
+                ...(semester_id ? { semester_id: Number(semester_id) } : {})
+            },
+            include: {
+                evaluation_answers: {
+                    include: {
+                        evaluation_questions: {
+                            include: {
+                                evaluation_sections: true
+                            }
+                        }
+                    }
+                }
+            },
+            orderBy: { submitted_at: 'desc' }
+        });
+
+        if (!sdqResponse) return null;
+
+        // Group by sections and calculate scores
+        const sectionMap = new Map<number, { name: string, score: number, questions: any[] }>();
+
+        (sdqResponse?.evaluation_answers || []).forEach((ans: any) => {
+            const q = ans.evaluation_questions;
+            const sec = q?.evaluation_sections;
+            if (!sec || ![12, 13, 14, 15, 16].includes(sec.id)) return;
+
+            if (!sectionMap.has(sec.id)) {
+                sectionMap.set(sec.id, {
+                    name: sec.section_name,
+                    score: 0,
+                    questions: []
+                });
+            }
+
+            const section = sectionMap.get(sec.id)!;
+            const score = Number(ans.score_value || 0);
+            section.score += score;
+            section.questions.push({
+                text: q.question_text,
+                score: score
+            });
+        });
+
+        const results = Array.from(sectionMap.values()).map(sec => {
+            let status = "ปกติ";
+            let color = "emerald";
+
+            if (sec.score >= 7) {
+                status = "มีปัญหา";
+                color = "rose";
+            } else if (sec.score === 6) {
+                status = "เสี่ยง";
+                color = "amber";
+            }
+
+            return {
+                section_name: sec.name,
+                total_score: sec.score,
+                status,
+                color,
+                questions: sec.questions
+            };
+        });
+
+        return {
+            submitted_at: sdqResponse.submitted_at,
+            results
+        };
+    },
 };

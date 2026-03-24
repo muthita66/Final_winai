@@ -187,7 +187,7 @@ export function AdvisorTeacherEvaluationFeature({ session }: AdvisorTeacherEvalu
 
         const unanswered = topics.filter((t) => Number(scores[t] || 0) <= 0);
         if (unanswered.length > 0) {
-            toast.error("กรุณาตอบแบบประเมินให้ครบทุกข้อ");
+            toast.error("กรุณากรอกข้อมูลให้ครบ");
             return;
         }
 

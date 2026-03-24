@@ -94,10 +94,7 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
     const advisors = advDataAny?.advisors || (advDataAny?.advisor ? [advDataAny.advisor] : []);
     const isLoading = (hasValidTerm && (classScheduleQuery.isLoading || examScheduleQuery.isLoading || advisorQuery.isLoading || cartQuery.isLoading)) || academicYearsQuery.isLoading;
 
-    const fixedSlots = [
-        "8:00-8:50", "9:00-9:50", "10:00-10:50", "11:00-11:50",
-        "12:00-12:50", "13:00-13:50", "14:00-14:50", "15:00-15:50"
-    ];
+
 
     // Update URL when year/semester changes
     useEffect(() => {
@@ -231,6 +228,23 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
         ...cartScheduleRows,
     ].filter((r: any) => String(r?.day_of_week || "").trim() && String(r?.time_range || "").trim());
 
+    // Generate dynamic slots from actual class data to prevent time overlaps/mismatches with database periods
+    const uniqueTimeRanges = Array.from(new Set(mergedClassRows.map((r: any) => r.time_range).filter(Boolean))) as string[];
+    const sortedSlots = uniqueTimeRanges.sort((a, b) => {
+        const rA = parseRange(a);
+        const rB = parseRange(b);
+        if (!rA && !rB) return 0;
+        if (!rA) return 1;
+        if (!rB) return -1;
+        return rA.start - rB.start;
+    });
+
+    // Fallback to traditional slots if no data
+    const displaySlots = sortedSlots.length > 0 ? sortedSlots : [
+        "8:00-8:50", "9:00-9:50", "10:00-10:50", "11:00-11:50",
+        "12:00-12:50", "13:00-13:50", "14:00-14:50", "15:00-15:50"
+    ];
+
     // Prepare grid data
     const byDay: Record<string, any[]> = {};
     mergedClassRows.forEach((r: any) => {
@@ -286,17 +300,18 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
     };
 
     return (
-        <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 space-y-6 w-full">
-            <section className="bg-gradient-to-r from-emerald-700 to-teal-800 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
-                <div className="relative z-10">
-                    <div className="inline-block bg-white/20 px-3 py-0.5 rounded-full text-xs font-medium mb-3 backdrop-blur-sm border border-white/20">
-                        Schedule
+        <div className="w-full min-w-0 max-w-full overflow-x-hidden">
+            <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 space-y-6 w-full min-w-0">
+                <section className="bg-gradient-to-r from-emerald-700 to-teal-800 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
+                    <div className="relative z-10">
+                        <div className="inline-block bg-white/20 px-3 py-0.5 rounded-full text-xs font-medium mb-3 backdrop-blur-sm border border-white/20">
+                            Schedule
+                        </div>
+                        <h1 className="text-2xl font-bold mb-1">ตารางเรียน / ตารางสอบ</h1>
+                        <p className="text-emerald-100 text-sm max-w-2xl">
+                            เลือกปีการศึกษาและภาคเรียนเพื่อดูตารางล่าสุด
+                        </p>
                     </div>
-                    <h1 className="text-2xl font-bold mb-1">ตารางเรียน / ตารางสอบ</h1>
-                    <p className="text-emerald-100 text-sm max-w-2xl">
-                        เลือกปีการศึกษาและภาคเรียนเพื่อดูตารางล่าสุด
-                    </p>
-                </div>
 
                 {/* Background Decoration */}
                 <div className="absolute top-0 right-0 w-64 h-full bg-white opacity-5 transform skew-x-12 translate-x-20"></div>
@@ -420,12 +435,12 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
                             <div className="flex items-center gap-3 mb-6">
                                 <h3 className="text-lg font-bold text-slate-800">ตารางเรียน</h3>
                             </div>
-                            <div className="overflow-x-auto pb-4">
-                                <table className="w-full text-xs text-left border-collapse min-w-[1600px] table-fixed">
-                                    <thead className="text-[11px] text-slate-600 bg-slate-50 border-b border-t border-slate-200 uppercase tracking-wider">
+                            <div className="overflow-x-auto pb-6 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                                <table className="w-full text-sm text-left border-collapse min-w-[1300px]">
+                                    <thead className="text-xs text-slate-600 bg-slate-50 border-b border-t border-slate-200 uppercase tracking-wider">
                                         <tr>
-                                            <th className="px-3 py-3 border-r border-slate-200 text-center w-24">วัน/เวลา</th>
-                                            {fixedSlots.map(slot => (
+                                            <th className="px-4 py-4 border-r border-slate-200 text-center w-28 font-bold">วัน/เวลา</th>
+                                            {displaySlots.map((slot: string) => (
                                                 <th key={slot} className="px-3 py-3 border-r border-slate-200 text-center font-bold">{slot}</th>
                                             ))}
                                         </tr>
@@ -433,7 +448,7 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
                                     <tbody>
                                         {mergedClassRows.length === 0 ? (
                                             <tr>
-                                                <td colSpan={fixedSlots.length + 1} className="px-6 py-8 text-center text-slate-500 border-b border-slate-200">
+                                                <td colSpan={displaySlots.length + 1} className="px-6 py-8 text-center text-slate-500 border-b border-slate-200">
                                                     ไม่มีข้อมูลตารางเรียน
                                                 </td>
                                             </tr>
@@ -442,19 +457,19 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
                                                 const dayRows = byDay[day] || [];
                                                 return (
                                                     <tr key={day} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                                                        <th className="px-3 py-4 font-bold text-slate-700 bg-slate-50/50 border-r border-slate-200 text-center">{day}</th>
-                                                        {fixedSlots.map(slot => {
+                                                        <th className="px-3 py-6 font-bold text-slate-700 bg-slate-50/50 border-r border-slate-200 text-center">{day}</th>
+                                                        {displaySlots.map((slot: string) => {
                                                             const matches = dayRows.filter(r => slotMatch(r.time_range, slot));
                                                             if (!matches.length) return <td key={slot} className="px-2 py-2 border-r border-slate-200"></td>;
 
                                                             return (
-                                                                <td key={slot} className={`px-2 py-2 border-r border-slate-200 align-top ${matches.length > 1 ? 'bg-rose-50/60' : ''}`}>
+                                                                <td key={slot} className={`px-2 py-3 border-r border-slate-200 align-top ${matches.length > 1 ? 'bg-rose-50/60' : ''}`}>
                                                                     {matches.map((r, i) => (
-                                                                        <div key={`${r.source || 'registered'}-${r.section_id || r.subject_code || i}-${i}`} className={`rounded-xl p-2.5 mb-2 last:mb-0 text-xs border shadow-sm shrink-0 ${r.source === 'cart' ? 'bg-amber-50 border-amber-200' : 'bg-teal-50 border-teal-100'}`}>
-                                                                            <div className={`font-bold mb-1 leading-tight truncate ${r.source === 'cart' ? 'text-amber-700' : 'text-teal-700'}`}>{r.subject_code || "-"}</div>
-                                                                            <div className="text-slate-800 font-bold leading-tight mb-1.5 line-clamp-2">{r.subject_name || "-"}</div>
-                                                                            <div className="text-[10.5px] text-slate-800 font-medium whitespace-nowrap overflow-hidden text-ellipsis" title={`ผู้สอน ${r.teacher || "-"}`}>ผู้สอน: {r.teacher || "-"}</div>
-                                                                            <div className="text-[10.5px] text-slate-500 font-medium mt-1 whitespace-nowrap overflow-hidden text-ellipsis">ห้อง: {(r.room_name || r.room || "-").replace(/ห้องเรียน|ห้อง/g, "").trim()}</div>
+                                                                        <div key={`${r.source || 'registered'}-${r.section_id || r.subject_code || i}-${i}`} className={`rounded-xl p-3.5 mb-3 last:mb-0 border shadow-sm shrink-0 ${r.source === 'cart' ? 'bg-amber-50 border-amber-200' : 'bg-teal-50 border-teal-100'}`}>
+                                                                            <div className={`font-bold text-sm mb-1.5 leading-tight truncate ${r.source === 'cart' ? 'text-amber-700' : 'text-teal-700'}`}>{r.subject_code || "-"}</div>
+                                                                            <div className="text-[15px] text-slate-800 font-extrabold leading-snug mb-2 line-clamp-2">{r.subject_name || "-"}</div>
+                                                                            <div className="text-xs text-slate-800 font-semibold whitespace-nowrap overflow-hidden text-ellipsis" title={`ผู้สอน ${r.teacher || "-"}`}>ผู้สอน: {r.teacher || "-"}</div>
+                                                                            <div className="text-xs text-slate-500 font-medium mt-1.5 whitespace-nowrap overflow-hidden text-ellipsis">ห้อง: {(r.room_name || r.room || "-").replace(/ห้องเรียน|ห้อง/g, "").trim()}</div>
                                                                         </div>
                                                                     ))}
                                                                     {matches.length > 1 && (
@@ -518,6 +533,7 @@ export function ScheduleFeature({ session }: ScheduleFeatureProps) {
                     )}
                 </>
             )}
+        </div>
         </div>
     );
 }

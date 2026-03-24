@@ -8,7 +8,7 @@ import { getAcademicSemesterDefault, getAcademicYearOptionsForStudent, getCurren
 
 interface LearningResultsFeatureProps {
     session: any;
-    initialTab?: "subject" | "advisor";
+    initialTab?: "subject" | "advisor" | "sdq";
     hideResultTabs?: boolean;
 }
 
@@ -38,7 +38,7 @@ export function LearningResultsFeature({
     const [year, setYear] = useState<number>(getCurrentAcademicYearBE());
     const [semester, setSemester] = useState<number>(getAcademicSemesterDefault());
     const [selectedSectionId, setSelectedSectionId] = useState<number | "">("");
-    const [activeResultTab, setActiveResultTab] = useState<"subject" | "advisor">(initialTab);
+    const [activeResultTab, setActiveResultTab] = useState<"subject" | "advisor" | "sdq">(initialTab);
     const [hasManualTermSelection, setHasManualTermSelection] = useState(false);
     const [didAutoFallback, setDidAutoFallback] = useState(false);
 
@@ -117,11 +117,19 @@ export function LearningResultsFeature({
     });
 
     const subjectEvaluations = Array.isArray(subjectEvaluationQuery.data) ? subjectEvaluationQuery.data : [];
+    const sdqEvaluationQuery = useQuery({
+        queryKey: ["student", "evaluation", "sdq", year, semester],
+        queryFn: () => StudentApiService.getSdqEvaluation(year, semester),
+        enabled: activeResultTab === "sdq",
+    });
+
+    const sdqEvaluation = sdqEvaluationQuery.data || null;
 
 
     const isLoadingInit = registeredQuery.isLoading;
     const isLoadingAdvisor = queryAdvisor.isLoading;
     const isLoadingSubject = subjectEvaluationQuery.isLoading;
+    const isLoadingSdq = sdqEvaluationQuery.isLoading;
     const fetchError = (registeredQuery.error as any)?.message || null;
 
     const handleSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -264,40 +272,58 @@ export function LearningResultsFeature({
             </section>
 
             {!hideResultTabs && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                     <button
                         onClick={() => setActiveResultTab("subject")}
-                        className={`flex items-center gap-3 px-6 py-4 rounded-2xl text-left font-semibold transition-all duration-300 border-2 ${activeResultTab === "subject"
-                            ? "bg-teal-600 text-white border-teal-600 shadow-lg scale-[1.02]"
+                        className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-left font-semibold transition-all duration-300 border-2 ${activeResultTab === "subject"
+                            ? "bg-teal-600 text-white border-teal-600 shadow-md"
                             : "bg-white text-slate-600 border-slate-200 hover:border-teal-300 hover:bg-teal-50"
                             }`}
                     >
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${activeResultTab === "subject" ? "bg-white/20" : "bg-teal-50 text-teal-600"}`}>
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${activeResultTab === "subject" ? "bg-white/20" : "bg-teal-50 text-teal-600"}`}>
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                         </div>
                         <div>
                             <div className="text-sm font-bold">ผลประเมินรายวิชา</div>
-                            <div className={`text-xs mt-0.5 ${activeResultTab === "subject" ? "text-teal-100" : "text-slate-400"}`}>จากครูผู้สอนรายวิชา</div>
+                            <div className={`text-[11px] mt-0.5 ${activeResultTab === "subject" ? "text-teal-100" : "text-slate-400"}`}>จากครูผู้สอนรายวิชา</div>
                         </div>
                     </button>
 
                     <button
                         onClick={() => setActiveResultTab("advisor")}
-                        className={`flex items-center gap-3 px-6 py-4 rounded-2xl text-left font-semibold transition-all duration-300 border-2 ${activeResultTab === "advisor"
-                            ? "bg-emerald-600 text-white border-emerald-600 shadow-lg scale-[1.02]"
+                        className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-left font-semibold transition-all duration-300 border-2 ${activeResultTab === "advisor"
+                            ? "bg-emerald-600 text-white border-emerald-600 shadow-md"
                             : "bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:bg-emerald-50"
                             }`}
                     >
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${activeResultTab === "advisor" ? "bg-white/20" : "bg-emerald-50 text-emerald-600"}`}>
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${activeResultTab === "advisor" ? "bg-white/20" : "bg-emerald-50 text-emerald-600"}`}>
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                         </div>
                         <div>
                             <div className="text-sm font-bold">ผลประเมินครูที่ปรึกษา</div>
-                            <div className={`text-xs mt-0.5 ${activeResultTab === "advisor" ? "text-emerald-100" : "text-slate-400"}`}>ประเมินโดยรวมจากที่ปรึกษา</div>
+                            <div className={`text-[11px] mt-0.5 ${activeResultTab === "advisor" ? "text-emerald-100" : "text-slate-400"}`}>ประเมินโดยรวมจากที่ปรึกษา</div>
+                        </div>
+                    </button>
+
+                    <button
+                        onClick={() => setActiveResultTab("sdq")}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-left font-semibold transition-all duration-300 border-2 ${activeResultTab === "sdq"
+                            ? "bg-amber-600 text-white border-amber-600 shadow-md"
+                            : "bg-white text-slate-600 border-slate-200 hover:border-amber-300 hover:bg-amber-50"
+                            }`}
+                    >
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${activeResultTab === "sdq" ? "bg-white/20" : "bg-amber-50 text-amber-600"}`}>
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div className="text-sm font-bold">ผลประเมิน SDQ</div>
+                            <div className={`text-[11px] mt-0.5 ${activeResultTab === "sdq" ? "text-amber-100" : "text-slate-400"}`}>ประเมินตนเองทางด้านพฤติกรรม</div>
                         </div>
                     </button>
                 </div>
@@ -524,11 +550,10 @@ export function LearningResultsFeature({
                                 <button
                                     key={adv.user_id}
                                     onClick={() => setSelectedAdvisorUserId(adv.user_id)}
-                                    className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                                        selectedAdvisorUserId === adv.user_id
+                                    className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedAdvisorUserId === adv.user_id
                                             ? "bg-white text-emerald-600 shadow-sm border border-emerald-100"
                                             : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
-                                    }`}
+                                        }`}
                                 >
                                     {adv.name}
                                 </button>
@@ -540,11 +565,10 @@ export function LearningResultsFeature({
                     <div className="flex bg-slate-100/50 p-1.5 rounded-2xl mb-8 border border-slate-100">
                         <button
                             onClick={() => setSelectedFormName('แบบประเมินคุณลักษณะอันพึงประสงค์')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all ${
-                                selectedFormName === 'แบบประเมินคุณลักษณะอันพึงประสงค์'
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all ${selectedFormName === 'แบบประเมินคุณลักษณะอันพึงประสงค์'
                                     ? "bg-white text-emerald-600 shadow-sm"
                                     : "text-slate-500 hover:text-emerald-500"
-                            }`}
+                                }`}
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -553,11 +577,10 @@ export function LearningResultsFeature({
                         </button>
                         <button
                             onClick={() => setSelectedFormName('คุณลักษณะของนักเรียนขณะอยู่ที่โรงเรียน')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all ${
-                                selectedFormName === 'คุณลักษณะของนักเรียนขณะอยู่ที่โรงเรียน'
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all ${selectedFormName === 'คุณลักษณะของนักเรียนขณะอยู่ที่โรงเรียน'
                                     ? "bg-white text-teal-600 shadow-sm"
                                     : "text-slate-500 hover:text-teal-500"
-                            }`}
+                                }`}
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -661,6 +684,98 @@ export function LearningResultsFeature({
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    )}
+                </section>
+            )}
+
+            {/* SDQ Evaluation Results */}
+            {activeResultTab === "sdq" && (
+                <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-800">ผลประเมินตนเอง SDQ</h3>
+                        </div>
+                    </div>
+
+                    {isLoadingSdq ? (
+                        <div className="space-y-4">
+                            {[...Array(3)].map((_, i) => (
+                                <Skeleton key={i} variant="rounded" className="h-24 w-full" />
+                            ))}
+                        </div>
+                    ) : !sdqEvaluation || !sdqEvaluation.results || sdqEvaluation.results.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                            <svg className="w-16 h-16 mb-4 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <p className="font-bold text-lg">ยังไม่มีข้อมูลผลประเมิน SDQ</p>
+                            <p className="text-sm">กรุณาทำแบบประเมินตนเองก่อนดูผล</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
+                                <h4 className="font-black text-slate-700 mb-4 flex items-center gap-2">
+                                    <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    เกณฑ์การประเมิน
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                                        <span className="text-sm font-bold text-slate-600">ปกติ : 0–5</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-3 h-3 rounded-full bg-amber-500" />
+                                        <span className="text-sm font-bold text-slate-600">เสี่ยง : 6</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-3 h-3 rounded-full bg-rose-500" />
+                                        <span className="text-sm font-bold text-slate-600">มีปัญหา : 7–10</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {sdqEvaluation.results.map((res: any, idx: number) => (
+                                    <div key={idx} className="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col justify-between hover:shadow-md transition-all">
+                                        <div>
+                                            <div className="text-sm font-medium text-slate-600 mb-3">{res.section_name}</div>
+                                            <div className="flex items-end gap-3 mb-6">
+                                                <div className={`text-5xl font-black ${res.color === 'emerald' ? 'text-emerald-600' :
+                                                        res.color === 'amber' ? 'text-amber-500' : 'text-rose-600'
+                                                    }`}>{res.total_score}</div>
+                                                <div className="text-slate-400 font-bold mb-1.5 text-lg">/ 10</div>
+                                            </div>
+                                        </div>
+
+                                        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold w-fit ${res.color === 'emerald' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                                res.color === 'amber' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                                    'bg-rose-50 text-rose-600 border border-rose-100'
+                                            }`}>
+                                            <div className={`w-2 h-2 rounded-full ${res.color === 'emerald' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' :
+                                                    res.color === 'amber' ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]' :
+                                                        'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'
+                                                }`} />
+                                            {res.status}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="text-xs text-slate-400 text-center mt-4">
+                                ข้อมูลล่าสุดเมื่อ: {sdqEvaluation.submitted_at ? new Date(sdqEvaluation.submitted_at).toLocaleDateString('th-TH', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                }) : '-'}
+                            </div>
                         </div>
                     )}
                 </section>

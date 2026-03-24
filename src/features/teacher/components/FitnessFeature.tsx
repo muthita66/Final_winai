@@ -29,6 +29,7 @@ export function FitnessFeature({ session }: { session: any }) {
     const [isAdvisor, setIsAdvisor] = useState<boolean | null>(null);
     const [saving, setSaving] = useState(false);
     const [isCriteriaModalOpen, setIsCriteriaModalOpen] = useState(false);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
 
     useEffect(() => {
@@ -101,11 +102,13 @@ export function FitnessFeature({ session }: { session: any }) {
                             }) || criteriaList[0];
 
                             if (genderMatch && genderMatch.passing_threshold) {
-                                next[s.id].standard = parseFloat(genderMatch.passing_threshold).toString();
+                                next[s.id].standard = (genderMatch.passing_threshold && parseFloat(genderMatch.passing_threshold) !== 0) ? parseFloat(genderMatch.passing_threshold).toString() : '';
+                                next[s.id].comparison = genderMatch.comparison_type || '>=';
                                 next[s.id].criteriaSource = `${genderMatch.gender} / ${genderMatch.grade_level}`;
+                                next[s.id].criteriaId = genderMatch.id;
                                 // Recalculate status if result exists
                                 if (next[s.id].result) {
-                                    next[s.id].status = calculateStatus(next[s.id].result, next[s.id].standard, testName);
+                                    next[s.id].status = calculateStatus(next[s.id].result, next[s.id].standard, next[s.id].comparison);
                                 }
                             }
                         });
@@ -117,7 +120,7 @@ export function FitnessFeature({ session }: { session: any }) {
             }
         };
         fetchCriteria();
-    }, [testName, classLevel, year, students]);
+    }, [testName, classLevel, year, students, refreshTrigger]);
 
 
     const loadStudents = async () => {
@@ -127,29 +130,17 @@ export function FitnessFeature({ session }: { session: any }) {
             const data = await TeacherApiService.getFitnessStudents(session.id, classLevel, room, year, semester);
             setStudents(data || []);
 
-            // Initialize results from existing data
             const initialResults: Record<number, any> = {};
             (data || []).forEach((s: any) => {
-                const res: any = {};
-                (s.fitness_tests || []).forEach((t: any) => {
-                    if (t.test_name === "น้ำหนัก (Weight)") {
-                        res.weight = String(t.test_result);
-                    } else if (t.test_name === "ส่วนสูง (Height)") {
-                        res.height = String(t.test_result);
-                    } else if (recordType === "fitness" && t.test_name === testName) {
-                        res.result = String(t.test_result);
-                        res.standard = t.standard_value || ""; // Standard value might not be in fitness_tests, will be updated by fetchCriteria
-                        res.status = t.status || "";
-                    } else if (recordType === "all") {
-                        // In "all" mode, if we are looking at a specific testName, or just want to show weight/height
-                        if (t.test_name === testName) {
-                            res.result = String(t.test_result);
-                            res.status = t.status || "";
-                        }
-                    }
-                });
-                if (Object.keys(res).length > 0) {
-                    initialResults[s.id] = res;
+                initialResults[s.id] = {};
+                if (s.existing_health) {
+                    initialResults[s.id].weight = s.existing_health.weight;
+                    initialResults[s.id].height = s.existing_health.height;
+                }
+                if (s.existing_fitness && testName && s.existing_fitness[testName]) {
+                    initialResults[s.id].result = s.existing_fitness[testName].result;
+                    initialResults[s.id].status = s.existing_fitness[testName].status;
+                    // Note: comparison and criteria details will be populated by fetchCriteria effect
                 }
             });
             setResults(initialResults);
@@ -184,43 +175,30 @@ export function FitnessFeature({ session }: { session: any }) {
             if (!res) return;
 
             // Save weight/height if present in weight_height OR all mode
-            if (recordType === "weight_height" || recordType === "all") {
-                if (res.weight) {
-                    payloads.push({
-                        student_id: s.id,
-                        teacher_id: session.id,
-                        test_name: "น้ำหนัก (Weight)",
-                        result_value: res.weight,
-                        standard_value: "-",
-                        status: "บันทึกข้อมูล",
-                        year,
-                        semester: typeof semester === "number" ? semester : 1,
-                    });
-                }
-                if (res.height) {
-                    payloads.push({
-                        student_id: s.id,
-                        teacher_id: session.id,
-                        test_name: "ส่วนสูง (Height)",
-                        result_value: res.height,
-                        standard_value: "-",
-                        status: "บันทึกข้อมูล",
-                        year,
-                        semester: typeof semester === "number" ? semester : 1,
-                    });
-                }
+            if ((recordType === "weight_height" || recordType === "all") && (res.weight || res.height)) {
+                payloads.push({
+                    record_type: 'health',
+                    student_id: s.id,
+                    teacher_id: session.id,
+                    weight: res.weight ? parseFloat(res.weight) : null,
+                    height: res.height ? parseFloat(res.height) : null,
+                    year,
+                    semester: typeof semester === "number" ? semester : 1,
+                });
             }
 
             // Save fitness if present in fitness OR all mode
             if (recordType === "fitness" || recordType === "all") {
                 if ((res.result || "").trim()) {
                     payloads.push({
+                        record_type: 'fitness',
                         student_id: s.id,
                         teacher_id: session.id,
                         test_name: testName,
                         result_value: res.result.trim(),
                         standard_value: (res.standard || "-").trim(),
                         status: (res.status || "ผ่าน").trim(),
+                        criteria_id: res.criteriaId || null,
                         year,
                         semester: typeof semester === "number" ? semester : 1,
                     });
@@ -246,13 +224,19 @@ export function FitnessFeature({ session }: { session: any }) {
 
     const testOptions = ["วิ่ง 50 เมตร", "วิ่ง 1000 เมตร", "ลุก-นั่ง 60 วินาที", "ดันพื้น", "นั่งงอตัว", "ยืนกระโดดไกล"];
 
-    const calculateStatus = (result: string, standard: string, test: string) => {
+    const calculateStatus = (result: string, standard: string, comparison: string = '>=') => {
         const r = parseFloat(result);
         const s = parseFloat(standard);
         if (isNaN(r) || isNaN(s)) return "";
 
-        // Higher or equal is better (Result >= Standard)
-        return r >= s ? "ผ่าน" : "ไม่ผ่าน";
+        switch (comparison) {
+            case '>=': return r >= s ? "ผ่าน" : "ไม่ผ่าน";
+            case '<=': return r <= s ? "ผ่าน" : "ไม่ผ่าน";
+            case '>': return r > s ? "ผ่าน" : "ไม่ผ่าน";
+            case '<': return r < s ? "ผ่าน" : "ไม่ผ่าน";
+            case '==': return r === s ? "ผ่าน" : "ไม่ผ่าน";
+            default: return r >= s ? "ผ่าน" : "ไม่ผ่าน";
+        }
     };
 
     return (
@@ -332,7 +316,21 @@ export function FitnessFeature({ session }: { session: any }) {
                             value={testName}
                             onChange={(e) => {
                                 setTestName(e.target.value);
-                                setResults({});
+                                const newTest = e.target.value;
+                                setResults(prev => {
+                                    const next = { ...prev };
+                                    students.forEach(s => {
+                                        if (!next[s.id]) next[s.id] = {};
+                                        if (s.existing_fitness && s.existing_fitness[newTest]) {
+                                            next[s.id].result = s.existing_fitness[newTest].result;
+                                            next[s.id].status = s.existing_fitness[newTest].status;
+                                        } else {
+                                            next[s.id].result = undefined;
+                                            next[s.id].status = undefined;
+                                        }
+                                    });
+                                    return next;
+                                });
                             }}
                         >
                             {TEST_TYPES.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
@@ -387,12 +385,12 @@ export function FitnessFeature({ session }: { session: any }) {
                                 <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600 w-16">เลขที่</th>
                                 <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600 w-32">รหัสนักเรียน</th>
                                 <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600 min-w-[200px]">ชื่อ-นามสกุล</th>
-                                <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600 w-20">เพศ</th>
+                                <th className="px-4 py-3 text-center text-sm font-bold text-slate-700 w-20">เพศ</th>
                                 {recordType === "weight_height" ? (
                                     <>
                                         <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">น้ำหนัก (กก.)</th>
                                         <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">ส่วนสูง (ซม.)</th>
-                                        <th className="px-4 py-3 text-center text-sm font-semibold text-slate-600">BMI</th>
+                                        <th className="px-4 py-3 text-center text-sm font-bold text-slate-700">BMI</th>
                                     </>
                                 ) : recordType === "fitness" ? (
                                     <>
@@ -444,7 +442,7 @@ export function FitnessFeature({ session }: { session: any }) {
                                             )}
                                         </td>
                                         <td className="px-4 py-3 text-center">
-                                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                                            <span className={`inline-block px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wide shadow-sm ${
                                                 s.gender === 'ชาย' ? 'bg-teal-50 text-teal-600 border border-teal-100' : 
                                                 s.gender === 'หญิง' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 
                                                 'bg-slate-50 text-slate-500 border border-slate-100'
@@ -474,10 +472,10 @@ export function FitnessFeature({ session }: { session: any }) {
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
-                                                    <div className="flex flex-col items-center">
-                                                        <span className="text-sm font-bold text-slate-700">{bmi}</span>
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <span className="text-lg font-medium text-slate-700 tabular-nums leading-none">{bmi}</span>
                                                         {interpretation && (
-                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md shadow-sm ${
                                                                 interpretation === "ปกติ" ? "bg-emerald-100 text-emerald-700" : 
                                                                 interpretation === "ผอม" ? "bg-amber-100 text-amber-700" : 
                                                                 "bg-rose-100 text-rose-700"
@@ -497,23 +495,30 @@ export function FitnessFeature({ session }: { session: any }) {
                                                         value={res.result || ""}
                                                         onChange={(e) => {
                                                             const newResult = e.target.value;
-                                                            const newStatus = calculateStatus(newResult, res.standard || "", testName);
+                                                            const newStatus = calculateStatus(newResult, res.standard || "", res.comparison || '>=');
                                                             setResults({ ...results, [s.id]: { ...res, result: newResult, status: newStatus } });
                                                         }}
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
                                                     <div className="flex flex-col items-center gap-1">
-                                                        <input
-                                                            className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm"
-                                                            placeholder="เกณฑ์"
-                                                            value={res.standard || ""}
-                                                            onChange={(e) => {
-                                                                const newStandard = e.target.value;
-                                                                const newStatus = calculateStatus(res.result || "", newStandard, testName);
-                                                                setResults({ ...results, [s.id]: { ...res, standard: newStandard, status: newStatus } });
-                                                            }}
-                                                        />
+                                                        <div className="flex items-center gap-1">
+                                                            {res.comparison && (
+                                                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1 rounded border border-emerald-100">
+                                                                    {res.comparison}
+                                                                </span>
+                                                            )}
+                                                            <input
+                                                                className={`w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm ${res.criteriaSource ? 'bg-slate-50 font-bold text-slate-700' : ''}`}
+                                                                placeholder="เกณฑ์"
+                                                                value={res.standard || ""}
+                                                                onChange={(e) => {
+                                                                    const newStandard = e.target.value;
+                                                                    const newStatus = calculateStatus(res.result || "", newStandard, res.comparison || '>=');
+                                                                    setResults({ ...results, [s.id]: { ...res, standard: newStandard, status: newStatus } });
+                                                                }}
+                                                            />
+                                                        </div>
                                                         {res.criteriaSource && (
                                                             <div className="text-[10px] font-black text-slate-400 uppercase tracking-tighter opacity-80 leading-none">
                                                                 {res.criteriaSource}
@@ -556,29 +561,36 @@ export function FitnessFeature({ session }: { session: any }) {
                                                         value={res.result || ""}
                                                         onChange={(e) => {
                                                             const newResult = e.target.value;
-                                                            const newStatus = calculateStatus(newResult, res.standard || "", testName);
+                                                            const newStatus = calculateStatus(newResult, res.standard || "", res.comparison || '>=');
                                                             setResults({ ...results, [s.id]: { ...res, result: newResult, status: newStatus } });
                                                         }}
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3 text-center border-x border-slate-50 bg-teal-50/20">
                                                     <div className="flex flex-col gap-1 items-center">
-                                                        <input
-                                                            className="w-20 px-1.5 py-1 border border-slate-200 rounded-lg text-center text-[10px] outline-none group-hover:bg-white"
-                                                            placeholder="เกณฑ์"
-                                                            value={res.standard || ""}
-                                                            onChange={(e) => {
-                                                                const newStandard = e.target.value;
-                                                                const newStatus = calculateStatus(res.result || "", newStandard, testName);
-                                                                setResults({ ...results, [s.id]: { ...res, standard: newStandard, status: newStatus } });
-                                                            }}
-                                                        />
+                                                        <div className="flex items-center gap-0.5">
+                                                            {res.comparison && (
+                                                                <span className="text-[8px] font-bold text-teal-600 bg-teal-50 px-0.5 rounded border border-teal-100">
+                                                                    {res.comparison}
+                                                                </span>
+                                                            )}
+                                                            <input
+                                                                className={`w-16 px-1.5 py-1 border border-slate-200 rounded-lg text-center text-[10px] outline-none group-hover:bg-white ${res.criteriaSource ? 'bg-slate-50 font-bold text-slate-700' : ''}`}
+                                                                placeholder="เกณฑ์"
+                                                                value={res.standard || ""}
+                                                                onChange={(e) => {
+                                                                    const newStandard = e.target.value;
+                                                                    const newStatus = calculateStatus(res.result || "", newStandard, res.comparison || '>=');
+                                                                    setResults({ ...results, [s.id]: { ...res, standard: newStandard, status: newStatus } });
+                                                                }}
+                                                            />
+                                                        </div>
                                                         {res.criteriaSource && (
                                                             <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter opacity-80 leading-none">
                                                                 {res.criteriaSource}
                                                             </div>
                                                         )}
-                                                        <span className={`inline-block px-2 py-1 rounded-lg text-[10px] font-bold ${!res.status ? "bg-slate-100 text-slate-400" :
+                                                        <span className={`inline-block px-2 py-1 rounded-lg text-xs font-bold ${!res.status ? "bg-slate-100 text-slate-400" :
                                                             (res.status === "ไม่ผ่าน") ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"
                                                             }`}>
                                                             {res.status || "-"}
@@ -606,6 +618,7 @@ export function FitnessFeature({ session }: { session: any }) {
             isOpen={isCriteriaModalOpen} 
             onClose={() => setIsCriteriaModalOpen(false)} 
             currentYear={year} 
+            onRefresh={() => setRefreshTrigger(prev => prev + 1)}
         />
     </div>
 );

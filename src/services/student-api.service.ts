@@ -202,6 +202,15 @@ export const StudentApiService = {
         return fetchApi<any[]>(`/api/student/learning-results?${params.toString()}`);
     },
 
+    async getSdqEvaluation(year: number, semester: number) {
+        const params = new URLSearchParams({
+            action: 'sdq_evaluation',
+            year: year.toString(),
+            semester: semester.toString()
+        });
+        return fetchApi<any>(`/api/student/learning-results?${params.toString()}`);
+    },
+
     // --- Activities Evaluation ---
     async getActivityEvaluations(year: number, semester: number) {
         const params = new URLSearchParams({

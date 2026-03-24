@@ -1186,8 +1186,8 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                                     <span className="text-xs text-slate-500 font-medium">คะแนนเต็ม:</span>
                                                                     <input
                                                                         type="number"
-                                                                        value={editMax}
-                                                                        onChange={(e) => setEditMax(Number(e.target.value))}
+                                                                        value={editMax === 0 ? "" : editMax}
+                                                                        onChange={(e) => setEditMax(toNum(e.target.value))}
                                                                         className="w-20 rounded-xl border border-teal-200 px-3 py-1.5 text-sm text-center outline-none focus:ring-2 focus:ring-teal-400"
                                                                     />
                                                                 </div>
@@ -1273,8 +1273,8 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                         <span className="text-xs text-slate-500 font-medium">คะแนนเต็ม:</span>
                                                         <input
                                                             type="number"
-                                                            value={newMax}
-                                                            onChange={(e) => setNewMax(Number(e.target.value))}
+                                                            value={newMax === 0 ? "" : newMax}
+                                                            onChange={(e) => setNewMax(toNum(e.target.value))}
                                                             className="w-20 rounded-xl border border-emerald-200 px-3 py-1.5 text-sm text-center outline-none focus:ring-2 focus:ring-emerald-400"
                                                         />
                                                     </div>
@@ -1458,8 +1458,8 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                             <div className="flex items-center gap-1">
                                                 <input
                                                     type="number"
-                                                    value={cat.weight_percent}
-                                                    onChange={(e) => handleUpdateCategory(cat.id, "", Number(e.target.value), cat.category_type_id)}
+                                                    value={cat.weight_percent === 0 ? "" : cat.weight_percent}
+                                                    onChange={(e) => handleUpdateCategory(cat.id, "", toNum(e.target.value), cat.category_type_id)}
                                                     className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm text-center outline-none focus:ring-2 focus:ring-emerald-400"
                                                 />
                                                 <span className="text-xs text-slate-400">%</span>
