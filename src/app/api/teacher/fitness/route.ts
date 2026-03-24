@@ -82,6 +82,7 @@ export async function POST(request: Request) {
         const data = await TeacherFitnessService.saveFitnessTest(body);
         return successResponse(data);
     } catch (error: any) {
+        console.error("FITNESS SAVE ERROR:", error);
         return errorResponse('Failed to process request', 500, error.message);
     }
 }

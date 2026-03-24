@@ -487,6 +487,7 @@ export const TeacherStudentsService = {
             birthday: s.date_of_birth,
             phone: s.phone || '',
             address: s.address || '',
+            parent_name: s.parent_name || '',
             photo_url,
         };
     },

@@ -303,25 +303,28 @@ export const TeacherFitnessService = {
         const { student_id, teacher_id, test_name, result_value, status, year, semester } = data;
         const aYear = year ? parseInt(year as any) : undefined;
         const sem = (typeof semester === 'number' || (typeof semester === 'string' && semester !== 'all')) ? Number(semester) : undefined;
+        const sId = Number(student_id);
+        const tId = teacher_id ? Number(teacher_id) : undefined;
 
         // If it's Weight or Height, save to student_health_checkups
         if (test_name === "น้ำหนัก (Weight)" || test_name === "ส่วนสูง (Height)") {
             const existing = await prisma.student_health_checkups.findFirst({
                 where: {
-                    student_id,
+                    student_id: sId,
                     academic_year: aYear,
                     semester: sem,
                 },
                 orderBy: { created_at: 'desc' }
             }).catch(() => null);
 
-            const resultVal = parseFloat(result_value) || 0;
+            let resultVal: number | null = parseFloat(result_value);
+            if (isNaN(resultVal)) resultVal = null;
             
             if (existing) {
                 // Update existing record, preserving the other value (weight or height)
                 const updateData: any = {
                     checkup_date: new Date(),
-                    recorded_by: teacher_id
+                    recorded_by: tId
                 };
                 if (test_name === "น้ำหนัก (Weight)") updateData.weight = resultVal;
                 if (test_name === "ส่วนสูง (Height)") updateData.height = resultVal;
@@ -333,11 +336,11 @@ export const TeacherFitnessService = {
             } else {
                 // Create new record
                 const createData: any = {
-                    student_id,
+                    student_id: sId,
                     academic_year: aYear,
                     semester: sem,
                     checkup_date: new Date(),
-                    recorded_by: teacher_id
+                    recorded_by: tId
                 };
                 if (test_name === "น้ำหนัก (Weight)") createData.weight = resultVal;
                 if (test_name === "ส่วนสูง (Height)") createData.height = resultVal;
@@ -354,24 +357,27 @@ export const TeacherFitnessService = {
         // Find existing record for this term/test
         const existingFitness = await prisma.student_fitness_records.findFirst({
             where: {
-                student_id,
+                student_id: sId,
                 academic_year: aYear,
                 semester: sem,
                 test_name: test_name
             }
         }).catch(() => null);
 
+        let resultValFit: number | null = parseFloat(result_value);
+        if (isNaN(resultValFit)) resultValFit = null;
+
         const recordData = {
-            student_id,
+            student_id: sId,
             academic_year: aYear,
             semester: sem,
             test_date: new Date(),
             test_name,
-            test_result: parseFloat(result_value) || 0,
+            test_result: resultValFit !== null ? resultValFit : 0,
             grade: status,
             is_passed: status === 'ผ่าน',
             fitness_test_id: criteria?.id || null,
-            recorded_by: teacher_id
+            recorded_by: tId
         };
 
         if (existingFitness) {
