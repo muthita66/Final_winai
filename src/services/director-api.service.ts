@@ -2,12 +2,13 @@ import { fetchApi } from './api-client';
 
 export const DirectorApiService = {
     // --- Dashboard ---
-    async getSummary(filters?: { gender?: string; class_level?: string; room?: string; subject_id?: number }) {
+    async getSummary(filters?: { gender?: string; class_level?: string; room?: string; subject_id?: number; learning_group_id?: number }) {
         const params = new URLSearchParams();
         if (filters?.gender) params.append('gender', filters.gender);
         if (filters?.class_level) params.append('class_level', filters.class_level);
         if (filters?.room) params.append('room', filters.room);
         if (filters?.subject_id) params.append('subject_id', filters.subject_id.toString());
+        if (filters?.learning_group_id) params.append('learning_group_id', filters.learning_group_id.toString());
         return fetchApi<any>(`/api/director/dashboard?${params.toString()}`);
     },
     async getFilterOptions() {

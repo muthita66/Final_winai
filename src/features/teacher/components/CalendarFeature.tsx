@@ -12,6 +12,28 @@ export type Target = {
 
 const TH_MONTHS = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 
+const EVENT_COLORS = [
+    { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", hover: "hover:bg-emerald-100/80" },
+    { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200", hover: "hover:bg-blue-100/80" },
+    { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200", hover: "hover:bg-amber-100/80" },
+    { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200", hover: "hover:bg-rose-100/80" },
+    { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200", hover: "hover:bg-indigo-100/80" },
+    { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200", hover: "hover:bg-orange-100/80" },
+    { bg: "bg-teal-50", text: "text-teal-700", border: "border-teal-200", hover: "hover:bg-teal-100/80" },
+    { bg: "bg-fuchsia-50", text: "text-fuchsia-700", border: "border-fuchsia-200", hover: "hover:bg-fuchsia-100/80" },
+];
+
+const getEventColor = (ev: any) => {
+    const id = Number(ev.id || 0);
+    const color = EVENT_COLORS[id % EVENT_COLORS.length];
+    return `${color.bg} ${color.text} ${color.border} ${color.hover}`;
+};
+
+const getEventTextOnlyColor = (ev: any) => {
+    const id = Number(ev.id || 0);
+    return EVENT_COLORS[id % EVENT_COLORS.length].text;
+};
+
 export function CalendarFeature({ session }: { session: any }) {
     const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -228,7 +250,7 @@ export function CalendarFeature({ session }: { session: any }) {
                             {dayEvs.slice(0, 2).map((ev: any, idx: number) => (
                                 <div
                                     key={idx}
-                                    className="text-xs px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-md border border-emerald-200 truncate hover:bg-emerald-100 w-fit max-w-full font-medium"
+                                    className={`text-[10px] leading-tight px-1.5 py-0.5 rounded-md border truncate w-full font-bold transition-colors ${getEventColor(ev)}`}
                                     title={ev.title}
                                     onClick={(e) => { e.stopPropagation(); openEditModal(ev); }}
                                 >
@@ -671,8 +693,8 @@ export function CalendarFeature({ session }: { session: any }) {
                             className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-emerald-200 transition-all cursor-pointer hover:bg-white hover:shadow-sm active:scale-[0.99] group"
                         >
                             <div>
-                                <div className="text-sm font-bold text-emerald-700 flex items-center gap-2 mb-1 group-hover:text-emerald-800 transition-colors">
-                                    <Bookmark size={14} className="opacity-70 text-emerald-500" />
+                                <div className={`text-sm font-bold flex items-center gap-2 mb-1 transition-colors ${getEventTextOnlyColor(ev)}`}>
+                                    <Bookmark size={14} className="opacity-70" />
                                     {ev.title}
                                 </div>
                                 <div className="text-xs text-slate-500 mt-0.5 space-y-1">

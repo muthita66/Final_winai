@@ -50,14 +50,28 @@ export function AttendanceFeature({ session }: { session: any }) {
             const match = activeSections.find(s => s.subjectKey === key);
             return { key, label: `${match?.subjectCode} ${match?.subjectName}` };
         });
-        const rooms = Array.from(new Set(activeSections.map(s => s.roomLabel))).map(label => ({ key: label, label }));
+        
+        // Filter rooms based on selected subject
+        const filteredForRooms = selectedSubject 
+            ? activeSections.filter(s => s.subjectKey === selectedSubject)
+            : activeSections;
+
+        const rooms = Array.from(new Set(filteredForRooms.map(s => s.roomLabel))).map(label => ({ key: label, label }));
         return { subjs, rooms };
-    }, [activeSections]);
+    }, [activeSections, selectedSubject]);
 
     useEffect(() => {
         const match = activeSections.find(s => s.subjectKey === selectedSubject && s.roomLabel === selectedRoom);
         setSelectedSection(match?.id || null);
     }, [selectedSubject, selectedRoom, activeSections]);
+
+    // Reset room if it's no longer valid for the selected subject
+    useEffect(() => {
+        if (selectedSubject && selectedRoom) {
+            const isValid = activeSections.some(s => s.subjectKey === selectedSubject && s.roomLabel === selectedRoom);
+            if (!isValid) setSelectedRoom("");
+        }
+    }, [selectedSubject, activeSections, selectedRoom]);
 
     const isComplete = useMemo(() => {
         return students.length > 0 && students.every(s => !!statusMap[s.student_id]);

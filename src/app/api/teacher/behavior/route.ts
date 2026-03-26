@@ -103,7 +103,7 @@ export async function POST(request: Request) {
         // Default: Record behavior
         const result = await TeacherBehaviorService.recordBehavior({
             ...body,
-            reporter_user_id: session.id
+            reporter_user_id: session.userId
         });
         return successResponse(result, 'Behavior recorded successfully');
     } catch (error: any) {

@@ -23,6 +23,19 @@ async function resolveSemesterId(year?: number, semester?: number) {
     return result?.id ?? null;
 }
 
+async function fixSequences() {
+    const tables = ['evaluation_responses', 'evaluation_answers'];
+    for (const table of tables) {
+        try {
+            await prisma.$executeRawUnsafe(`
+                SELECT setval('${table}_id_seq', (SELECT COALESCE(MAX(id), 0) FROM "${table}"));
+            `);
+        } catch (e) {
+            console.error(`[EvaluationService] Failed to fix sequence for ${table}`, e);
+        }
+    }
+}
+
 export const EvaluationService = {
     // Get generic questions for a specific form ID
     async getFormQuestions(formId: number) {
@@ -88,9 +101,9 @@ export const EvaluationService = {
         try {
             let formId = 0;
             if (formType === 'sdq') {
-                // SDQ is requested to be explicitly fetched from sections 12-16
+                // SDQ is requested to be explicitly fetched from 'SDQ' form
                 const sdqForms = await prisma.$queryRaw<any[]>`
-                    SELECT form_id FROM evaluation_sections WHERE id IN (12, 13, 14, 15, 16) LIMIT 1
+                    SELECT id as form_id FROM evaluation_forms WHERE form_name ILIKE '%SDQ%' LIMIT 1
                 `;
                 if (sdqForms.length > 0) formId = sdqForms[0].form_id;
                 else return [];
@@ -118,24 +131,7 @@ export const EvaluationService = {
             }
 
             // Fetch all sections and questions for this form
-            // For SDQ, strictly load sections 12-16 as requested
-            const questions: any[] = formType === 'sdq' 
-            ? await prisma.$queryRaw`
-                SELECT 
-                    eq.id,
-                    eq.question_text,
-                    eq.question_type_id,
-                    eq.order_number,
-                    eq.scale_type_id,
-                    es.id as section_id,
-                    es.section_name,
-                    es.order_number as section_order
-                FROM evaluation_questions eq
-                JOIN evaluation_sections es ON es.id = eq.section_id
-                WHERE es.id IN (12, 13, 14, 15, 16)
-                ORDER BY es.order_number ASC, eq.order_number ASC
-            `
-            : await prisma.$queryRaw`
+            const questions: any[] = await prisma.$queryRaw`
                 SELECT 
                     eq.id,
                     eq.question_text,
@@ -205,7 +201,7 @@ export const EvaluationService = {
         // Assuming "Competency Results" are evaluations OF the student
         const responsesResult = await prisma.$queryRawUnsafe<any[]>(
             `SELECT * FROM evaluation_responses 
-             WHERE student_id = $1 
+             WHERE target_student_id = $1 
              ${semester_id ? `AND semester_id = ${semester_id}` : ''}
              ORDER BY submitted_at DESC`,
             student_id
@@ -261,7 +257,7 @@ export const EvaluationService = {
         let formId = 0;
         if (formType === 'sdq') {
             const sdqForms = await prisma.$queryRaw<any[]>`
-                SELECT form_id FROM evaluation_sections WHERE id IN (12, 13, 14, 15, 16) LIMIT 1
+                SELECT id as form_id FROM evaluation_forms WHERE form_name ILIKE '%SDQ%' LIMIT 1
             `;
             if (sdqForms.length > 0) formId = sdqForms[0].form_id;
             else throw new Error('No SDQ evaluation form found');
@@ -279,15 +275,11 @@ export const EvaluationService = {
             formId = form.id;
         }
 
-        const questionsRaw: any[] = formType === 'sdq'
-            ? await prisma.$queryRaw`
-                SELECT id, question_text, question_type_id FROM evaluation_questions WHERE section_id IN (12, 13, 14, 15, 16)
-              `
-            : await prisma.$queryRaw`
-                SELECT id, question_text, question_type_id FROM evaluation_questions WHERE section_id IN (
-                    SELECT id FROM evaluation_sections WHERE form_id = ${formId}
-                )
-              `;
+        const questionsRaw: any[] = await prisma.$queryRaw`
+            SELECT id, question_text, question_type_id FROM evaluation_questions WHERE section_id IN (
+                SELECT id FROM evaluation_sections WHERE form_id = ${formId}
+            )
+        `;
 
         const questionDetails = new Map<string, { id: number, type: string }>();
         questionsRaw.forEach((q: any) => {
@@ -326,6 +318,9 @@ export const EvaluationService = {
             }
         }
 
+        // Fix sequences before transaction to prevent P2002 (Unique constraint failed on id)
+        await fixSequences();
+
         return prisma.$transaction(async (tx: any) => {
             const result = await tx.evaluation_responses.create({
                 data: {
@@ -350,27 +345,19 @@ export const EvaluationService = {
                     const scoreVal = (!isText && typeof val === 'number') ? val : null;
                     const textVal = (isText || typeof val === 'string') ? String(val) : null;
 
-                    await tx.evaluation_answers.create({
-                        data: {
-                            response_id: responseId,
-                            question_id: detail.id,
-                            text_value: textVal,
-                            score_value: scoreVal
-                        }
-                    });
+                    await tx.$executeRaw`
+                        INSERT INTO evaluation_answers (response_id, question_id, text_value, score_value)
+                        VALUES (${responseId}, ${detail.id}, ${textVal}, ${scoreVal})
+                    `;
                 }
             }
 
             const feedbackText = String(feedback || '').trim();
             if (feedbackText) {
-                await tx.evaluation_answers.create({
-                    data: {
-                        response_id: responseId,
-                        question_id: null,
-                        text_value: feedbackText,
-                        score_value: null
-                    }
-                });
+                await tx.$executeRaw`
+                    INSERT INTO evaluation_answers (response_id, question_id, text_value, score_value)
+                    VALUES (${responseId}, ${null}, ${feedbackText}, ${null})
+                `;
             }
 
             return { message: 'บันทึกสำเร็จ', response_id: responseId };
@@ -393,7 +380,7 @@ export const EvaluationService = {
 
         // Check SDQ status
         const sdqForms = await prisma.$queryRaw<any[]>`
-            SELECT form_id FROM evaluation_sections WHERE id IN (12, 13, 14, 15, 16) LIMIT 1
+            SELECT id as form_id FROM evaluation_forms WHERE form_name ILIKE '%SDQ%' LIMIT 1
         `;
         let sdqDone = false;
         if (sdqForms.length > 0) {

@@ -273,7 +273,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                         <div className="inline-flex items-center px-3 py-1 bg-white/20 rounded-full text-xs font-bold tracking-wider uppercase backdrop-blur-sm">
                             Evaluation
                         </div>
-                        <h1 className="text-3xl font-black tracking-tight">แบบประเมินและรายงานผล</h1>
+                        <h1 className="text-3xl font-black tracking-tight">แบบประเมิน</h1>
                         <p className="text-emerald-100 font-medium">จัดการการประเมินนักเรียนและดูรายงานผลการประเมินในบทบาทครู</p>
                     </div>
                 </div>
@@ -705,74 +705,109 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
             {isModalOpen && evalTemplate && (
                 <Portal>
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-                    {/* Backdrop */}
-                    <div
-                        className="absolute inset-0 bg-black/60 backdrop-blur-md"
-                        onClick={() => setIsModalOpen(false)}
-                    />
-                    {/* Modal box */}
-                    <div className="relative bg-white rounded-[2rem] shadow-2xl w-[95vw] max-w-6xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-                        {/* Modal Header */}
-                        <div className="flex items-start justify-between px-8 pt-8 pb-6 border-b border-slate-100 shrink-0">
-                            <div>
-                                <div className="flex items-center gap-3 mb-1">
-                                    <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600">
-                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        {/* Backdrop */}
+                        <div
+                            className="absolute inset-0 bg-black/60 backdrop-blur-md"
+                            onClick={() => setIsModalOpen(false)}
+                        />
+                        {/* Modal box */}
+                        <div className="relative bg-white rounded-[2rem] shadow-2xl w-[95vw] max-w-6xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                            {/* Modal Header */}
+                            <div className="flex items-start justify-between px-8 pt-8 pb-6 border-b border-slate-100 shrink-0">
+                                <div>
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600">
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-black text-slate-800">ประเมินนักเรียน</h2>
+                                            <p className="text-sm font-bold text-emerald-600">{targetStudent?.name}</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-slate-400 font-medium">{selectedAssignment?.subject_code} - {selectedAssignment?.subject_name}</p>
+                                </div>
+                                <button
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="w-9 h-9 rounded-full bg-slate-100 hover:bg-emerald-100 hover:text-emerald-600 flex items-center justify-center transition-all shrink-0"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {/* Modal body (Scrollable) */}
+                            <div className="overflow-y-auto flex-1 px-8 py-6 space-y-8">
+                                {/* Tips */}
+                                <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 flex gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-emerald-100">
+                                        <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                                         </svg>
                                     </div>
-                                    <div>
-                                        <h2 className="text-xl font-black text-slate-800">ประเมินนักเรียน</h2>
-                                        <p className="text-sm font-bold text-emerald-600">{targetStudent?.name}</p>
-                                    </div>
+                                    <p className="text-xs text-emerald-800 leading-relaxed font-medium">
+                                        กรุณาพิจารณาผลการเรียนและพฤติกรรมของนักเรียนตามความเป็นจริง เพื่อประโยชน์ต่อการพัฒนาการเรียนการสอน
+                                    </p>
                                 </div>
-                                <p className="text-xs text-slate-400 font-medium">{selectedAssignment?.subject_code} - {selectedAssignment?.subject_name}</p>
-                            </div>
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="w-9 h-9 rounded-full bg-slate-100 hover:bg-emerald-100 hover:text-emerald-600 flex items-center justify-center transition-all shrink-0"
-                            >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
 
-                        {/* Modal body (Scrollable) */}
-                        <div className="overflow-y-auto flex-1 px-8 py-6 space-y-8">
-                            {/* Tips */}
-                            <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 flex gap-3">
-                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-emerald-100">
-                                    <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                                    </svg>
-                                </div>
-                                <p className="text-xs text-emerald-800 leading-relaxed font-medium">
-                                    กรุณาพิจารณาผลการเรียนและพฤติกรรมของนักเรียนตามความเป็นจริง เพื่อประโยชน์ต่อการพัฒนาการเรียนการสอน
-                                </p>
-                            </div>
+                                {/* Questions */}
+                                <div className="space-y-6">
+                                    {(() => {
+                                        const optionsList = evalTemplate.scale_options && evalTemplate.scale_options.length > 0
+                                            ? evalTemplate.scale_options
+                                            : [
+                                                { label: '5', value: 5 },
+                                                { label: '4', value: 4 },
+                                                { label: '3', value: 3 },
+                                                { label: '2', value: 2 },
+                                                { label: '1', value: 1 }
+                                            ];
+                                        const colsCount = optionsList.length;
 
-                            {/* Questions */}
-                            <div className="space-y-6">
-                                {(() => {
-                                    const optionsList = evalTemplate.scale_options && evalTemplate.scale_options.length > 0
-                                        ? evalTemplate.scale_options
-                                        : [
-                                            { label: '5', value: 5 },
-                                            { label: '4', value: 4 },
-                                            { label: '3', value: 3 },
-                                            { label: '2', value: 2 },
-                                            { label: '1', value: 1 }
-                                        ];
-                                    const colsCount = optionsList.length;
-
-                                    if ((evalTemplate.sections || []).length > 0) {
-                                        return evalTemplate.sections.map((section: any, idx: number) => (
-                                            <div key={section.id || idx} className="space-y-4">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
-                                                    <h3 className="text-md font-bold text-slate-800">{section.name}</h3>
+                                        if ((evalTemplate.sections || []).length > 0) {
+                                            return evalTemplate.sections.map((section: any, idx: number) => (
+                                                <div key={section.id || idx} className="space-y-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
+                                                        <h3 className="text-md font-bold text-slate-800">{section.name}</h3>
+                                                    </div>
+                                                    <div className="rounded-2xl overflow-hidden border border-slate-200">
+                                                        {/* Header */}
+                                                        <div className="grid bg-slate-50 border-b border-slate-200" style={{ gridTemplateColumns: `1fr repeat(${colsCount}, minmax(64px, 80px))` }}>
+                                                            <div className="px-5 py-3 text-xs font-black text-slate-500 uppercase tracking-wider flex items-center">หัวข้อประเมิน</div>
+                                                            {optionsList.map((opt: any) => (
+                                                                <div key={opt.value} className="py-3 text-center border-l border-slate-200 flex flex-col justify-center">
+                                                                    <div className="text-sm font-black text-slate-700">{opt.value}</div>
+                                                                    {(opt.label && opt.label !== String(opt.value)) && (
+                                                                        <div className="text-[10px] text-slate-500 line-clamp-2 px-1 mt-0.5 leading-tight font-medium">{opt.label}</div>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        {/* Body */}
+                                                        <div className="flex flex-col bg-white">
+                                                            {(section.topics || []).map((t: any, tidx: number) => (
+                                                                <div key={t.id || tidx} className={`grid border-b last:border-0 border-slate-100 ${tidx % 2 !== 0 ? 'bg-slate-50/30' : 'bg-white'} hover:bg-slate-50 transition-colors`} style={{ gridTemplateColumns: `1fr repeat(${colsCount}, minmax(64px, 80px))` }}>
+                                                                    <div className="px-5 py-4 text-sm font-medium text-slate-700 flex items-center pr-4">
+                                                                        {tidx + 1}. {t.name}
+                                                                    </div>
+                                                                    {optionsList.map((opt: any) => (
+                                                                        <div key={opt.value} className="flex justify-center items-center border-l border-slate-100 cursor-pointer group" onClick={() => handleScoreChange(t.name, opt.value)}>
+                                                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${evalForm.scores[t.name] === opt.value ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 group-hover:border-emerald-400 group-hover:bg-emerald-50'}`}>
+                                                                                {evalForm.scores[t.name] === opt.value && <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
                                                 </div>
+                                            ));
+                                        } else {
+                                            return (
                                                 <div className="rounded-2xl overflow-hidden border border-slate-200">
                                                     {/* Header */}
                                                     <div className="grid bg-slate-50 border-b border-slate-200" style={{ gridTemplateColumns: `1fr repeat(${colsCount}, minmax(64px, 80px))` }}>
@@ -788,7 +823,7 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                                     </div>
                                                     {/* Body */}
                                                     <div className="flex flex-col bg-white">
-                                                        {(section.topics || []).map((t: any, tidx: number) => (
+                                                        {(evalTemplate.topics || []).map((t: any, tidx: number) => (
                                                             <div key={t.id || tidx} className={`grid border-b last:border-0 border-slate-100 ${tidx % 2 !== 0 ? 'bg-slate-50/30' : 'bg-white'} hover:bg-slate-50 transition-colors`} style={{ gridTemplateColumns: `1fr repeat(${colsCount}, minmax(64px, 80px))` }}>
                                                                 <div className="px-5 py-4 text-sm font-medium text-slate-700 flex items-center pr-4">
                                                                     {tidx + 1}. {t.name}
@@ -804,271 +839,236 @@ export function TeachingEvaluationFeature({ session }: TeachingEvaluationFeature
                                                         ))}
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ));
-                                    } else {
-                                        return (
-                                            <div className="rounded-2xl overflow-hidden border border-slate-200">
-                                                {/* Header */}
-                                                <div className="grid bg-slate-50 border-b border-slate-200" style={{ gridTemplateColumns: `1fr repeat(${colsCount}, minmax(64px, 80px))` }}>
-                                                    <div className="px-5 py-3 text-xs font-black text-slate-500 uppercase tracking-wider flex items-center">หัวข้อประเมิน</div>
-                                                    {optionsList.map((opt: any) => (
-                                                        <div key={opt.value} className="py-3 text-center border-l border-slate-200 flex flex-col justify-center">
-                                                            <div className="text-sm font-black text-slate-700">{opt.value}</div>
-                                                            {(opt.label && opt.label !== String(opt.value)) && (
-                                                                <div className="text-[10px] text-slate-500 line-clamp-2 px-1 mt-0.5 leading-tight font-medium">{opt.label}</div>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                {/* Body */}
-                                                <div className="flex flex-col bg-white">
-                                                    {(evalTemplate.topics || []).map((t: any, tidx: number) => (
-                                                        <div key={t.id || tidx} className={`grid border-b last:border-0 border-slate-100 ${tidx % 2 !== 0 ? 'bg-slate-50/30' : 'bg-white'} hover:bg-slate-50 transition-colors`} style={{ gridTemplateColumns: `1fr repeat(${colsCount}, minmax(64px, 80px))` }}>
-                                                            <div className="px-5 py-4 text-sm font-medium text-slate-700 flex items-center pr-4">
-                                                                {tidx + 1}. {t.name}
-                                                            </div>
-                                                            {optionsList.map((opt: any) => (
-                                                                <div key={opt.value} className="flex justify-center items-center border-l border-slate-100 cursor-pointer group" onClick={() => handleScoreChange(t.name, opt.value)}>
-                                                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${evalForm.scores[t.name] === opt.value ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 group-hover:border-emerald-400 group-hover:bg-emerald-50'}`}>
-                                                                        {evalForm.scores[t.name] === opt.value && <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />}
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        );
-                                    }
-                                })()}
+                                            );
+                                        }
+                                    })()}
 
-                                {/* Feedback Area */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-bold text-slate-700 ml-1">ข้อเสนอแนะเพิ่มเติม <span className="text-slate-400 font-medium">(ถ้ามี)</span></label>
-                                    <textarea
-                                        value={evalForm.feedback}
-                                        onChange={(e) => setEvalForm(prev => ({ ...prev, feedback: e.target.value }))}
-                                        placeholder="พิมพ์ข้อความที่นี่..."
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm focus:ring-4 focus:ring-emerald-400/10 focus:border-emerald-400 outline-none transition-all min-h-[100px] resize-none"
-                                    />
+                                    {/* Feedback Area */}
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-bold text-slate-700 ml-1">ข้อเสนอแนะเพิ่มเติม <span className="text-slate-400 font-medium">(ถ้ามี)</span></label>
+                                        <textarea
+                                            value={evalForm.feedback}
+                                            onChange={(e) => setEvalForm(prev => ({ ...prev, feedback: e.target.value }))}
+                                            placeholder="พิมพ์ข้อความที่นี่..."
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm focus:ring-4 focus:ring-emerald-400/10 focus:border-emerald-400 outline-none transition-all min-h-[100px] resize-none"
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Modal Footer */}
-                        <div className="shrink-0 flex justify-center gap-4 px-8 py-6 border-t border-slate-100 bg-white">
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="w-40 py-3 bg-slate-100 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-all"
-                            >
-                                ยกเลิก
-                            </button>
-                            <button
-                                onClick={handleSubmitEvaluation}
-                                disabled={isSubmitting}
-                                className="w-60 py-3 bg-emerald-600 text-white rounded-2xl text-sm font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-2"
-                            >
-                                {isSubmitting ? (
-                                    <>
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        <span>กำลังบันทึก...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                        <span>บันทึกการประเมิน</span>
-                                    </>
-                                )}
-                            </button>
+                            {/* Modal Footer */}
+                            <div className="shrink-0 flex justify-center gap-4 px-8 py-6 border-t border-slate-100 bg-white">
+                                <button
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="w-40 py-3 bg-slate-100 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-all"
+                                >
+                                    ยกเลิก
+                                </button>
+                                <button
+                                    onClick={handleSubmitEvaluation}
+                                    disabled={isSubmitting}
+                                    className="w-60 py-3 bg-emerald-600 text-white rounded-2xl text-sm font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <span>กำลังบันทึก...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            <span>บันทึกการประเมิน</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </Portal>
-        )}
+                </Portal>
+            )}
 
             {/* === Modal Popup: Advisor Attributes Evaluation === */}
             {expandedAdvisorStudentId !== null && advisorEvalTemplate && (
                 <Portal>
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-                    {/* Backdrop */}
-                    <div
-                        className="absolute inset-0 bg-black/60 backdrop-blur-md"
-                        onClick={() => { setExpandedAdvisorStudentId(null); setAdvisorEvalTemplate(null); }}
-                    />
-                    {/* Modal box */}
-                    <div className="relative bg-white rounded-3xl shadow-2xl w-[95vw] max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-                        {/* Modal header */}
-                        <div className="flex items-start justify-between px-8 pt-8 pb-6 border-b border-slate-100 shrink-0">
-                            <div>
-                                <div className="flex items-center gap-3 mb-1">
-                                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${advisorSubMode === 'attributes' ? 'bg-emerald-100 text-emerald-600' : 'bg-teal-100 text-teal-600'}`}>
-                                        {advisorSubMode === 'attributes' ? (
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                            </svg>
-                                        ) : (
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                            </svg>
-                                        )}
+                        {/* Backdrop */}
+                        <div
+                            className="absolute inset-0 bg-black/60 backdrop-blur-md"
+                            onClick={() => { setExpandedAdvisorStudentId(null); setAdvisorEvalTemplate(null); }}
+                        />
+                        {/* Modal box */}
+                        <div className="relative bg-white rounded-3xl shadow-2xl w-[95vw] max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                            {/* Modal header */}
+                            <div className="flex items-start justify-between px-8 pt-8 pb-6 border-b border-slate-100 shrink-0">
+                                <div>
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${advisorSubMode === 'attributes' ? 'bg-emerald-100 text-emerald-600' : 'bg-teal-100 text-teal-600'}`}>
+                                            {advisorSubMode === 'attributes' ? (
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                </svg>
+                                            ) : (
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                </svg>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-black text-slate-800">
+                                                {advisorSubMode === 'attributes' ? 'คุณลักษณะอันพึงประสงค์' : 'คุณลักษณะของนักเรียนขณะอยู่ที่โรงเรียน'}
+                                            </h2>
+                                            <p className={`text-sm font-semibold mt-0.5 ${advisorSubMode === 'attributes' ? 'text-emerald-500' : 'text-teal-500'}`}>
+                                                {(() => {
+                                                    const st = advisoryStudents.find(s => s.id === expandedAdvisorStudentId);
+                                                    return st ? `${st.prefix || ''}${st.first_name} ${st.last_name}` : '';
+                                                })()}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h2 className="text-xl font-black text-slate-800">
-                                            {advisorSubMode === 'attributes' ? 'คุณลักษณะอันพึงประสงค์' : 'คุณลักษณะของนักเรียนขณะอยู่ที่โรงเรียน'}
-                                        </h2>
-                                        <p className={`text-sm font-semibold mt-0.5 ${advisorSubMode === 'attributes' ? 'text-emerald-500' : 'text-teal-500'}`}>
-                                            {(() => {
-                                                const st = advisoryStudents.find(s => s.id === expandedAdvisorStudentId);
-                                                return st ? `${st.prefix || ''}${st.first_name} ${st.last_name}` : '';
-                                            })()}
+                                    {advisorEvalTemplate?.scale_options && advisorEvalTemplate.scale_options.length > 0 && (
+                                        <p className="text-xs text-slate-400 font-medium whitespace-pre-wrap">
+                                            เกณฑ์: {advisorEvalTemplate.scale_options.map((opt: any) => `${opt.value} = ${opt.label}`).join('  ·  ')}
                                         </p>
-                                    </div>
+                                    )}
                                 </div>
-                                {advisorEvalTemplate?.scale_options && advisorEvalTemplate.scale_options.length > 0 && (
-                                    <p className="text-xs text-slate-400 font-medium whitespace-pre-wrap">
-                                        เกณฑ์: {advisorEvalTemplate.scale_options.map((opt: any) => `${opt.value} = ${opt.label}`).join('  ·  ')}
-                                    </p>
-                                )}
+                                <button
+                                    onClick={() => { setExpandedAdvisorStudentId(null); setAdvisorEvalTemplate(null); }}
+                                    className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors shrink-0"
+                                >
+                                    <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
                             </div>
-                            <button
-                                onClick={() => { setExpandedAdvisorStudentId(null); setAdvisorEvalTemplate(null); }}
-                                className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors shrink-0"
-                            >
-                                <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
 
-                        {/* Scrollable content */}
-                        <div className="overflow-y-auto flex-1 px-8 py-6 space-y-4">
-                            {/* Score grid */}
-                            {(() => {
-                                const advisorScaleOpts: { label: string; value: number }[] =
-                                    (advisorEvalTemplate.scale_options && advisorEvalTemplate.scale_options.length > 0)
-                                        ? advisorEvalTemplate.scale_options
-                                        : [
-                                            { label: 'ดีมาก', value: 5 },
-                                            { label: 'ดี', value: 4 },
-                                            { label: 'ปานกลาง', value: 3 },
-                                            { label: 'พอใช้', value: 2 },
-                                            { label: 'ปรับปรุง', value: 1 },
-                                        ];
-                                const colCount = advisorScaleOpts.length;
-                                const gridCols = `1fr ${Array(colCount).fill('72px').join(' ')}`;
-                                return (
-                                    <div className="rounded-2xl overflow-hidden border border-slate-100">
-                                        {/* Header row */}
-                                        <div className="grid bg-slate-50" style={{ gridTemplateColumns: gridCols }}>
-                                            <div className="px-5 py-3 text-xs font-black text-slate-400 uppercase tracking-wider">หัวข้อประเมิน</div>
-                                            {advisorScaleOpts.map(opt => (
-                                                <div key={opt.value} className="py-3 text-center border-l border-slate-100">
-                                                    <div className="text-sm font-black text-slate-700">{opt.value}</div>
-                                                    <div className="text-xs text-slate-400 leading-tight">{opt.label}</div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        {/* Sections */}
-                                        <div className="flex flex-col">
-                                            {(advisorEvalTemplate.sections || []).map((section: any, sidx: number) => (
-                                                <div key={section.id || sidx} className="flex flex-col">
-                                                    {/* Section Header */}
-                                                    <div className="bg-teal-600 px-5 py-2.5 border-t border-b border-teal-500 flex items-center gap-2 relative z-10">
-                                                        <div className="w-1.5 h-4 bg-white/70 rounded-full"></div>
-                                                        <h3 className="text-sm font-bold text-white">{section.name}</h3>
+                            {/* Scrollable content */}
+                            <div className="overflow-y-auto flex-1 px-8 py-6 space-y-4">
+                                {/* Score grid */}
+                                {(() => {
+                                    const advisorScaleOpts: { label: string; value: number }[] =
+                                        (advisorEvalTemplate.scale_options && advisorEvalTemplate.scale_options.length > 0)
+                                            ? advisorEvalTemplate.scale_options
+                                            : [
+                                                { label: 'ดีมาก', value: 5 },
+                                                { label: 'ดี', value: 4 },
+                                                { label: 'ปานกลาง', value: 3 },
+                                                { label: 'พอใช้', value: 2 },
+                                                { label: 'ปรับปรุง', value: 1 },
+                                            ];
+                                    const colCount = advisorScaleOpts.length;
+                                    const gridCols = `1fr ${Array(colCount).fill('72px').join(' ')}`;
+                                    return (
+                                        <div className="rounded-2xl overflow-hidden border border-slate-100">
+                                            {/* Header row */}
+                                            <div className="grid bg-slate-50" style={{ gridTemplateColumns: gridCols }}>
+                                                <div className="px-5 py-3 text-xs font-black text-slate-400 uppercase tracking-wider">หัวข้อประเมิน</div>
+                                                {advisorScaleOpts.map(opt => (
+                                                    <div key={opt.value} className="py-3 text-center border-l border-slate-100">
+                                                        <div className="text-sm font-black text-slate-700">{opt.value}</div>
+                                                        <div className="text-xs text-slate-400 leading-tight">{opt.label}</div>
                                                     </div>
-                                                    {/* Topic rows for this section */}
-                                                    {(section.topics || []).map((t: any, tidx: number) => (
-                                                        <div key={t.id || tidx} className={`grid border-b border-slate-100 ${tidx % 2 !== 0 ? 'bg-slate-50/50' : 'bg-white'}`} style={{ gridTemplateColumns: gridCols }}>
-                                                            <div className="px-5 py-4 text-sm font-medium text-slate-700 flex items-center">
-                                                                {t.name}
-                                                            </div>
-                                                            {advisorScaleOpts.map(opt => (
-                                                                <div key={opt.value} className="flex justify-center items-center border-l border-slate-100 hover:bg-slate-50">
-                                                                    <div
-                                                                        onClick={() => setAdvisorEvalForm(prev => ({ ...prev, scores: { ...prev.scores, [t.name]: prev.scores[t.name] === opt.value ? -1 : opt.value } }))}
-                                                                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${advisorEvalForm.scores[t.name] === opt.value
-                                                                            ? 'border-emerald-500 bg-emerald-50'
-                                                                            : 'border-slate-300 hover:border-emerald-400 hover:bg-emerald-50'
-                                                                            }`}
-                                                                    >
-                                                                        {advisorEvalForm.scores[t.name] === opt.value && (
-                                                                            <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            ))}
+                                                ))}
+                                            </div>
+                                            {/* Sections */}
+                                            <div className="flex flex-col">
+                                                {(advisorEvalTemplate.sections || []).map((section: any, sidx: number) => (
+                                                    <div key={section.id || sidx} className="flex flex-col">
+                                                        {/* Section Header */}
+                                                        <div className="bg-teal-600 px-5 py-2.5 border-t border-b border-teal-500 flex items-center gap-2 relative z-10">
+                                                            <div className="w-1.5 h-4 bg-white/70 rounded-full"></div>
+                                                            <h3 className="text-sm font-bold text-white">{section.name}</h3>
                                                         </div>
-                                                    ))}
-                                                </div>
-                                            ))}
+                                                        {/* Topic rows for this section */}
+                                                        {(section.topics || []).map((t: any, tidx: number) => (
+                                                            <div key={t.id || tidx} className={`grid border-b border-slate-100 ${tidx % 2 !== 0 ? 'bg-slate-50/50' : 'bg-white'}`} style={{ gridTemplateColumns: gridCols }}>
+                                                                <div className="px-5 py-4 text-sm font-medium text-slate-700 flex items-center">
+                                                                    {t.name}
+                                                                </div>
+                                                                {advisorScaleOpts.map(opt => (
+                                                                    <div key={opt.value} className="flex justify-center items-center border-l border-slate-100 hover:bg-slate-50">
+                                                                        <div
+                                                                            onClick={() => setAdvisorEvalForm(prev => ({ ...prev, scores: { ...prev.scores, [t.name]: prev.scores[t.name] === opt.value ? -1 : opt.value } }))}
+                                                                            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${advisorEvalForm.scores[t.name] === opt.value
+                                                                                ? 'border-emerald-500 bg-emerald-50'
+                                                                                : 'border-slate-300 hover:border-emerald-400 hover:bg-emerald-50'
+                                                                                }`}
+                                                                        >
+                                                                            {advisorEvalForm.scores[t.name] === opt.value && (
+                                                                                <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                );
-                            })()}
+                                    );
+                                })()}
 
 
-                            {/* Feedback */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-bold text-slate-700">ข้อเสนอแนะ / หมายเหตุ <span className="text-slate-400 font-medium">(ถ้ามี)</span></label>
-                                <textarea
-                                    value={advisorEvalForm.feedback}
-                                    onChange={(e) => setAdvisorEvalForm(prev => ({ ...prev, feedback: e.target.value }))}
-                                    placeholder="ข้อเสนอแนะเพิ่มเติม..."
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-400 outline-none transition-all min-h-[100px] resize-none"
-                                />
+                                {/* Feedback */}
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-bold text-slate-700">ข้อเสนอแนะ / หมายเหตุ <span className="text-slate-400 font-medium">(ถ้ามี)</span></label>
+                                    <textarea
+                                        value={advisorEvalForm.feedback}
+                                        onChange={(e) => setAdvisorEvalForm(prev => ({ ...prev, feedback: e.target.value }))}
+                                        placeholder="ข้อเสนอแนะเพิ่มเติม..."
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-400 outline-none transition-all min-h-[100px] resize-none"
+                                    />
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Modal footer buttons centered and fixed size */}
-                        <div className="shrink-0 flex justify-center gap-4 px-8 py-6 border-t border-slate-100 bg-white relative">
-                            <button
-                                onClick={() => {
-                                    if (window.confirm('คุณต้องการล้างข้อมูลฟอร์มการประเมินนี้ใช่หรือไม่?')) {
-                                        setAdvisorEvalForm(prev => {
-                                            const clearedScores: Record<string, number> = {};
-                                            Object.keys(prev.scores).forEach(k => clearedScores[k] = -1);
-                                            return { ...prev, scores: clearedScores, feedback: '' };
-                                        });
-                                    }
-                                }}
-                                className="px-4 py-2 text-xs font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all mr-auto absolute left-8"
-                            >
-                                ล้างข้อมูล
-                            </button>
-                            <button
-                                onClick={() => { setExpandedAdvisorStudentId(null); setAdvisorEvalTemplate(null); }}
-                                className="w-40 py-3 bg-slate-100 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-all"
-                            >
-                                ยกเลิก
-                            </button>
-                            <button
-                                onClick={handleSubmitAdvisorEval}
-                                disabled={advisorEvalSubmitting}
-                                className="w-60 py-3 bg-emerald-500 text-white rounded-2xl text-sm font-bold hover:bg-emerald-600 shadow-lg shadow-emerald-500/25 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-                            >
-                                {advisorEvalSubmitting ? (
-                                    <>
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        <span>กำลังบันทึก...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                        <span>บันทึกการประเมิน</span>
-                                    </>
-                                )}
-                            </button>
+                            {/* Modal footer buttons centered and fixed size */}
+                            <div className="shrink-0 flex justify-center gap-4 px-8 py-6 border-t border-slate-100 bg-white relative">
+                                <button
+                                    onClick={() => {
+                                        if (window.confirm('คุณต้องการล้างข้อมูลฟอร์มการประเมินนี้ใช่หรือไม่?')) {
+                                            setAdvisorEvalForm(prev => {
+                                                const clearedScores: Record<string, number> = {};
+                                                Object.keys(prev.scores).forEach(k => clearedScores[k] = -1);
+                                                return { ...prev, scores: clearedScores, feedback: '' };
+                                            });
+                                        }
+                                    }}
+                                    className="px-4 py-2 text-xs font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all mr-auto absolute left-8"
+                                >
+                                    ล้างข้อมูล
+                                </button>
+                                <button
+                                    onClick={() => { setExpandedAdvisorStudentId(null); setAdvisorEvalTemplate(null); }}
+                                    className="w-40 py-3 bg-slate-100 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-all"
+                                >
+                                    ยกเลิก
+                                </button>
+                                <button
+                                    onClick={handleSubmitAdvisorEval}
+                                    disabled={advisorEvalSubmitting}
+                                    className="w-60 py-3 bg-emerald-500 text-white rounded-2xl text-sm font-bold hover:bg-emerald-600 shadow-lg shadow-emerald-500/25 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                                >
+                                    {advisorEvalSubmitting ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <span>กำลังบันทึก...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            <span>บันทึกการประเมิน</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </Portal>
-        )}
+                </Portal>
+            )}
         </div>
     );
 }

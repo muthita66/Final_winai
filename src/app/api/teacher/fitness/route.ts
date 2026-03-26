@@ -48,6 +48,11 @@ export async function GET(request: Request) {
             return successResponse(data);
         }
 
+        if (action === 'dropdown-options') {
+            const data = await TeacherFitnessService.getDropdownOptions();
+            return successResponse(data);
+        }
+
         if (action === 'list-all-criteria') {
             const test_name = searchParams.get('test_name') || undefined;
             const grade_level = searchParams.get('class_level') || undefined;
@@ -58,6 +63,7 @@ export async function GET(request: Request) {
         }
 
         return errorResponse('Invalid or missing action parameter', 400);
+
 
     } catch (error: any) {
         return errorResponse('Failed', 500, error.message);

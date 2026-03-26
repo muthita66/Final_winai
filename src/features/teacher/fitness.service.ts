@@ -180,8 +180,8 @@ export const TeacherFitnessService = {
                          SELECT r.student_id, c.test_name, r.test_result, r.grade 
                          FROM student_fitness_records r
                          LEFT JOIN fitness_test_criteria c ON r.fitness_test_id = c.id
-                         WHERE r.semester_id = $1 AND r.student_id IN (${idsStr})
-                     `, semesterId);
+                         WHERE (r.semester = $1 OR r.semester_id = $1) AND r.student_id IN (${idsStr})
+                     `, Number(semesterId));
                  } catch (e) {
                      console.error("Failed to fetch existing fitness records:", e);
                  }
@@ -338,6 +338,21 @@ export const TeacherFitnessService = {
         return prisma.$queryRawUnsafe<any[]>(sql, ...params);
     },
 
+    async getDropdownOptions() {
+        const [testNames, levels] = await Promise.all([
+            prisma.$queryRaw<any[]>`
+                SELECT DISTINCT test_name, unit 
+                FROM fitness_test_criteria 
+                WHERE test_name IS NOT NULL
+                ORDER BY test_name ASC
+            `,
+            prisma.$queryRaw<any[]>`
+                SELECT id, name FROM levels ORDER BY name ASC
+            `
+        ]);
+        return { testNames, levels };
+    },
+
     async upsertCriteria(data: any) {
         const { id, test_name, grade_level, gender, passing_threshold, unit, comparison_type, academic_year } = data;
         const pThres = parseFloat(passing_threshold) || 0;
@@ -433,10 +448,13 @@ export const TeacherFitnessService = {
             throw new Error('ไม่พบรหัสเกณฑ์การประเมิน (Criteria ID)');
         }
 
+        const aYear = year ? parseInt(year as string) : null;
+        const semNum = semester ? parseInt(semester as string) : null;
+
         const existingFitness = await prisma.$queryRawUnsafe<any[]>(`
             SELECT id FROM student_fitness_records
-            WHERE student_id = $1 AND semester_id = $2 AND fitness_test_id = $3
-        `, sId, semesterId, finalCriteriaId);
+            WHERE student_id = $1 AND (semester = $2 OR semester_id = $3) AND fitness_test_id = $4
+        `, sId, semNum, semesterId, finalCriteriaId);
 
         const resVal = parseFloat(result_value) || 0;
         const isPassed = status === 'ผ่าน';
@@ -444,14 +462,16 @@ export const TeacherFitnessService = {
         if (existingFitness.length > 0) {
             await prisma.$executeRawUnsafe(`
                 UPDATE student_fitness_records
-                SET test_result = $1, grade = $2, is_passed = $3, test_date = CURRENT_TIMESTAMP, recorded_by = $4
-                WHERE id = $5
-            `, resVal, status, isPassed, tId, existingFitness[0].id);
+                SET test_result = $1, grade = $2, is_passed = $3, test_date = CURRENT_TIMESTAMP, recorded_by = $4,
+                    semester = $5, academic_year = $6
+                WHERE id = $7
+            `, resVal, status, isPassed, tId, semNum, aYear, existingFitness[0].id);
         } else {
+            // Try to insert into both to be safe against different DB versions
             await prisma.$executeRawUnsafe(`
-                INSERT INTO student_fitness_records (student_id, semester_id, fitness_test_id, test_result, grade, is_passed, test_date, recorded_by)
-                VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7)
-            `, sId, semesterId, finalCriteriaId, resVal, status, isPassed, tId);
+                INSERT INTO student_fitness_records (student_id, semester_id, fitness_test_id, test_result, grade, is_passed, test_date, recorded_by, semester, academic_year)
+                VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7, $8, $9)
+            `, sId, semesterId, finalCriteriaId, resVal, status, isPassed, tId, semNum, aYear);
         }
         return { success: true };
     },

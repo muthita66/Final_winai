@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { parseIntegerParam, parseStudentIdFromSession } from '@/app/api/student/_utils';
 
 export async function GET(request: Request) {
+    console.log(`[GET /api/student/grades] Request hit: ${request.url}`);
     try {
         const session = await getSession();
         const sessionResult = parseStudentIdFromSession(session);

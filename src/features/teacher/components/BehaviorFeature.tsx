@@ -51,7 +51,7 @@ export function BehaviorFeature({ session }: BehaviorFeatureProps) {
         setIsPendingLoading(true);
         try {
             const data = await TeacherApiService.getBehaviorPendingRecords();
-            setPendingRecords(data || []);
+            setPendingRecords(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Failed to fetch pending records:', error);
             toast.error('ไม่สามารถโหลดรายการรอนุมัติได้');
@@ -109,6 +109,11 @@ export function BehaviorFeature({ session }: BehaviorFeatureProps) {
             setAvailableYears(metaData.academicYears || []);
             setAvailableSemesters(metaData.semesters || []);
             setClassrooms(classroomsData || []);
+
+            // If user is an approver, fetch initial pending records count for the badge
+            if (isApprover) {
+                fetchPendingRecords();
+            }
 
             // Optionally update initial year/semester if data available
             if (metaData.academicYears?.length > 0) {
@@ -480,7 +485,7 @@ export function BehaviorFeature({ session }: BehaviorFeatureProps) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {isLoading ? (
+                                    {isPendingLoading ? (
                                         <tr>
                                             <td colSpan={6} className="text-center py-20">
                                                 <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto"></div>

@@ -281,9 +281,7 @@ export const LearningResultsService = {
             where: {
                 evaluator_user_id: user_id,
                 evaluation_forms: {
-                    evaluation_sections: {
-                        some: { id: { in: [12, 13, 14, 15, 16] } }
-                    }
+                    form_name: { contains: 'SDQ', mode: 'insensitive' }
                 },
                 ...(semester_id ? { semester_id: Number(semester_id) } : {})
             },
@@ -309,7 +307,7 @@ export const LearningResultsService = {
         (sdqResponse?.evaluation_answers || []).forEach((ans: any) => {
             const q = ans.evaluation_questions;
             const sec = q?.evaluation_sections;
-            if (!sec || ![12, 13, 14, 15, 16].includes(sec.id)) return;
+            if (!sec) return;
 
             if (!sectionMap.has(sec.id)) {
                 sectionMap.set(sec.id, {

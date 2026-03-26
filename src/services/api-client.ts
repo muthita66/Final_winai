@@ -13,7 +13,15 @@ export async function fetchApi<T>(url: string, options?: RequestInit): Promise<T
     };
 
     const response = await fetch(url, defaultOptions);
-    const data = await response.json();
+    let data: any;
+    try {
+        data = await response.json();
+    } catch (e: any) {
+        const text = await response.text();
+        console.error(`[fetchApi] Failed to parse JSON from ${url}. Status: ${response.status}`);
+        console.error(`[fetchApi] Response body starts with: ${text.substring(0, 500)}`);
+        throw new Error(`Invalid JSON response from ${url}: ${e.message}`);
+    }
 
     if (!response.ok || !data.success) {
         const errorMsg = data.message || data.error || `HTTP error! status: ${response.status}`;

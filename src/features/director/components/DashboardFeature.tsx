@@ -85,7 +85,7 @@ export function DashboardFeature({ session }: { session: any }) {
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState<string>('overview');
     const [filterOptions, setFilterOptions] = useState<any>(null);
-    const [filters, setFilters] = useState<{ gender: string; class_level: string; room: string; subject_id: string }>({ gender: '', class_level: '', room: '', subject_id: '' });
+    const [filters, setFilters] = useState<{ gender: string; class_level: string; room: string; subject_id: string; learning_group_id?: string }>({ gender: '', class_level: '', room: '', subject_id: '', learning_group_id: '' });
     const [expandedRisk, setExpandedRisk] = useState<number | null>(null);
     const [isAtRiskExpand, setIsAtRiskExpand] = useState(false);
     const [atRiskLevelFilter, setAtRiskLevelFilter] = useState<string>('');
@@ -108,6 +108,7 @@ export function DashboardFeature({ session }: { session: any }) {
         if (filters.class_level) f.class_level = filters.class_level;
         if (filters.room) f.room = filters.room;
         if (filters.subject_id) f.subject_id = Number(filters.subject_id);
+        if (filters.learning_group_id) f.learning_group_id = Number(filters.learning_group_id);
         DirectorApiService.getSummary(f).then(data => { setD(data); setLoading(false); }).catch(() => setLoading(false));
     }, [filters]);
 
@@ -129,7 +130,7 @@ export function DashboardFeature({ session }: { session: any }) {
             return next;
         });
     };
-    const clearFilters = () => setFilters({ gender: '', class_level: '', room: '', subject_id: '' });
+    const clearFilters = () => setFilters({ gender: '', class_level: '', room: '', subject_id: '', learning_group_id: '' });
     const hasFilters = Object.values(filters).some(v => !!v);
 
     if (!d && loading) return (<div className="flex flex-col items-center justify-center min-h-[60vh] gap-4"><div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" /><p className="text-slate-500 font-medium">กำลังโหลด Executive Dashboard...</p></div>);
@@ -143,6 +144,19 @@ export function DashboardFeature({ session }: { session: any }) {
     const health = d.health || {};
     const cur = d.curriculum || {};
     const evalData = d.evaluation || {};
+
+    const groupEvalByForm = (data: any[]) => {
+        if (!data || !Array.isArray(data)) return {};
+        return data.reduce((acc, curr) => {
+            const fn = curr.form_name || 'แบบประเมินทั่วไป';
+            if (!acc[fn]) acc[fn] = [];
+            acc[fn].push(curr);
+            return acc;
+        }, {} as Record<string, any[]>);
+    };
+    const subjEvals = groupEvalByForm(evalData.subjectEvalByTopic);
+    const advEvals = groupEvalByForm(evalData.advisorEvalByTopic);
+
     const actItems = d.actionItems || [];
     const events = d.upcomingEvents || [];
     const grades = d.grades || {};
@@ -241,14 +255,14 @@ export function DashboardFeature({ session }: { session: any }) {
                                     <div key={st.id || i} className={`hover:bg-slate-50 transition-colors ${isExpanded ? 'bg-red-50/30' : ''}`}>
                                         <button onClick={() => setExpandedRisk(isExpanded ? null : i)} className="w-full px-4 py-3 flex items-center gap-3 text-left">
                                             <span className="text-sm text-slate-400 w-6 shrink-0">{i + 1}</span>
-                                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${highCount > 0 ? 'bg-red-500 animate-pulse' : 'bg-amber-400'}`} />
+                                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${highCount > 0 ? 'bg-red-500 animate-pulse' : reasons.some((r: any) => r.severity === 'medium') ? 'bg-amber-400' : 'bg-blue-400'}`} />
                                             <div className="flex-1 min-w-0">
                                                 <div className="text-sm font-medium text-slate-800 truncate">
                                                     {st.prefix || ''}{st.first_name || ''} {st.last_name || ''}
                                                     <span className="text-slate-400 font-normal ml-2">{st.student_code}</span>
                                                 </div>
                                                 <div className="text-sm text-slate-500">
-                                                    {st.class_level}/{st.room?.includes('/') ? st.room.split('/').pop() : st.room} • {st.gender} • <span className="font-bold text-emerald-600">เกรดเฉลี่ย: {st.gpa || entry.avg_grade || entry.gpa || '-'}</span>
+                                                    {st.class_level || '-'}/{st.room?.includes('/') ? st.room.split('/').pop() : (st.room || '-')} • {st.gender || '-'} • <span className="font-bold text-emerald-600">เกรดเฉลี่ย: {st.gpa !== null && st.gpa !== undefined ? st.gpa : '-'}</span>
                                                 </div>
                                             </div>
                                             <div className="flex gap-1 shrink-0">
@@ -269,7 +283,12 @@ export function DashboardFeature({ session }: { session: any }) {
                                                                 <span className="font-medium">{r.type === 'grade' ? 'ผลการเรียน' : r.type === 'absent' ? 'การเข้าเรียน' : 'พฤติกรรม'}: </span>
                                                                 <span>{r.detail}</span>
                                                             </div>
-                                                            <span className={`ml-auto shrink-0 px-1.5 py-0.5 rounded text-xs font-bold ${r.severity === 'high' ? 'bg-red-200 text-red-800' : 'bg-amber-200 text-amber-800'}`}>{r.severity === 'high' ? 'สูง' : 'ปานกลาง'}</span>
+                                                            <span className={`ml-auto shrink-0 px-1.5 py-0.5 rounded text-xs font-bold ${r.severity === 'high' ? 'bg-red-200 text-red-800' :
+                                                                r.severity === 'medium' ? 'bg-amber-200 text-amber-800' :
+                                                                    'bg-blue-100 text-blue-700'
+                                                                }`}>
+                                                                {r.severity === 'high' ? 'เสี่ยงมาก' : r.severity === 'medium' ? 'เริ่มเสี่ยง' : 'เฝ้าระวัง'}
+                                                            </span>
                                                         </div>
                                                     );
                                                 })}
@@ -438,21 +457,6 @@ export function DashboardFeature({ session }: { session: any }) {
                         </Link>
                     </div>
 
-                    {/* Education Quality KPIs */}
-                    <div className="grid grid-cols-3 gap-3">
-                        {[
-                            { l: "GPA เฉลี่ย", v: grades.gpaAvg || 0, ic: AcademicCapIcon, g: "from-emerald-500 to-teal-700", href: "/director/curriculum" },
-                            { l: "เกรด ≥3", v: `${grades.gradeAbove3Pct || 0}%`, ic: ChartBarIcon, g: "from-emerald-400 to-teal-600", href: "/director/curriculum" },
-                            { l: "เกรด F", v: `${grades.gradeFPct || 0}%`, ic: ExclamationCircleIcon, g: grades.gradeFPct > 10 ? "from-red-500 to-rose-600" : "from-slate-400 to-slate-500", href: "/director/curriculum" },
-                        ].map((c, i) => (
-                            <Link key={i} href={c.href} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 block hover:shadow-md hover:-translate-y-0.5 transition-all">
-                                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${c.g} flex items-center justify-center text-xl mb-3`}>
-                                    <c.ic className="w-6 h-6 text-white" />
-                                </div>
-                                <div className="text-base text-slate-500">{c.l}</div><div className="text-3xl font-medium text-slate-800 mt-1">{c.v}</div>
-                            </Link>
-                        ))}
-                    </div>
 
                     {/* Upcoming Events */}
                     {events.length > 0 && (
@@ -541,56 +545,222 @@ export function DashboardFeature({ session }: { session: any }) {
                         </div>
                     </div>
 
-                    {/* Charts row */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            {filters.class_level ? (
-                                <>
-                                    <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2 text-lg">
-                                        <UserGroupIcon className="w-5 h-5 text-slate-400" />
-                                        สัดส่วนเพศ ({filters.room ? `ห้อง ${filters.room}` : filters.class_level})
-                                    </h3>
-                                    <DonutChart data={[
-                                        { label: 'ชาย', value: s.male || 0, color: '#059669' },
-                                        { label: 'หญิง', value: s.female || 0, color: '#ec4899' },
-                                        { label: 'ไม่ระบุ', value: Math.max(0, (s.totalStudents || 0) - (s.male || 0) - (s.female || 0)), color: '#cbd5e1' },
-                                    ].filter(x => x.value > 0)} />
-                                </>
-                            ) : (
-                                <>
-                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                        <ChartBarIcon className="w-5 h-5 text-emerald-500" />
-                                        จำนวนแยกระดับชั้น
-                                    </h3>
-                                    <BarChart data={(d.studentsByLevel || []).map((l: any) => ({ label: l.level || '-', value: l.count, color: '#10b981' }))} height={150} />
-                                </>
-                            )}
-                        </div>
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                <PresentationChartBarIcon className="w-5 h-5 text-emerald-500" />
-                                การกระจายเกรด {filters.subject_id ? '(เฉพาะวิชาที่เลือก)' : ''}
-                            </h3>
-                            <BarChart data={(d.grades?.distribution || []).map((g: any) => ({ label: g.grade || '-', value: g.count, color: g.grade === 'A' || g.grade === '4' ? '#10b981' : g.grade === 'F' || g.grade === '0' ? '#ef4444' : '#0ea5e9' }))} height={150} />
-                        </div>
+                    {/* Charts row - Level bar chart full width */}
+                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+                        {filters.class_level ? (
+                            <>
+                                <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2 text-lg">
+                                    <UserGroupIcon className="w-5 h-5 text-slate-400" />
+                                    สัดส่วนเพศ ({filters.room ? `ห้อง ${filters.room}` : filters.class_level})
+                                </h3>
+                                <DonutChart data={[
+                                    { label: 'ชาย', value: s.male || 0, color: '#059669' },
+                                    { label: 'หญิง', value: s.female || 0, color: '#ec4899' },
+                                    { label: 'ไม่ระบุ', value: Math.max(0, (s.totalStudents || 0) - (s.male || 0) - (s.female || 0)), color: '#cbd5e1' },
+                                ].filter(x => x.value > 0)} />
+                            </>
+                        ) : (
+                            <>
+                                <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                    <ChartBarIcon className="w-5 h-5 text-emerald-500" />
+                                    จำนวนแยกระดับชั้น
+                                </h3>
+                                <BarChart data={(d.studentsByLevel || []).map((l: any) => ({ label: l.level || '-', value: l.count, color: '#10b981' }))} height={150} />
+                            </>
+                        )}
                     </div>
 
+                    {/* Room Ranking Analysis */}
+                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
+                                <BookOpenIcon className="w-5 h-5 text-emerald-500" />
+                                ผลการเรียนแยกตามห้องเรียน
+                            </h3>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <select
+                                    value={filters.learning_group_id || ''}
+                                    onChange={e => {
+                                        setFilters((prev: any) => ({ ...prev, learning_group_id: e.target.value, subject_id: '' }));
+                                    }}
+                                    className="px-3 py-1.5 border border-emerald-200 rounded-xl text-sm bg-white text-emerald-800 outline-none focus:ring-2 focus:ring-emerald-400 font-medium min-w-[200px]"
+                                >
+                                    <option value="">กลุ่มสาระ (ทั้งหมด)</option>
+                                    {(filterOptions?.learningGroups || []).map((g: any) => (
+                                        <option key={g.id} value={g.id}>{g.name}</option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={filters.subject_id || ''}
+                                    onChange={e => {
+                                        setFilters((prev: any) => ({ ...prev, subject_id: e.target.value }));
+                                    }}
+                                    className="px-3 py-1.5 border border-emerald-200 rounded-xl text-sm bg-white text-emerald-800 outline-none focus:ring-2 focus:ring-emerald-400 font-medium min-w-[200px]"
+                                    disabled={!filters.learning_group_id}
+                                >
+                                    <option value="">เลือกรายวิชา</option>
+                                    {(filterOptions?.subjects || [])
+                                        .filter((s: any) => String(s.learning_subject_group_id) === String(filters.learning_group_id))
+                                        .map((s: any) => (
+                                            <option key={s.id} value={s.id}>{s.name} ({s.subject_code})</option>
+                                        ))
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        {(() => {
+                            if (!filters.learning_group_id) {
+                                return (
+                                    <div className="text-center py-8 text-slate-400 text-sm">
+                                        <BookOpenIcon className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                                        กรุณาเลือกกลุ่มสาระ เพื่อดูอันดับห้องเรียน
+                                    </div>
+                                );
+                            }
+
+                            const rankedRooms: any[] = d.roomRankings || [];
+
+                            if (rankedRooms.length === 0) {
+                                return (
+                                    <div className="text-center py-8 text-slate-400 text-sm">
+                                        ยังไม่มีข้อมูลเกรดของห้องเรียนในวิชาที่เลือก
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="space-y-2.5">
+                                    <div className="grid grid-cols-12 gap-2 px-3 py-1.5 text-[14px] font-bold text-slate-400 uppercase tracking-wider">
+                                        <div className="col-span-1 text-center">อันดับ</div>
+                                        <div className="col-span-4 text-center">ห้องเรียน</div>
+                                        <div className="col-span-3 text-center">จำนวนนักเรียน</div>
+                                        <div className="col-span-4 text-center">GPA เฉลี่ย</div>
+                                    </div>
+                                    {rankedRooms.map((room: any, i: number) => {
+                                        const gpa = room.avg_gpa || 0;
+                                        const pct = Math.min(100, (gpa / 4) * 100);
+                                        const rankBg = i === 0 ? 'bg-gradient-to-br from-yellow-400 to-amber-500 shadow-amber-200 shadow-sm' : i === 1 ? 'bg-gradient-to-br from-slate-300 to-slate-400' : i === 2 ? 'bg-gradient-to-br from-amber-600 to-amber-700' : 'bg-slate-200 text-slate-600';
+                                        const rankText = i <= 2 ? 'text-white' : 'text-slate-600';
+                                        const barColor = gpa >= 3.0 ? '#10b981' : gpa >= 2.0 ? '#f59e0b' : '#ef4444';
+                                        const gpaColor = gpa >= 3.0 ? 'text-emerald-600' : gpa >= 2.0 ? 'text-amber-600' : 'text-red-600';
+
+                                        return (
+                                            <div key={i} className={`grid grid-cols-12 gap-2 items-center px-3 py-2.5 rounded-xl border transition-all hover:shadow-sm ${i === 0 ? 'bg-amber-50/60 border-amber-200' : 'bg-slate-50/80 border-slate-100 hover:bg-slate-50'}`}>
+                                                <div className="col-span-1 flex justify-center">
+                                                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${rankBg} ${rankText}`}>
+                                                        {i + 1}
+                                                    </span>
+                                                </div>
+                                                <div className="col-span-4 pl-2 font-bold text-lg text-slate-700">
+                                                    {room.display_name}
+                                                </div>
+                                                <div className="col-span-3 text-center text-sm text-slate-500 font-medium">
+                                                    {room.student_count} คน
+                                                </div>
+                                                <div className="col-span-4 flex items-center justify-center">
+                                                    <span className={`text-xl font-black ${gpaColor}`}>
+                                                        {gpa > 0 ? gpa.toFixed(2) : '-'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
+                    </div>
+
+                    {/* Top 3 Students by Level */}
+                    {(d.topStudentsByLevel || []).length > 0 && (
+                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+                            <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-2 text-lg">
+                                <TrophyIcon className="w-5 h-5 text-yellow-500" />
+                                Top 3 นักเรียนคะแนนสูงสุดรายชั้น
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                {(d.topStudentsByLevel || []).map((levelData: any, i: number) => (
+                                    <div key={i} className="bg-slate-50 rounded-2xl p-4 border border-slate-100 hover:shadow-md transition-all">
+                                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
+                                            <AcademicCapIcon className="w-4 h-4 text-emerald-600" />
+                                            <span className="font-bold text-slate-700">{levelData.level}</span>
+                                        </div>
+                                        <div className="space-y-2.5">
+                                            {(levelData.students || []).map((st: any, idx: number) => (
+                                                <div key={idx} className="flex items-center justify-between group">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${idx === 0 ? 'bg-yellow-500 shadow-sm' : idx === 1 ? 'bg-slate-400' : 'bg-amber-700'}`}>
+                                                            {idx + 1}
+                                                        </span>
+                                                        <span className="text-sm text-slate-600 truncate group-hover:text-emerald-700 transition-colors" title={st.name}>
+                                                            {st.name}
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 shrink-0">
+                                                        {Number(st.score || 0).toFixed(2)}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Top rooms & room table */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 text-lg">
                                 <TrophyIcon className="w-5 h-5 text-amber-500" />
-                                Top 5 ห้องคะแนนสูงสุด
+                                Top 5 ห้องเกรดเฉลี่ยสูงสุด
                             </h3>
-                            <div className="space-y-2">
-                                {(d.topRooms || []).length === 0 ? <p className="text-sm text-slate-500">ยังไม่มีข้อมูล</p> : (d.topRooms || []).map((r: any, i: number) => (
-                                    <div key={i} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                                        <div className="flex items-center gap-2"><span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${i === 0 ? 'bg-yellow-500' : i === 1 ? 'bg-slate-400' : 'bg-amber-700'}`}>{i + 1}</span><span className="text-sm font-medium text-slate-800">{r.room?.includes('/') ? r.room : `${r.class_level}/${r.room}`}</span></div>
-                                        <span className="text-sm font-medium text-emerald-600">{Number(r.avg_score || 0).toFixed(1)} ({r.count}คน)</span>
+                            {(d.topRooms || []).length === 0 ? (
+                                <div className="text-center py-8 text-slate-400 text-sm">
+                                    <TrophyIcon className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                                    ยังไม่มีข้อมูลเกรดเฉลี่ยของห้องเรียน
+                                </div>
+                            ) : (
+                                <div className="space-y-2.5">
+                                    {/* Header */}
+                                    <div className="grid grid-cols-12 gap-2 px-3 py-1.5 text-[14px] font-bold text-slate-400 uppercase tracking-wider">
+                                        <div className="col-span-1 text-center">อันดับ</div>
+                                        <div className="col-span-4 text-center">ห้องเรียน</div>
+                                        <div className="col-span-2 text-center">จำนวน</div>
+                                        <div className="col-span-5 text-center">GPA เฉลี่ย</div>
                                     </div>
-                                ))}
-                            </div>
+                                    {(d.topRooms || []).map((r: any, i: number) => {
+                                        const gpa = Number(r.avg_score || 0);
+                                        const pct = Math.min(100, (gpa / 4) * 100);
+                                        const rankBg = i === 0 ? 'bg-gradient-to-br from-yellow-400 to-amber-500 shadow-amber-200 shadow-sm' : i === 1 ? 'bg-gradient-to-br from-slate-300 to-slate-400' : i === 2 ? 'bg-gradient-to-br from-amber-600 to-amber-700' : 'bg-slate-200 text-slate-600';
+                                        const rankText = i <= 2 ? 'text-white' : 'text-slate-600';
+                                        const barColor = gpa >= 3.0 ? '#10b981' : gpa >= 2.0 ? '#f59e0b' : '#ef4444';
+                                        const gpaColor = gpa >= 3.0 ? 'text-emerald-600' : gpa >= 2.0 ? 'text-amber-600' : 'text-red-600';
+                                        const roomName = r.room?.includes('/') ? r.room : `${r.class_level}/${r.room}`;
+
+                                        return (
+                                            <div key={i} className={`grid grid-cols-12 gap-2 items-center px-3 py-2.5 rounded-xl border transition-all hover:shadow-sm ${i === 0 ? 'bg-amber-50/60 border-amber-200' : 'bg-slate-50/80 border-slate-100 hover:bg-slate-50'}`}>
+                                                <div className="col-span-1 flex justify-center">
+                                                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${rankBg} ${rankText}`}>
+                                                        {i + 1}
+                                                    </span>
+                                                </div>
+                                                <div className="col-span-4 font-bold text-base text-slate-700 truncate" title={roomName}>
+                                                    {roomName}
+                                                </div>
+                                                <div className="col-span-2 text-center text-sm text-slate-500 font-medium">
+                                                    {r.count} คน
+                                                </div>
+                                                <div className="col-span-5 flex items-center justify-center">
+                                                    <span className={`text-lg font-black ${gpaColor}`}>
+                                                        {gpa > 0 ? gpa.toFixed(2) : '-'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
                             <div className="p-4 border-b border-slate-200 bg-slate-50/50">
@@ -738,7 +908,7 @@ export function DashboardFeature({ session }: { session: any }) {
                                                 </span>
                                             </div>
                                             <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                                                <div 
+                                                <div
                                                     className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                                                     style={{ width: `${Math.min((Number(c.value || 0) / 5) * 100, 100)}%` }}
                                                 />
@@ -765,9 +935,9 @@ export function DashboardFeature({ session }: { session: any }) {
                                     {(hr.byEmpType || []).reduce((acc: number, curr: any) => acc + curr.count, 0)} คน
                                 </span>
                             </div>
-                            <DonutChart vertical data={(hr.byEmpType || []).map((t: any, i: number) => ({ 
-                                label: t.type || '', 
-                                value: t.count, 
+                            <DonutChart vertical data={(hr.byEmpType || []).map((t: any, i: number) => ({
+                                label: t.type || '',
+                                value: t.count,
                                 color: i === 0 ? '#0ea5e9' : i === 1 ? '#6366f1' : '#a855f7'
                             }))} />
                         </div>
@@ -787,9 +957,9 @@ export function DashboardFeature({ session }: { session: any }) {
                                         <div key={i} className="flex items-center gap-4">
                                             <span className="text-sm font-medium text-slate-600 w-28 truncate" title={r.rank}>{r.rank || 'ไม่ระบุ'}</span>
                                             <div className="flex-1 h-2.5 bg-slate-50 rounded-full overflow-hidden">
-                                                <div 
+                                                <div
                                                     className="h-full rounded-full transition-all duration-700"
-                                                    style={{ 
+                                                    style={{
                                                         width: `${(r.count / maxVal) * 100}%`,
                                                         background: `hsl(${260 + i * 20}, 70%, 55%)`
                                                     }}
@@ -811,7 +981,7 @@ export function DashboardFeature({ session }: { session: any }) {
                             <BarChart data={(hr.ageGroups || []).map((g: any) => {
                                 const ageStart = parseInt(g.group.replace(/[^0-9]/g, '')) || 0;
                                 return {
-                                    label: g.group, 
+                                    label: g.group,
                                     value: g.count,
                                     color: ageStart >= 55 ? '#f43f5e' : ageStart >= 45 ? '#f59e0b' : '#10b981'
                                 };
@@ -857,23 +1027,24 @@ export function DashboardFeature({ session }: { session: any }) {
             )}
 
             {/* ════════════ TAB: HEALTH ════════════ */}
+            {/* ════════════ TAB: HEALTH ════════════ */}
             {tab === 'health' && (
-                <div className="space-y-5">
+                <div className="space-y-6">
                     {/* Local Filter Bar */}
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-wrap items-center gap-3">
-                        <div className="flex items-center gap-2 text-slate-700 font-bold">
-                            <AdjustmentsHorizontalIcon className="w-5 h-5 text-slate-500" />
-                            <span>ตัวกรองการแสดงผล</span>
+                    <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200 flex flex-wrap items-center gap-4">
+                        <div className="flex items-center gap-2 text-slate-700 font-bold px-2">
+                            <AdjustmentsHorizontalIcon className="w-5 h-5 text-emerald-500" />
+                            <span>ตัวกรองข้อมูล</span>
                         </div>
                         <div className="flex gap-3 flex-wrap flex-1">
-                            <div className="flex-1 min-w-[140px]">
-                                <select className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white font-medium text-slate-700" value={filters.class_level} onChange={e => updateFilter('class_level', e.target.value)}>
+                            <div className="flex-1 min-w-[160px]">
+                                <select className="w-full px-4 py-2 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50 font-medium text-slate-700 transition-all cursor-pointer" value={filters.class_level} onChange={e => updateFilter('class_level', e.target.value)}>
                                     <option value="">ระดับชั้น (ทั้งหมด)</option>
                                     {(filterOptions?.classLevels || []).map((l: string) => <option key={l} value={l}>{l}</option>)}
                                 </select>
                             </div>
                             <div className="flex-1 min-w-[120px]">
-                                <select className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white font-medium text-slate-700" value={filters.room} onChange={e => updateFilter('room', e.target.value)}>
+                                <select className="w-full px-4 py-2 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50 font-medium text-slate-700 transition-all cursor-pointer" value={filters.room} onChange={e => updateFilter('room', e.target.value)}>
                                     <option value="">ห้อง (ทั้งหมด)</option>
                                     {(() => {
                                         const rooms: string[] = filteredRooms.map((r: any) => (r.room.includes('/') ? r.room.split('/').pop() : r.room) || "");
@@ -882,195 +1053,275 @@ export function DashboardFeature({ session }: { session: any }) {
                                     })()}
                                 </select>
                             </div>
-                            {hasFilters && <button onClick={clearFilters} className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded-md bg-red-50 ml-auto self-center font-medium">✕ ล้าง</button>}
+                            {hasFilters && <button onClick={clearFilters} className="text-sm text-rose-500 hover:text-rose-700 px-4 py-2 rounded-2xl bg-rose-50 transition-colors font-bold">ล้างตัวกรอง</button>}
                         </div>
                     </div>
-                    {/* Health KPI Cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+
+                    {/* Health KPI Cards - Focus on main areas */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                         {[
-                            { l: "ตรวจสุขภาพแล้ว", v: `${health.checkedCount || 0}/${health.totalStudents || 0}`, ic: PresentationChartBarIcon, g: "from-emerald-500 to-teal-600" },
-                            { l: "BMI ปกติ", v: health.bmiNormalCount || 0, ic: ShieldCheckIcon, g: "from-green-500 to-emerald-600" },
-                            { l: "มีอาการแพ้", v: health.allergyCount || 0, ic: LifebuoyIcon, g: "from-amber-500 to-orange-600" },
-                            { l: "โรคประจำตัว", v: health.diseaseCount || 0, ic: ClipboardDocumentCheckIcon, g: "from-red-500 to-rose-600" },
-                            { l: "ปัญหาสายตา", v: health.visionIssueCount || 0, ic: EyeIcon, g: "from-purple-500 to-violet-600" },
+                            { l: "BMI ปกติ", v: `${health.bmiNormalCount || 0} คน`, sub: `${Math.round(((health.bmiNormalCount || 0) / (health.totalStudents || 1)) * 100)}% ของนักเรียน`, ic: ShieldCheckIcon, g: "from-emerald-500 to-teal-600" },
+                            { l: "มีอาการแพ้", v: `${health.allergyCount || 0} ราย`, sub: "ต้องเฝ้าระวังเป็นพิเศษ", ic: LifebuoyIcon, g: "from-orange-500 to-amber-600" },
+                            { l: "โรคประจำตัว", v: `${health.diseaseCount || 0} ราย`, sub: "มีประวัติการรักษา", ic: ClipboardDocumentCheckIcon, g: "from-rose-500 to-red-600" },
+                            { 
+                                l: "สายตาปกติ", 
+                                v: `${(health.totalStudents || 0) - (health.visionIssueCount || 0)} คน`, 
+                                sub: `${Math.round((((health.totalStudents || 0) - (health.visionIssueCount || 0)) / (health.totalStudents || 1)) * 100)}% ของนักเรียน`, 
+                                ic: EyeIcon, 
+                                g: "from-purple-500 to-violet-600" 
+                            },
+                            {
+                                l: "สมรรถภาพดี",
+                                v: `${Math.round((health.fitnessSummary || []).reduce((acc: number, curr: any) => acc + curr.passRate, 0) / (health.fitnessSummary?.length || 1))}%`,
+                                sub: "เปอร์เซ็นต์ผ่านเกณฑ์เฉลี่ย",
+                                ic: TrophyIcon,
+                                g: "from-blue-500 to-indigo-600"
+                            },
                         ].map((c, i) => (
-                            <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
-                                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${c.g} flex items-center justify-center text-xl mb-3`}>
-                                    <c.ic className="w-5 h-5 text-white" />
+                            <div key={i} className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200 hover:shadow-md transition-all">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${c.g} flex items-center justify-center text-xl`}>
+                                        <c.ic className="w-7 h-7 text-white" />
+                                    </div>
+                                    <span className="text-xs font-extrabold px-2.5 py-1 bg-slate-100 text-slate-500 rounded-full uppercase tracking-wider">Live Status</span>
                                 </div>
-                                <div className="text-base text-slate-500">{c.l}</div><div className="text-3xl font-medium text-slate-800 mt-1">{typeof c.v === 'number' ? c.v.toLocaleString() : c.v}</div>
+                                <div className="text-base font-semibold text-slate-500 mb-1">{c.l}</div>
+                                <div className="text-4xl font-bold text-slate-800 tracking-tight">{c.v}</div>
+                                <div className="text-sm text-slate-400 mt-1.5">{c.sub}</div>
                             </div>
                         ))}
                     </div>
 
-                    {/* BMI & Blood Type */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                <ChartBarIcon className="w-4 h-4 text-slate-400" />
-                                ดัชนีมวลกาย (BMI)
+                    {/* Section 1: BMI Insights */}
+                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -z-0 opacity-50" />
+                        <div className="relative z-10">
+                            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-3 text-xl">
+                                <div className="p-2 bg-emerald-50 rounded-lg">
+                                    <ChartBarIcon className="w-6 h-6 text-emerald-600" />
+                                </div>
+                                การวิเคราะห์ดัชนีมวลกาย (BMI Analysis)
                             </h3>
-                            {health.bmiDistribution ? (
-                                <DonutChart data={(health.bmiDistribution || []).map((b: any) => ({
-                                    label: `${b.label} (${b.value})`,
-                                    value: b.value,
-                                    color: b.label === 'ปกติ' ? '#10b981' : b.label === 'ผอม' ? '#f59e0b' : '#f43f5e'
-                                }))} />
-                            ) : <p className="text-sm text-slate-500">ไม่มีข้อมูล</p>}
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                                <div className="lg:col-span-4 flex justify-center">
+                                    {health.bmiDistribution ? (
+                                        <div className="text-center">
+                                            <DonutChart data={(health.bmiDistribution || []).map((b: any) => ({
+                                                label: b.label,
+                                                value: b.value,
+                                                color: b.label === 'ปกติ' ? '#10b981' : b.label === 'ผอม' ? '#3b82f6' : b.label === 'เริ่มอ้วน' || b.label === 'ท้วม' || b.label === 'น้ำหนักเกิน' ? '#f59e0b' : '#ef4444'
+                                            }))} />
+                                            <div className="mt-4 text-xs font-bold text-slate-400 uppercase tracking-widest">สัดส่วนตามเกณฑ์สากล</div>
+                                        </div>
+                                    ) : <div className="p-10 text-slate-400 italic">ไม่มีข้อมูลการกระจาย</div>}
+                                </div>
+                                <div className="lg:col-span-8">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-base">
+                                            <thead>
+                                                <tr className="text-slate-400 text-sm border-b border-slate-100">
+                                                    <th className="pb-3 text-left font-extrabold uppercase tracking-tight">ระดับชั้น</th>
+                                                    <th className="pb-3 text-center font-extrabold text-blue-500">ผอม</th>
+                                                    <th className="pb-3 text-center font-extrabold text-emerald-500">ปกติ</th>
+                                                    <th className="pb-3 text-center font-extrabold text-amber-500">ท้วม/เกิน</th>
+                                                    <th className="pb-3 text-center font-extrabold text-rose-500">อ้วน</th>
+                                                    <th className="pb-3 text-right font-extrabold">ภาพรวมชั้น</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-50">
+                                                {(health.bmiByLevel || []).map((lvl: any, i: number) => {
+                                                    const total = lvl.underweight + lvl.normal + lvl.overweight + lvl.obese || 1;
+                                                    return (
+                                                        <tr key={i} className="group hover:bg-slate-50/50 transition-colors">
+                                                            <td className="py-3.5 font-bold text-slate-700 text-base">{lvl.level}</td>
+                                                            <td className="py-3.5 text-center font-bold text-blue-600 text-lg">{lvl.underweight}</td>
+                                                            <td className="py-3.5 text-center font-bold text-emerald-600 text-lg">{lvl.normal}</td>
+                                                            <td className="py-3.5 text-center font-bold text-amber-600 text-lg">{lvl.overweight}</td>
+                                                            <td className="py-3.5 text-center font-bold text-rose-600 text-lg">{lvl.obese}</td>
+                                                            <td className="py-3.5">
+                                                                <div className="flex h-2.5 rounded-full overflow-hidden w-28 bg-slate-100 ml-auto group-hover:w-36 transition-all">
+                                                                    <div className="bg-blue-400" style={{ width: `${(lvl.underweight / total) * 100}%` }} />
+                                                                    <div className="bg-emerald-400" style={{ width: `${(lvl.normal / total) * 100}%` }} />
+                                                                    <div className="bg-amber-400" style={{ width: `${(lvl.overweight / total) * 100}%` }} />
+                                                                    <div className="bg-rose-400" style={{ width: `${(lvl.obese / total) * 100}%` }} />
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                <LifebuoyIcon className="w-4 h-4 text-slate-400" />
-                                หมู่เลือด
+                    </div>
+
+                    {/* Section 2: Blood Type & Vaccination Insights */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 relative overflow-hidden">
+                            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-3 text-xl">
+                                <div className="p-2 bg-rose-50 rounded-lg">
+                                    <HeartIcon className="w-6 h-6 text-rose-600" />
+                                </div>
+                                การกระจายกลุ่มเลือด (Blood Type)
                             </h3>
                             {(health.bloodTypeDistribution || []).length > 0 ? (
                                 <BarChart data={(health.bloodTypeDistribution || []).map((b: any) => ({
-                                    label: b.label || '-', value: b.value,
-                                    color: b.label === 'A' ? '#ef4444' : b.label === 'B' ? '#3b82f6' : b.label === 'AB' ? '#8b5cf6' : b.label === 'O' ? '#f59e0b' : '#94a3b8'
-                                }))} height={150} />
-                            ) : <p className="text-sm text-slate-500">ไม่มีข้อมูล</p>}
+                                    label: b.label,
+                                    value: b.value,
+                                    color: '#f43f5e'
+                                }))} height={220} />
+                            ) : (
+                                <div className="py-16 flex items-center justify-center text-slate-400 italic text-base">ไม่มีข้อมูลกลุ่มเลือด</div>
+                            )}
+                        </div>
+
+                        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 relative overflow-hidden">
+                            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-3 text-xl">
+                                <div className="p-2 bg-blue-50 rounded-lg">
+                                    <ShieldCheckIcon className="w-6 h-6 text-blue-600" />
+                                </div>
+                                ข้อมูลการฉีดวัคซีน (Vaccination)
+                            </h3>
+                            <div className="space-y-3">
+                                {(health.vaccineDistribution || []).length > 0 ? (
+                                    (health.vaccineDistribution || []).map((v: any, i: number) => (
+                                        <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 hover:bg-blue-50/50 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm shrink-0">{i+1}</div>
+                                                <span className="font-bold text-slate-700 text-sm sm:text-base">{v.label}</span>
+                                            </div>
+                                            <span className="text-emerald-600 font-extrabold text-base">{v.value} คน</span>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="py-12 text-center text-slate-400 italic text-base">ไม่มีข้อมูลการฉีดวัคซีน</div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
-                    {/* BMI by Level */}
-                    {(health.bmiByLevel || []).length > 0 && (
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                <ChartBarIcon className="w-4 h-4 text-slate-400" />
-                                BMI แยกตามระดับชั้น
+                    {/* Section 3: Medical Attention (Allergies & Diseases) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                        <div className="bg-white rounded-3xl p-6 shadow-sm border border-orange-100 flex flex-col h-full">
+                            <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-3 text-lg underline decoration-orange-200 underline-offset-8">
+                                <div className="p-2 bg-orange-50 rounded-lg">
+                                    <LifebuoyIcon className="w-5 h-5 text-orange-600" />
+                                </div>
+                                การเฝ้าระวังอาการแพ้ (Allergies Alert)
                             </h3>
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead><tr className="bg-slate-50 border-b border-slate-200">
-                                        <th className="px-3 py-2 text-left text-sm font-semibold text-slate-600">ระดับชั้น</th>
-                                        <th className="px-3 py-2 text-center text-[10px] font-semibold text-blue-600">ผอม</th>
-                                        <th className="px-3 py-2 text-center text-[10px] font-semibold text-green-600">ปกติ</th>
-                                        <th className="px-3 py-2 text-center text-[10px] font-semibold text-amber-600">น้ำหนักเกิน</th>
-                                        <th className="px-3 py-2 text-center text-[10px] font-semibold text-red-600">อ้วน</th>
-                                        <th className="px-3 py-2 text-left text-sm font-semibold text-slate-600">สัดส่วน</th>
-                                    </tr></thead>
-                                    <tbody>{(health.bmiByLevel || []).map((lvl: any, i: number) => {
-                                        const total = lvl.underweight + lvl.normal + lvl.overweight + lvl.obese || 1;
-                                        return (
-                                            <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-                                                <td className="px-3 py-2 text-xs font-medium text-slate-800">{lvl.level}</td>
-                                                <td className="px-3 py-2 text-center"><span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700">{lvl.underweight}</span></td>
-                                                <td className="px-3 py-2 text-center"><span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-700">{lvl.normal}</span></td>
-                                                <td className="px-3 py-2 text-center"><span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700">{lvl.overweight}</span></td>
-                                                <td className="px-3 py-2 text-center"><span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-700">{lvl.obese}</span></td>
-                                                <td className="px-3 py-2"><div className="flex h-3 rounded-full overflow-hidden w-32 bg-slate-100">
-                                                    <div className="bg-blue-400" style={{ width: `${(lvl.underweight / total) * 100}%` }} />
-                                                    <div className="bg-green-400" style={{ width: `${(lvl.normal / total) * 100}%` }} />
-                                                    <div className="bg-amber-400" style={{ width: `${(lvl.overweight / total) * 100}%` }} />
-                                                    <div className="bg-red-400" style={{ width: `${(lvl.obese / total) * 100}%` }} />
-                                                </div></td>
-                                            </tr>
-                                        );
-                                    })}</tbody>
-                                </table>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Health Issues List */}
-                    {(health.healthIssues || []).length > 0 && (
-                        <div className="bg-white rounded-2xl shadow-sm border border-amber-200 overflow-hidden">
-                            <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200">
-                                <h3 className="font-bold text-amber-800 flex items-center gap-2">
-                                    <ExclamationTriangleIcon className="w-5 h-5 text-amber-600" />
-                                    นักเรียนที่มีปัญหาสุขภาพ
-                                </h3>
-                                <p className="text-xs text-amber-600 mt-0.5">นักเรียนที่มีอาการแพ้ / โรคประจำตัว ที่ต้องเฝ้าระวัง</p>
-                            </div>
-                            <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
-                                <table className="w-full">
-                                    <thead className="sticky top-0"><tr className="bg-slate-50 border-b border-slate-200">
-                                        <th className="px-3 py-2 text-left text-sm font-semibold text-slate-600">#</th>
-                                        <th className="px-3 py-2 text-left text-sm font-semibold text-slate-600">รหัส</th>
-                                        <th className="px-3 py-2 text-left text-sm font-semibold text-slate-600">ชื่อ-สกุล</th>
-                                        <th className="px-3 py-2 text-center text-sm font-semibold text-slate-600">ชั้น/ห้อง</th>
-                                        <th className="px-3 py-2 text-left text-sm font-semibold text-slate-600">รายละเอียด</th>
-                                    </tr></thead>
-                                    <tbody>{(health.healthIssues || []).map((h: any, i: number) => (
-                                        <tr key={i} className="border-b border-slate-50 hover:bg-amber-50/30">
-                                            <td className="px-3 py-2 text-sm text-slate-500">{i + 1}</td>
-                                            <td className="px-3 py-2 text-sm text-slate-600 font-mono">{h.studentCode}</td>
-                                            <td className="px-3 py-2 text-sm text-slate-800 font-medium">{h.prefix}{h.firstName} {h.lastName}</td>
-                                            <td className="px-3 py-2 text-center text-sm text-slate-600">{h.classLevel}/{h.room}</td>
-                                            <td className="px-3 py-2">
-                                                <div className="flex flex-wrap gap-1">
-                                                    {(h.issues || []).map((issue: string, j: number) => (
-                                                        <span key={j} className={`px-2 py-0.5 rounded-lg text-[10px] font-medium border ${issue.startsWith('แพ้') ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-red-50 border-red-200 text-red-700'}`}>{issue}</span>
+                            <div className="flex-1 overflow-y-auto max-h-[350px] pr-2 custom-scrollbar">
+                                {(health.healthIssues || []).filter((h: any) => (h.issues || []).some((issue: string) => issue.startsWith('แพ้'))).length === 0 ? (
+                                    <div className="py-12 text-center text-slate-400 text-sm italic">ไม่พบประวัตินักเรียนที่มีอาการแพ้</div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {(health.healthIssues || []).filter((h: any) => (h.issues || []).some((issue: string) => issue.startsWith('แพ้'))).map((h: any, i: number) => (
+                                            <div key={i} className="p-4 rounded-[2rem] bg-orange-50/50 border border-orange-100 group hover:bg-white transition-all">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <div className="text-base font-bold text-slate-800">{h.prefix}{h.firstName} {h.lastName}</div>
+                                                        <div className="text-xs text-slate-500 font-medium">{h.classLevel}/{h.room} • รหัส: {h.studentCode}</div>
+                                                    </div>
+                                                    <span className="text-xs font-bold bg-white px-2 py-0.5 rounded-full border border-orange-100 text-orange-600 shadow-sm">Critical</span>
+                                                </div>
+                                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                                    {(h.issues || []).filter((issue: string) => issue.startsWith('แพ้')).map((issue: string, j: number) => (
+                                                        <span key={j} className="px-3 py-1 rounded-xl text-xs font-bold bg-white text-orange-700 border border-orange-200 shadow-sm">{issue}</span>
                                                     ))}
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    ))}</tbody>
-                                </table>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
-                    )}
 
-                    {/* Fitness Tests & Vaccinations */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                        {/* Fitness Test Results */}
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                <PresentationChartBarIcon className="w-5 h-5 text-indigo-500" />
-                                ผลสมรรถภาพทางกาย
+                        <div className="bg-white rounded-3xl p-6 shadow-sm border border-rose-100 flex flex-col h-full">
+                            <h3 className="font-bold text-slate-800 mb-5 flex items-center gap-3 text-lg underline decoration-rose-200 underline-offset-8">
+                                <div className="p-2 bg-rose-50 rounded-lg">
+                                    <ClipboardDocumentCheckIcon className="w-5 h-5 text-rose-600" />
+                                </div>
+                                การเฝ้าระวังโรคประจำตัว (Diseases)
                             </h3>
-                            {(health.fitnessSummary || []).length > 0 ? (
-                                <div className="space-y-2">
-                                    {(health.fitnessSummary || []).map((ft: any, i: number) => {
-                                        return (
-                                            <div key={i} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                                                <div className="flex justify-between items-center mb-1.5">
-                                                    <span className="text-xs font-medium text-slate-800 truncate" title={ft.name}>{(ft.name || '').substring(0, 25)}</span>
-                                                    <div className="flex gap-1 shrink-0">
-                                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-100 text-green-700">ผ่าน {ft.passed}</span>
-                                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700">ไม่ผ่าน {ft.total - ft.passed}</span>
+                            <div className="flex-1 overflow-y-auto max-h-[350px] pr-2 custom-scrollbar">
+                                {(health.healthIssues || []).filter((h: any) => (h.issues || []).some((issue: string) => !issue.startsWith('แพ้'))).length === 0 ? (
+                                    <div className="py-12 text-center text-slate-400 text-sm italic">ไม่พบประวัตินักเรียนที่มีโรคประจำตัว</div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {(health.healthIssues || []).filter((h: any) => (h.issues || []).some((issue: string) => !issue.startsWith('แพ้'))).map((h: any, i: number) => (
+                                            <div key={i} className="p-4 rounded-[2rem] bg-rose-50/50 border border-rose-100 group hover:bg-white transition-all">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <div className="text-base font-bold text-slate-800">{h.prefix}{h.firstName} {h.lastName}</div>
+                                                        <div className="text-xs text-slate-500 font-medium">{h.classLevel}/{h.room} • รหัส: {h.studentCode}</div>
                                                     </div>
+                                                    <span className="text-xs font-bold bg-white px-2 py-0.5 rounded-full border border-rose-100 text-rose-600 shadow-sm">Medical History</span>
                                                 </div>
-                                                <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                                                    <div className={`h-full rounded-full transition-all ${ft.passRate >= 80 ? 'bg-green-500' : ft.passRate >= 60 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${ft.passRate}%` }} />
+                                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                                    {(h.issues || []).filter((issue: string) => !issue.startsWith('แพ้')).map((issue: string, j: number) => (
+                                                        <span key={j} className="px-3 py-1 rounded-xl text-xs font-bold bg-white text-rose-700 border border-rose-200 shadow-sm">{issue}</span>
+                                                    ))}
                                                 </div>
-                                                <div className="text-[9px] text-slate-500 mt-0.5 text-right">{ft.passRate}% ผ่าน ({ft.total} คน)</div>
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : <p className="text-sm text-slate-500">ไม่มีข้อมูลผลสมรรถภาพ</p>}
-                        </div>
-
-                        {/* Vaccination Coverage */}
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                <LifebuoyIcon className="w-5 h-5 text-indigo-500" />
-                                ข้อมูลวัคซีน
-                            </h3>
-                            {(health.vaccineDistribution || []).length > 0 ? (
-                                <div className="space-y-2">
-                                    {(health.vaccineDistribution || []).map((v: any, i: number) => {
-                                        const rate = health.totalStudents > 0 ? Math.round((v.value / health.totalStudents) * 100) : 0;
-                                        return (
-                                            <div key={i} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                                                <div className="flex justify-between items-center mb-1.5">
-                                                    <span className="text-xs font-medium text-slate-800">{v.label}</span>
-                                                    <span className="text-[10px] text-slate-500">{v.value}/{health.totalStudents} คน</span>
-                                                </div>
-                                                <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                                                    <div className={`h-full rounded-full transition-all ${rate >= 90 ? 'bg-emerald-500' : rate >= 70 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${rate}%` }} />
-                                                </div>
-                                                <div className="text-[9px] text-slate-500 mt-0.5 text-right">ครอบคลุม {rate}%</div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : <p className="text-sm text-slate-500">ไม่มีข้อมูลวัคซีน</p>}
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
+
+
+
+                    {/* Section 3: Physical Fitness Analytics */}
+                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -z-0 opacity-50" />
+                        <div className="relative z-10">
+                            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-3 text-xl">
+                                <div className="p-2 bg-blue-50 rounded-lg">
+                                    <TrophyIcon className="w-6 h-6 text-blue-600" />
+                                </div>
+                                การวิเคราะห์สมรรถภาพทางกาย (Physical Fitness Analysis)
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {(health.fitnessSummary || []).length === 0 ? (
+                                    <div className="col-span-3 py-12 text-center text-slate-400 text-sm italic bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                                        ไม่พบข้อมูลผลการทดสอบสมรรถภาพ
+                                    </div>
+                                ) : (
+                                    (health.fitnessSummary || []).map((test: any, i: number) => (
+                                        <div key={i} className="p-5 rounded-3xl bg-slate-50 border border-slate-100 group hover:bg-white hover:shadow-md transition-all">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div className="text-base font-bold text-slate-700">{test.name}</div>
+                                                <span className={`text-xs font-black px-2.5 py-1 rounded-lg ${test.passRate >= 80 ? 'bg-emerald-100 text-emerald-600' : test.passRate >= 50 ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'}`}>
+                                                    {test.passRate}% ผ่าน
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-4 mb-4">
+                                                <div className="bg-white/50 rounded-2xl p-3 border border-slate-100/50">
+                                                    <div className="text-xs text-slate-400 font-bold uppercase tracking-tight mb-1">ผลวัดเฉลี่ย</div>
+                                                    <div className="text-base font-black text-slate-700">{test.avgResult} <span className="text-xs font-medium text-slate-400">{test.unit}</span></div>
+                                                </div>
+                                            </div>
+                                            <div className="relative pt-2">
+                                                <div className="flex mb-2 items-center justify-between">
+                                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-tighter">ความก้าวหน้าการทดสอบ</div>
+                                                    <div className="text-xs font-extrabold text-slate-600">{test.passed}/{test.total} คน</div>
+                                                </div>
+                                                <div className="overflow-hidden h-3 text-xs flex rounded-full bg-slate-200 p-0.5">
+                                                    <div style={{ width: `${test.passRate}%` }} className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center rounded-full transition-all duration-1000 ${test.passRate >= 80 ? 'bg-emerald-500' : test.passRate >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`}></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             )}
+
 
             {/* ════════════ TAB: PROJECTS & BUDGET ════════════ */}
             {tab === 'projects_budget' && (
@@ -1388,9 +1639,36 @@ export function DashboardFeature({ session }: { session: any }) {
             {/* ════════════ TAB: EVALUATION ════════════ */}
             {tab === 'evaluation' && (
                 <div className="space-y-5">
+                    {/* Local Filter Bar */}
+                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 text-slate-700 font-bold">
+                            <AdjustmentsHorizontalIcon className="w-5 h-5 text-slate-500" />
+                            <span>ตัวกรองการแสดงผล</span>
+                        </div>
+                        <div className="flex gap-3 flex-wrap flex-1">
+                            <div className="flex-1 min-w-[140px]">
+                                <select className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white font-medium text-slate-700" value={filters.class_level} onChange={e => updateFilter('class_level', e.target.value)}>
+                                    <option value="">ระดับชั้น (ทั้งหมด)</option>
+                                    {(filterOptions?.classLevels || []).map((l: string) => <option key={l} value={l}>{l}</option>)}
+                                </select>
+                            </div>
+                            <div className="flex-1 min-w-[120px]">
+                                <select className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white font-medium text-slate-700" value={filters.room} onChange={e => updateFilter('room', e.target.value)}>
+                                    <option value="">ห้อง (ทั้งหมด)</option>
+                                    {(() => {
+                                        const rooms: string[] = filteredRooms.map((r: any) => (r.room.includes('/') ? r.room.split('/').pop() : r.room) || "");
+                                        const uniqueNums = Array.from(new Set(rooms)).sort();
+                                        return uniqueNums.map((num: string) => <option key={num} value={num}>{num}</option>);
+                                    })()}
+                                </select>
+                            </div>
+                            {hasFilters && <button onClick={clearFilters} className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded-md bg-red-50 ml-auto self-center font-medium">✕ ล้าง</button>}
+                        </div>
+                    </div>
+
                     {/* Overall eval */}
                     <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-wrap justify-around gap-6">
-                        <Gauge value={hr.evalAvg ? Math.round((hr.evalAvg / 5) * 100) : 0} label={`ประเมินการสอนเฉลี่ย ${hr.evalAvg || 0}/5`} color="#8b5cf6" />
+                        <Gauge value={hr.evalAvg ? Math.round((hr.evalAvg / 5) * 100) : 0} label={`ประเมินการสอนเฉลี่ย ${hr.evalAvg ? Number(hr.evalAvg).toFixed(2) : 0}/5`} color="#8b5cf6" />
                     </div>
 
                     {/* Workload vs Eval Correlation */}
@@ -1440,10 +1718,29 @@ export function DashboardFeature({ session }: { session: any }) {
                                 <ChartBarIcon className="w-5 h-5 text-emerald-500" />
                                 ผลประเมินรายหัวข้อ (วิชา)
                             </h3>
-                            {(evalData.subjectEvalByTopic || []).length > 0 ? <div className="space-y-2">{(evalData.subjectEvalByTopic || []).map((t: any, i: number) => (
-                                <div key={i} className="p-2 rounded-lg bg-slate-50 border border-slate-100 flex items-center gap-2"><span className="text-xs text-slate-700 flex-1 truncate">{t.topic}</span><span className="text-[10px] font-bold text-violet-700">{Math.round((t.avg_score || 0) * 100) / 100}</span>
-                                    <div className="w-16 h-2 bg-slate-200 rounded-full"><div className="h-full bg-violet-500 rounded-full" style={{ width: `${Math.min((t.avg_score || 0) * 20, 100)}%` }} /></div></div>
-                            ))}</div> : <p className="text-sm text-slate-500">ไม่มีข้อมูล</p>}
+                            {Object.keys(subjEvals).length > 0 ? (
+                                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {Object.entries(subjEvals).map(([formName, topics]: [string, any], fi: number) => (
+                                        <div key={fi} className="space-y-2">
+                                            <div className="text-xs font-bold text-slate-500 bg-slate-100/70 px-2 py-1.5 rounded-md inline-block border border-slate-200/60 shadow-sm flex items-center gap-1.5 break-words max-w-full">
+                                                <ClipboardDocumentCheckIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                                {formName}
+                                            </div>
+                                            {(topics as any[]).map((t: any, i: number) => (
+                                                <div key={i} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+                                                    <span className="text-sm text-slate-700 font-medium flex-1 truncate" title={t.topic}>{t.topic}</span>
+                                                    <div className="flex flex-col items-end w-24 shrink-0">
+                                                        <span className="text-[11px] font-bold text-violet-700 mb-1">{Math.round((t.avg_score || 0) * 100) / 100}/5</span>
+                                                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-violet-500 rounded-full transition-all duration-500" style={{ width: `${Math.min((t.avg_score || 0) * 20, 100)}%` }} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : <p className="text-sm text-slate-500 text-center py-6 border border-dashed border-slate-200 rounded-xl">ไม่มีข้อมูล</p>}
                         </div>
                         {/* Advisor eval by topic */}
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
@@ -1451,10 +1748,29 @@ export function DashboardFeature({ session }: { session: any }) {
                                 <DocumentTextIcon className="w-5 h-5 text-emerald-500" />
                                 ผลประเมินรายหัวข้อ (ที่ปรึกษา)
                             </h3>
-                            {(evalData.advisorEvalByTopic || []).length > 0 ? <div className="space-y-2">{(evalData.advisorEvalByTopic || []).map((t: any, i: number) => (
-                                <div key={i} className="p-2 rounded-lg bg-slate-50 border border-slate-100 flex items-center gap-2"><span className="text-xs text-slate-700 flex-1 truncate">{t.topic}</span><span className="text-[10px] font-bold text-emerald-700">{Math.round((t.avg_score || 0) * 100) / 100}</span>
-                                    <div className="w-16 h-2 bg-slate-200 rounded-full"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min((t.avg_score || 0) * 20, 100)}%` }} /></div></div>
-                            ))}</div> : <p className="text-sm text-slate-500">ไม่มีข้อมูล</p>}
+                            {Object.keys(advEvals).length > 0 ? (
+                                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {Object.entries(advEvals).map(([formName, topics]: [string, any], fi: number) => (
+                                        <div key={fi} className="space-y-2">
+                                            <div className="text-xs font-bold text-slate-500 bg-slate-100/70 px-2 py-1.5 rounded-md inline-block border border-slate-200/60 shadow-sm flex items-center gap-1.5 break-words max-w-full">
+                                                <ClipboardDocumentCheckIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                                {formName}
+                                            </div>
+                                            {(topics as any[]).map((t: any, i: number) => (
+                                                <div key={i} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+                                                    <span className="text-sm text-slate-700 font-medium flex-1 truncate" title={t.topic}>{t.topic}</span>
+                                                    <div className="flex flex-col items-end w-24 shrink-0">
+                                                        <span className="text-[11px] font-bold text-emerald-700 mb-1">{Math.round((t.avg_score || 0) * 100) / 100}/5</span>
+                                                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${Math.min((t.avg_score || 0) * 20, 100)}%` }} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : <p className="text-sm text-slate-500 text-center py-6 border border-dashed border-slate-200 rounded-xl">ไม่มีข้อมูล</p>}
                         </div>
                     </div>
                     {/* Top/Bottom teachers */}

@@ -302,6 +302,19 @@ export function ScoresFeature({ session }: { session: any }) {
     const [classroomFilter, setClassroomFilter] = useState<string>("all");
     const [subjectFilter, setSubjectFilter] = useState<string>("all");
     const [examModalSection, setExamModalSection] = useState<any | null>(null);
+    const [academicData, setAcademicData] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchAcademic = async () => {
+            try {
+                const data = await TeacherApiService.getAcademicYears();
+                setAcademicData(Array.isArray(data) ? data : []);
+            } catch {
+                // ignore
+            }
+        };
+        fetchAcademic();
+    }, []);
 
     useEffect(() => {
         let active = true;
@@ -324,8 +337,11 @@ export function ScoresFeature({ session }: { session: any }) {
         return () => { active = false; };
     }, [session.id]);
 
-    const years = Array.from(new Set(subjects.map((s) => String(s.year ?? "")).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
-    const semesters = Array.from(new Set(subjects.map((s) => String(s.semester ?? "")).filter(Boolean))).sort((a, b) => Number(a) - Number(b));
+    const dbYears = academicData.map(y => String(y.year_name)).sort((a, b) => Number(b) - Number(a));
+    const dbSemesters = Array.from(new Set(academicData.flatMap(y => y.semesters?.map((s: any) => String(s.semester_number)) || []))).sort();
+
+    const years = dbYears.length > 0 ? dbYears : Array.from(new Set(subjects.map((s) => String(s.year ?? "")).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
+    const semesters = dbSemesters.length > 0 ? dbSemesters : Array.from(new Set(subjects.map((s) => String(s.semester ?? "")).filter(Boolean))).sort((a, b) => Number(a) - Number(b));
     const levels = Array.from(new Set(subjects.map((s) => String(s.class_level ?? "")).filter(Boolean))).sort((a, b) => a.localeCompare(b));
     const classrooms = Array.from(new Set(subjects.map((s) => String(s.classroom ?? "")).filter(Boolean))).sort((a, b) => a.localeCompare(b));
     const subjectOptions = Array.from(new Set(subjects.map((s) => `${s?.subjects?.subject_code}|${s?.subjects?.name}`))).sort().map(val => {

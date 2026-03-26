@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { successResponse, errorResponse } from '@/lib/api-response';
 
 export async function GET() {
+    console.log('[GET /api/student/lookups/academic-years] Request hit');
     try {
         const years = await prisma.academic_years.findMany({
             orderBy: { year_name: 'desc' },

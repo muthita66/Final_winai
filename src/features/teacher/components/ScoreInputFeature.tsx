@@ -1079,10 +1079,20 @@ export function ScoreInputFeature({ session }: { session: any }) {
                                                                         type="number"
                                                                         value={raw}
                                                                         onFocus={() => setSelectedHeaderId(h.id)}
-                                                                        onChange={(e) => setScoreMap((prev) => ({
-                                                                            ...prev,
-                                                                            [s.id]: { ...(prev[s.id] || {}), [h.id]: e.target.value }
-                                                                        }))}
+                                                                        min={0}
+                                                                        max={hMax > 0 ? hMax : undefined}
+                                                                        onChange={(e) => {
+                                                                            let val = e.target.value;
+                                                                            if (val !== "") {
+                                                                                const n = Number(val);
+                                                                                if (n < 0) val = "0";
+                                                                                else if (hMax > 0 && n > hMax) val = String(hMax);
+                                                                            }
+                                                                            setScoreMap((prev) => ({
+                                                                                ...prev,
+                                                                                [s.id]: { ...(prev[s.id] || {}), [h.id]: val }
+                                                                            }));
+                                                                        }}
                                                                         onKeyDown={(e) => handleScoreInputEnter(e, i, h.id)}
                                                                         className={`w-16 rounded-lg border px-2 py-1.5 text-center text-sm outline-none transition-all focus:ring-2 ${invalid ? "border-rose-300 bg-rose-50 text-rose-700 focus:ring-rose-400 cursor-help"
                                                                             : changed ? "border-teal-300 bg-teal-50 text-teal-800 focus:ring-teal-400"

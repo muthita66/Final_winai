@@ -15,6 +15,7 @@ export async function GET(req: Request) {
         if (searchParams.get('class_level')) filters.class_level = searchParams.get('class_level');
         if (searchParams.get('room')) filters.room = searchParams.get('room');
         if (searchParams.get('subject_id')) filters.subject_id = Number(searchParams.get('subject_id'));
+        if (searchParams.get('learning_group_id')) filters.learning_group_id = Number(searchParams.get('learning_group_id'));
 
         const data = await DirectorDashboardService.getFullDashboard(filters);
         return successResponse(data);
